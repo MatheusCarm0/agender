@@ -1,0 +1,22 @@
+{
+  "name": "@agenda/worker",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node --transpile-only src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "lint": "echo 'no lint configured'",
+    "test": "echo 'no tests yet'"
+  },
+  "dependencies": {
+    "@agenda/database": "workspace:*",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.7.0"
+  }
+}

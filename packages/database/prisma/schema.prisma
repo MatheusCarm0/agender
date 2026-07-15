@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  owner
+  admin
+  professional
+  receptionist
+}
+
+model Business {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  timezone  String   @default("America/Sao_Paulo")
+  plan      String   @default("free")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users         User[]
+  professionals Professional[]
+
+  @@map("businesses")
+}
+
+model User {
+  id             String        @id @default(cuid())
+  businessId     String        @map("business_id")
+  business       Business      @relation(fields: [businessId], references: [id])
+  name           String
+  email          String
+  passwordHash   String        @map("password_hash")
+  role           Role          @default(owner)
+  professionalId String?       @unique @map("professional_id")
+  professional   Professional? @relation(fields: [professionalId], references: [id])
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@unique([businessId, email])
+  @@index([businessId])
+  @@map("users")
+}
+
+model Professional {
+  id         String   @id @default(cuid())
+  businessId String   @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id])
+  user       User?
+  name       String
+  bio        String?  @db.Text
+  avatarUrl  String?  @map("avatar_url")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@map("professionals")
+}
