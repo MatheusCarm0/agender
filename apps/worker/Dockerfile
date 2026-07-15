@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
 COPY packages/database/package.json packages/database/
+COPY packages/shared/package.json packages/shared/
 COPY apps/worker/package.json apps/worker/
 
 RUN pnpm install --frozen-lockfile
@@ -12,5 +13,6 @@ COPY packages/ packages/
 COPY apps/worker/ apps/worker/
 
 RUN pnpm --filter @agenda/database db:generate
+RUN pnpm --filter @agenda/database build
 
 CMD ["pnpm", "--filter", "@agenda/worker", "dev"]

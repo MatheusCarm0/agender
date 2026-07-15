@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../prisma/tenant-context';
 import { CreateProfessionalDto } from './dto/create-professional.dto';
@@ -11,13 +15,21 @@ export class ProfessionalService {
     private readonly tenantContext: TenantContext,
   ) {}
 
-  async findAll(businessId: string) {
+  private getBusinessId(): string {
+    const id = this.tenantContext.getBusinessId();
+    if (!id) throw new ForbiddenException('No tenant context');
+    return id;
+  }
+
+  async findAll() {
+    const businessId = this.getBusinessId();
     return this.prisma.raw.professional.findMany({
       where: { businessId },
     });
   }
 
-  async findById(businessId: string, id: string) {
+  async findById(id: string) {
+    const businessId = this.getBusinessId();
     const professional = await this.prisma.raw.professional.findFirst({
       where: { id, businessId },
     });
@@ -25,7 +37,8 @@ export class ProfessionalService {
     return professional;
   }
 
-  async create(businessId: string, dto: CreateProfessionalDto) {
+  async create(dto: CreateProfessionalDto) {
+    const businessId = this.getBusinessId();
     return this.prisma.raw.professional.create({
       data: {
         businessId,
@@ -36,16 +49,18 @@ export class ProfessionalService {
     });
   }
 
-  async update(businessId: string, id: string, dto: UpdateProfessionalDto) {
-    await this.findById(businessId, id);
+  async update(id: string, dto: UpdateProfessionalDto) {
+    const professional = await this.findById(id);
     return this.prisma.raw.professional.update({
-      where: { id },
+      where: { id: professional.id },
       data: dto,
     });
   }
 
-  async remove(businessId: string, id: string) {
-    await this.findById(businessId, id);
-    return this.prisma.raw.professional.delete({ where: { id } });
+  async remove(id: string) {
+    const professional = await this.findById(id);
+    return this.prisma.raw.professional.delete({
+      where: { id: professional.id },
+    });
   }
 }

@@ -207,13 +207,13 @@ serviço para os testes que tocam banco. Migrations aplicadas via `prisma migrat
 
 ## Critérios de aceite
 
-- [ ] `docker-compose up` sobe api, web, mysql, redis sem erro.
-- [ ] `POST /auth/register-business` cria negócio + owner e retorna tokens válidos.
-- [ ] Login, refresh e `/auth/me` funcionam.
-- [ ] CRUD de profissional só enxerga/afeta o próprio `business` (testado com dois tenants).
-- [ ] Tentativa de acessar recurso de outro tenant retorna 403/404, nunca vaza dado.
-- [ ] Extensão do Prisma injeta `businessId` automaticamente (teste unitário provando).
-- [ ] `GET /health/ready` reflete o estado real de mysql/redis.
+- [x] `docker-compose up` sobe api, web, mysql, redis sem erro.
+- [x] `POST /auth/register-business` cria negócio + owner e retorna tokens válidos.
+- [x] Login, refresh e `/auth/me` funcionam.
+- [x] CRUD de profissional só enxerga/afeta o próprio `business` (testado com dois tenants).
+- [x] Tentativa de acessar recurso de outro tenant retorna 403/404, nunca vaza dado.
+- [x] Extensão do Prisma injeta `businessId` automaticamente (teste unitário provando).
+- [x] `GET /health/ready` reflete o estado real de mysql/redis.
 - [ ] CI verde (lint + build + test).
 
 ---

@@ -13,6 +13,8 @@ COPY packages/ packages/
 COPY apps/api/ apps/api/
 
 RUN pnpm --filter @agenda/database db:generate
+RUN pnpm --filter @agenda/database build
+RUN pnpm --filter @agenda/shared build
 
 EXPOSE 3001
 CMD ["pnpm", "--filter", "@agenda/api", "dev"]
