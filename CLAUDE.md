@@ -24,8 +24,8 @@ fizer pode contradizer esse arquivo.
 ### Estado atual
 
 ```
-Fase atual: Fundação — NÃO INICIADA
-Próximo documento: docs/01-fundacao.md
+Fase atual: MVP — EM ANDAMENTO (backend API completo; falta painel admin web)
+Próximo documento: docs/02-mvp.md
 ```
 
 > Ao concluir uma fase (todos os critérios de aceite marcados), atualize estas duas linhas para a

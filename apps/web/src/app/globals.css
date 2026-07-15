@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface-app: #FAFAF9;
+  --color-surface-card: #FFFFFF;
+  --color-surface-subtle: #F5F5F4;
+  --color-border-default: #E7E5E4;
+  --color-border-strong: #D6D3D1;
+  --color-text-strong: #1C1917;
+  --color-text-default: #44403C;
+  --color-text-muted: #78716C;
+  --color-text-subtle: #A8A29E;
+
+  --color-primary-default: #0D9488;
+  --color-primary-hover: #0F766E;
+  --color-primary-active: #115E59;
+  --color-primary-fg: #FFFFFF;
+  --color-primary-tint-bg: #F0FDFA;
+  --color-primary-tint-border: #99F6E4;
+  --color-primary-tint-text: #115E59;
+
+  --color-success-fg: #16A34A;
+  --color-success-bg: #F0FDF4;
+  --color-success-text: #15803D;
+  --color-warning-fg: #D97706;
+  --color-warning-bg: #FFFBEB;
+  --color-warning-text: #B45309;
+  --color-danger-fg: #DC2626;
+  --color-danger-bg: #FEF2F2;
+  --color-danger-text: #B91C1C;
+  --color-info-fg: #2563EB;
+  --color-info-bg: #EFF6FF;
+  --color-info-text: #1D4ED8;
+
+  --color-status-scheduled-dot: #2563EB;
+  --color-status-scheduled-bg: #EFF6FF;
+  --color-status-scheduled-text: #1D4ED8;
+  --color-status-confirmed-dot: #0D9488;
+  --color-status-confirmed-bg: #F0FDFA;
+  --color-status-confirmed-text: #0F766E;
+  --color-status-completed-dot: #16A34A;
+  --color-status-completed-bg: #F0FDF4;
+  --color-status-completed-text: #15803D;
+  --color-status-cancelled-dot: #A8A29E;
+  --color-status-cancelled-bg: #F5F5F4;
+  --color-status-cancelled-text: #78716C;
+  --color-status-noshow-dot: #DC2626;
+  --color-status-noshow-bg: #FEF2F2;
+  --color-status-noshow-text: #B91C1C;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  --shadow-elevation-1: 0 1px 2px rgba(0,0,0,.04), 0 1px 3px rgba(0,0,0,.06);
+  --shadow-elevation-2: 0 4px 12px rgba(0,0,0,.08);
+  --shadow-elevation-3: 0 12px 32px rgba(0,0,0,.12);
+}
+
+body {
+  font-family: var(--font-geist-sans), -apple-system, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--color-surface-app);
+  color: var(--color-text-default);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
