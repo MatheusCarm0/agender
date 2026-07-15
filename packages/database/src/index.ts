@@ -1,3 +1,18 @@
-export { PrismaClient, Prisma, Role } from '@prisma/client';
-export type { Business, User, Professional } from '@prisma/client';
+export {
+  PrismaClient,
+  Prisma,
+  Role,
+  AppointmentStatus,
+} from '@prisma/client';
+export type {
+  Business,
+  User,
+  Professional,
+  Service,
+  ProfessionalService,
+  WorkingHours,
+  ScheduleBlock,
+  Client,
+  Appointment,
+} from '@prisma/client';
 export { createTenantClient, setTenantContextProvider } from './tenant-extension';

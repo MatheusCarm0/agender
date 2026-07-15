@@ -14,6 +14,14 @@ enum Role {
   receptionist
 }
 
+enum AppointmentStatus {
+  scheduled
+  confirmed
+  completed
+  cancelled
+  no_show
+}
+
 model Business {
   id        String   @id @default(cuid())
   slug      String   @unique
@@ -23,8 +31,13 @@ model Business {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users         User[]
-  professionals Professional[]
+  users          User[]
+  professionals  Professional[]
+  services       Service[]
+  workingHours   WorkingHours[]
+  scheduleBlocks ScheduleBlock[]
+  clients        Client[]
+  appointments   Appointment[]
 
   @@map("businesses")
 }
@@ -57,6 +70,115 @@ model Professional {
   active     Boolean  @default(true)
   createdAt  DateTime @default(now()) @map("created_at")
 
+  services     ProfessionalService[]
+  workingHours WorkingHours[]
+  blocks       ScheduleBlock[]
+  appointments Appointment[]
+
   @@index([businessId])
   @@map("professionals")
+}
+
+model Service {
+  id           String   @id @default(cuid())
+  businessId   String   @map("business_id")
+  business     Business @relation(fields: [businessId], references: [id])
+  name         String
+  durationMin  Int      @map("duration_min")
+  price        Decimal  @db.Decimal(10, 2)
+  bufferBefore Int      @default(0) @map("buffer_before")
+  bufferAfter  Int      @default(0) @map("buffer_after")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  professionals ProfessionalService[]
+  appointments  Appointment[]
+
+  @@index([businessId])
+  @@map("services")
+}
+
+model ProfessionalService {
+  professionalId   String   @map("professional_id")
+  professional     Professional @relation(fields: [professionalId], references: [id])
+  serviceId        String   @map("service_id")
+  service          Service  @relation(fields: [serviceId], references: [id])
+  priceOverride    Decimal? @map("price_override") @db.Decimal(10, 2)
+  durationOverride Int?     @map("duration_override")
+
+  @@id([professionalId, serviceId])
+  @@index([serviceId])
+  @@map("professional_services")
+}
+
+model WorkingHours {
+  id             String       @id @default(cuid())
+  businessId     String       @map("business_id")
+  business       Business     @relation(fields: [businessId], references: [id])
+  professionalId String       @map("professional_id")
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  weekday        Int
+  startTime      String       @map("start_time")
+  endTime        String       @map("end_time")
+
+  @@index([businessId])
+  @@index([professionalId, weekday])
+  @@map("working_hours")
+}
+
+model ScheduleBlock {
+  id             String        @id @default(cuid())
+  businessId     String        @map("business_id")
+  business       Business      @relation(fields: [businessId], references: [id])
+  professionalId String?       @map("professional_id")
+  professional   Professional? @relation(fields: [professionalId], references: [id])
+  startAt        DateTime      @map("start_at")
+  endAt          DateTime      @map("end_at")
+  reason         String?
+
+  @@index([businessId])
+  @@index([professionalId, startAt])
+  @@map("schedule_blocks")
+}
+
+model Client {
+  id         String   @id @default(cuid())
+  businessId String   @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id])
+  name       String
+  phone      String
+  email      String?
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  appointments Appointment[]
+
+  @@unique([businessId, phone])
+  @@index([businessId])
+  @@map("clients")
+}
+
+model Appointment {
+  id             String            @id @default(cuid())
+  businessId     String            @map("business_id")
+  business       Business          @relation(fields: [businessId], references: [id])
+  professionalId String            @map("professional_id")
+  professional   Professional      @relation(fields: [professionalId], references: [id])
+  serviceId      String            @map("service_id")
+  service        Service           @relation(fields: [serviceId], references: [id])
+  clientId       String            @map("client_id")
+  client         Client            @relation(fields: [clientId], references: [id])
+  startAt        DateTime          @map("start_at")
+  endAt          DateTime          @map("end_at")
+  status         AppointmentStatus @default(scheduled)
+  price          Decimal           @db.Decimal(10, 2)
+  paymentStatus  String            @default("unpaid") @map("payment_status")
+  notes          String?           @db.Text
+  idempotencyKey String?           @map("idempotency_key")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([professionalId, startAt])
+  @@unique([businessId, idempotencyKey])
+  @@map("appointments")
 }

@@ -1,6 +1,15 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 
-const TENANT_MODELS = ['User', 'Professional'] as const;
+const TENANT_MODELS = [
+  'User',
+  'Professional',
+  'Service',
+  'ProfessionalService',
+  'WorkingHours',
+  'ScheduleBlock',
+  'Client',
+  'Appointment',
+] as const;
 
 export function createTenantClient(baseClient: PrismaClient) {
   return baseClient.$extends({
