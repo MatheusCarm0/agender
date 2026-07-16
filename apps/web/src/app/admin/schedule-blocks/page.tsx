@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { ConfirmModal } from '@/components/confirm-modal';
 
 interface Professional {
   id: string;
@@ -61,8 +62,15 @@ export default function ScheduleBlocksPage() {
     loadData();
   }
 
-  async function handleDelete(id: string) {
-    await api(`/schedule-blocks/${id}`, { method: 'DELETE', token: token! });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    await api(`/schedule-blocks/${deleteTarget}`, { method: 'DELETE', token: token! });
+    setDeleteTarget(null);
+    setDeleting(false);
     loadData();
   }
 
@@ -188,7 +196,7 @@ export default function ScheduleBlocksPage() {
                   <td className="px-4 py-3 text-text-muted">{b.reason || '—'}</td>
                   <td className="px-4 py-3 text-right">
                     <button
-                      onClick={() => handleDelete(b.id)}
+                      onClick={() => setDeleteTarget(b.id)}
                       className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
                     >
                       Remover
@@ -200,6 +208,16 @@ export default function ScheduleBlocksPage() {
           </table>
         </div>
       )}
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Remover bloqueio"
+        description="Tem certeza que deseja remover este bloqueio? Os horários ficarão disponíveis para agendamento."
+        confirmLabel="Remover"
+        variant="danger"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

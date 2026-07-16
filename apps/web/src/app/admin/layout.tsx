@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { ToastProvider } from '@/components/toast';
 
 const NAV_ITEMS = [
   { href: '/admin', label: 'Agenda', icon: '📅', roles: ['owner', 'admin', 'professional'] },
@@ -51,7 +52,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     .toUpperCase();
 
   return (
-    <div className="min-h-screen flex bg-surface-app">
+    <ToastProvider>
+      <div className="min-h-screen flex bg-surface-app">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/30 z-30 md:hidden"
@@ -168,6 +170,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {children}
         </main>
       </div>
-    </div>
+      </div>
+    </ToastProvider>
   );
 }

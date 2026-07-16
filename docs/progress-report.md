@@ -70,9 +70,22 @@
 - `packages/database/prisma/schema.prisma` — added logoUrl, coverUrl to Business model
 - `packages/database/prisma/migrations/20260716120000_add_logo_cover/migration.sql`
 
+### Improvements — Done
+- **M5**: Confirmation modals for destructive actions — reusable `ConfirmModal` component added to:
+  - Agenda (cancel appointment)
+  - Schedule blocks (remove block)
+  - Recurring blocks (remove block)
+  - Working hours (remove entry)
+- **M6**: Toast notification system — `ToastProvider` + `useToast` hook replacing inline "Salvo" messages:
+  - Settings page (profile save, business save)
+  - Customization page (save customization)
+  - Animated slide-in toasts with success/error/info types, auto-dismiss after 3s
+
+### Bug Fix — Upload
+- Fixed `FileTypeValidator` failing with `diskStorage` (buffer not available). Switched to multer `fileFilter` for extension-based validation.
+- Fixed customization save not syncing `coverUrl` to the Business table (needed for public page).
+
 ## Remaining (Improvements — Lower Priority)
 - **M2**: Drag-and-drop reorder for links extras
 - **M3**: Commission type/value configuration in professionals UI
 - **M4**: Manual payment registration UI
-- **M5**: Confirmation modals for destructive actions (delete professional, remove block, etc.)
-- **M6**: Toast notification system (replace inline "Salvo" messages)

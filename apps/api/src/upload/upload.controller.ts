@@ -4,9 +4,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  ParseFilePipe,
-  MaxFileSizeValidator,
-  FileTypeValidator,
+  BadRequestException,
   Res,
   Get,
   Param,
@@ -17,7 +15,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, unlinkSync } from 'fs';
 import { randomUUID } from 'crypto';
 
 interface RequestUser {
@@ -27,6 +25,8 @@ interface RequestUser {
 }
 
 const UPLOADS_DIR = join(process.cwd(), 'uploads');
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const MAX_SIZE = 5 * 1024 * 1024;
 
 @Controller('upload')
 export class UploadController {
@@ -45,20 +45,31 @@ export class UploadController {
           cb(null, `${randomUUID()}${ext}`);
         },
       }),
+      fileFilter: (
+        _req: Express.Request,
+        file: Express.Multer.File,
+        cb: (error: Error | null, accept: boolean) => void,
+      ) => {
+        const ext = extname(file.originalname).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.includes(ext)) {
+          return cb(new BadRequestException('Only JPG, PNG and WebP images are allowed'), false);
+        }
+        cb(null, true);
+      },
+      limits: { fileSize: MAX_SIZE },
     }),
   )
   async uploadFile(
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
-          new FileTypeValidator({ fileType: /^image\/(jpeg|png|webp|svg\+xml)$/ }),
-        ],
-      }),
-    )
-    file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
     @CurrentUser() _user: RequestUser,
   ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    if (file.size > MAX_SIZE) {
+      unlinkSync(file.path);
+      throw new BadRequestException('File too large (max 5 MB)');
+    }
     const url = `/upload/files/${file.filename}`;
     return { url, filename: file.filename };
   }

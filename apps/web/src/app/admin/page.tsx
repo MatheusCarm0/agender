@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { ConfirmModal } from '@/components/confirm-modal';
 
 interface Appointment {
   id: string;
@@ -27,6 +28,7 @@ export default function AgendaPage() {
   const { token, user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -115,7 +117,7 @@ export default function AgendaPage() {
                             Confirmar
                           </button>
                           <button
-                            onClick={() => updateStatus(appt.id, 'cancelled')}
+                            onClick={() => setCancelTarget(appt.id)}
                             className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
                           >
                             Cancelar
@@ -146,6 +148,20 @@ export default function AgendaPage() {
           </table>
         </div>
       )}
+      <ConfirmModal
+        open={!!cancelTarget}
+        title="Cancelar agendamento"
+        description="Tem certeza que deseja cancelar este agendamento? O cliente será notificado e o horário ficará disponível."
+        confirmLabel="Cancelar agendamento"
+        variant="danger"
+        onConfirm={() => {
+          if (cancelTarget) {
+            updateStatus(cancelTarget, 'cancelled');
+            setCancelTarget(null);
+          }
+        }}
+        onCancel={() => setCancelTarget(null)}
+      />
     </div>
   );
 }

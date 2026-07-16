@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { ConfirmModal } from '@/components/confirm-modal';
 
 interface Professional {
   id: string;
@@ -67,8 +68,15 @@ export default function WorkingHoursPage() {
     loadHours();
   }
 
-  async function handleDelete(id: string) {
-    await api(`/working-hours/${id}`, { method: 'DELETE', token: token! });
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    await api(`/working-hours/${deleteTarget}`, { method: 'DELETE', token: token! });
+    setDeleteTarget(null);
+    setDeleting(false);
     loadHours();
   }
 
@@ -201,7 +209,7 @@ export default function WorkingHoursPage() {
                     <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums">{h.endTime}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleDelete(h.id)}
+                        onClick={() => setDeleteTarget(h.id)}
                         className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
                       >
                         Remover
@@ -213,6 +221,16 @@ export default function WorkingHoursPage() {
           </table>
         </div>
       )}
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Remover horário"
+        description="Tem certeza que deseja remover este horário de trabalho? Isso pode afetar a disponibilidade do profissional."
+        confirmLabel="Remover"
+        variant="danger"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -3,24 +3,28 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function SettingsPage() {
   const { user, token } = useAuth();
+  const { toast } = useToast();
 
   const [profileForm, setProfileForm] = useState({ name: '', email: '' });
-  const [businessForm, setBusinessForm] = useState({ name: '' });
+  const [businessForm, setBusinessForm] = useState({ name: '', logoUrl: '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
-  const [businessSaved, setBusinessSaved] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
-    if (user) {
-      setProfileForm({ name: user.name, email: user.email });
-      setBusinessForm({ name: user.business.name });
-    }
-  }, [user]);
+    if (!user || !token) return;
+    setProfileForm({ name: user.name, email: user.email });
+    api<{ name: string; logoUrl?: string }>('/business', { token })
+      .then((b) => setBusinessForm({ name: b.name, logoUrl: b.logoUrl || '' }))
+      .catch(() => setBusinessForm({ name: user.business.name, logoUrl: '' }));
+  }, [user, token]);
 
   useEffect(() => {
     const saved = localStorage.getItem('admin_theme') as 'light' | 'dark' | null;
@@ -40,6 +44,42 @@ export default function SettingsPage() {
     document.documentElement.setAttribute('data-theme', next);
   }
 
+  async function handleLogoUpload(file: File) {
+    if (!token) return;
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const { url } = await res.json();
+      const fullUrl = `${API_URL}${url}`;
+      setBusinessForm((f) => ({ ...f, logoUrl: fullUrl }));
+      await api('/business', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ logoUrl: fullUrl }),
+      });
+    } catch {
+      // upload error
+    }
+    setUploadingLogo(false);
+  }
+
+  async function handleRemoveLogo() {
+    if (!token) return;
+    setBusinessForm((f) => ({ ...f, logoUrl: '' }));
+    await api('/business', {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ logoUrl: null }),
+    });
+  }
+
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
@@ -50,10 +90,9 @@ export default function SettingsPage() {
         token,
         body: JSON.stringify(profileForm),
       });
-      setProfileSaved(true);
-      setTimeout(() => setProfileSaved(false), 2000);
-    } catch {
-      // handled by api layer
+      toast('Perfil salvo');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao salvar perfil', 'error');
     }
     setSavingProfile(false);
   }
@@ -66,12 +105,11 @@ export default function SettingsPage() {
       await api('/business', {
         method: 'PATCH',
         token,
-        body: JSON.stringify(businessForm),
+        body: JSON.stringify({ name: businessForm.name }),
       });
-      setBusinessSaved(true);
-      setTimeout(() => setBusinessSaved(false), 2000);
-    } catch {
-      // handled by api layer
+      toast('Negócio salvo');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao salvar negócio', 'error');
     }
     setSavingBusiness(false);
   }
@@ -111,9 +149,6 @@ export default function SettingsPage() {
               >
                 {savingProfile ? 'Salvando...' : 'Salvar perfil'}
               </button>
-              {profileSaved && (
-                <span className="text-sm text-success-text">Salvo</span>
-              )}
             </div>
           </form>
         </section>
@@ -121,34 +156,78 @@ export default function SettingsPage() {
         {isOwner && (
           <section className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 shadow-[var(--shadow-elevation-1)]">
             <h2 className="text-base font-semibold text-text-strong mb-4">Negócio</h2>
-            <form onSubmit={handleSaveBusiness} className="space-y-4">
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Nome do negócio</label>
-                <input
-                  value={businessForm.name}
-                  onChange={(e) => setBusinessForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
-                />
+                <label className="block text-xs font-medium text-text-muted mb-2">Logo do negócio</label>
+                <div className="flex items-center gap-4">
+                  {businessForm.logoUrl ? (
+                    <img
+                      src={businessForm.logoUrl}
+                      alt="Logo"
+                      className="w-20 h-20 rounded-full object-cover border border-border-default"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-primary-default text-primary-fg flex items-center justify-center text-2xl font-semibold">
+                      {(user?.business.name || 'N')[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <label className="h-9 px-4 text-sm font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle cursor-pointer flex items-center gap-2 transition-colors">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                      {uploadingLogo ? 'Enviando...' : 'Enviar foto'}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleLogoUpload(file);
+                        }}
+                      />
+                    </label>
+                    {businessForm.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="text-xs text-danger-fg hover:underline text-left"
+                      >
+                        Remover logo
+                      </button>
+                    )}
+                    <p className="text-xs text-text-subtle">JPG, PNG ou WebP. Máx. 5 MB.</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Slug</label>
-                <p className="text-sm text-text-muted font-[family-name:var(--font-geist-mono)]">
-                  /{user?.business.slug}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="submit"
-                  disabled={savingBusiness}
-                  className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
-                >
-                  {savingBusiness ? 'Salvando...' : 'Salvar negócio'}
-                </button>
-                {businessSaved && (
-                  <span className="text-sm text-success-text">Salvo</span>
-                )}
-              </div>
-            </form>
+              <form onSubmit={handleSaveBusiness} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">Nome do negócio</label>
+                  <input
+                    value={businessForm.name}
+                    onChange={(e) => setBusinessForm((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">Slug</label>
+                  <p className="text-sm text-text-muted font-[family-name:var(--font-geist-mono)]">
+                    /{user?.business.slug}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={savingBusiness}
+                    className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
+                  >
+                    {savingBusiness ? 'Salvando...' : 'Salvar negócio'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </section>
         )}
 

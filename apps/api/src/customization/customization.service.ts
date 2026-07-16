@@ -62,23 +62,30 @@ export class CustomizationService {
       }
     }
 
-    return this.prisma.raw.pageCustomization.upsert({
-      where: { businessId },
-      create: {
-        businessId,
-        theme: dto.theme as any,
-        links: (dto.links as any) ?? [],
-        socials: (dto.socials as any) ?? {},
-        headline: dto.headline ?? null,
-        about: dto.about ?? null,
-      },
-      update: {
-        theme: dto.theme as any,
-        links: (dto.links as any) ?? [],
-        socials: (dto.socials as any) ?? {},
-        headline: dto.headline ?? null,
-        about: dto.about ?? null,
-      },
-    });
+    const [result] = await this.prisma.raw.$transaction([
+      this.prisma.raw.pageCustomization.upsert({
+        where: { businessId },
+        create: {
+          businessId,
+          theme: dto.theme as any,
+          links: (dto.links as any) ?? [],
+          socials: (dto.socials as any) ?? {},
+          headline: dto.headline ?? null,
+          about: dto.about ?? null,
+        },
+        update: {
+          theme: dto.theme as any,
+          links: (dto.links as any) ?? [],
+          socials: (dto.socials as any) ?? {},
+          headline: dto.headline ?? null,
+          about: dto.about ?? null,
+        },
+      }),
+      this.prisma.raw.business.update({
+        where: { id: businessId },
+        data: { coverUrl: dto.theme.coverUrl ?? null },
+      }),
+    ]);
+    return result;
   }
 }
