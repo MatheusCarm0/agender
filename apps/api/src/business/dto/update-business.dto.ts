@@ -9,4 +9,12 @@ export class UpdateBusinessDto {
   @IsString()
   @IsOptional()
   timezone?: string;
+
+  @IsString()
+  @IsOptional()
+  logoUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  coverUrl?: string;
 }

@@ -145,7 +145,7 @@ export default function ClientsPage() {
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Nome</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Telefone</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">E-mail</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Acoes</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -191,7 +191,7 @@ export default function ClientsPage() {
                   onClick={() => setPage((p) => p + 1)}
                   className="h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] hover:bg-surface-subtle disabled:opacity-50"
                 >
-                  Proxima
+                  Próxima
                 </button>
               </div>
             )}
@@ -290,7 +290,7 @@ export default function ClientsPage() {
               </div>
 
               <div>
-                <h3 className="text-xs font-medium text-text-muted mb-3">Historico de agendamentos</h3>
+                <h3 className="text-xs font-medium text-text-muted mb-3">Histórico de agendamentos</h3>
                 {selectedClient.appointments?.length === 0 ? (
                   <p className="text-xs text-text-subtle">Nenhum agendamento.</p>
                 ) : (

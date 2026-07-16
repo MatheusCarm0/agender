@@ -140,6 +140,30 @@ export class AuthService {
     };
   }
 
+  async updateProfile(userId: string, data: { name?: string; email?: string }) {
+    const user = await this.prisma.raw.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.name ? { name: data.name } : {}),
+        ...(data.email ? { email: data.email } : {}),
+      },
+      include: { business: true },
+    });
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      business: {
+        id: user.business.id,
+        slug: user.business.slug,
+        name: user.business.name,
+        timezone: user.business.timezone,
+      },
+    };
+  }
+
   private async generateTokens(payload: {
     sub: string;
     businessId: string;

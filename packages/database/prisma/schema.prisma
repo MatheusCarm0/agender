@@ -34,6 +34,8 @@ model Business {
   name      String
   timezone  String   @default("America/Sao_Paulo")
   plan      String   @default("free")
+  logoUrl   String?  @map("logo_url")
+  coverUrl  String?  @map("cover_url")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

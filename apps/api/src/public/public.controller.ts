@@ -45,6 +45,8 @@ export class PublicController {
       slug: business.slug,
       name: business.name,
       timezone: business.timezone,
+      logoUrl: business.logoUrl,
+      coverUrl: business.coverUrl,
       professionals: business.professionals.map((p) => ({
         id: p.id,
         name: p.name,

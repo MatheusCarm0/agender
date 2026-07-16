@@ -46,54 +46,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshAccessToken = useCallback(async () => {
+    const rt = localStorage.getItem('refresh_token');
+    if (!rt) return null;
+    try {
+      const res = await api<{ accessToken: string; refreshToken: string }>(
+        '/auth/refresh',
+        { method: 'POST', body: JSON.stringify({ refreshToken: rt }) },
+      );
+      localStorage.setItem('auth_token', res.accessToken);
+      localStorage.setItem('refresh_token', res.refreshToken);
+      return res.accessToken;
+    } catch {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     const saved = localStorage.getItem('auth_token');
     if (saved) {
       setToken(saved);
       api<User>('/auth/me', { token: saved })
         .then(setUser)
-        .catch(() => {
-          localStorage.removeItem('auth_token');
-          setToken(null);
+        .catch(async () => {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            setToken(newToken);
+            api<User>('/auth/me', { token: newToken })
+              .then(setUser)
+              .catch(() => {
+                setToken(null);
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('refresh_token');
+              });
+          } else {
+            setToken(null);
+          }
         })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [refreshAccessToken]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api<{
       accessToken: string;
+      refreshToken: string;
       user: User;
       business: User['business'];
     }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    const t = res.accessToken;
-    localStorage.setItem('auth_token', t);
-    setToken(t);
+    localStorage.setItem('auth_token', res.accessToken);
+    localStorage.setItem('refresh_token', res.refreshToken);
+    setToken(res.accessToken);
     setUser({ ...res.user, business: res.business });
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
     const res = await api<{
       accessToken: string;
+      refreshToken: string;
       user: User;
       business: User['business'];
     }>('/auth/register-business', {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    const t = res.accessToken;
-    localStorage.setItem('auth_token', t);
-    setToken(t);
+    localStorage.setItem('auth_token', res.accessToken);
+    localStorage.setItem('refresh_token', res.refreshToken);
+    setToken(res.accessToken);
     setUser({ ...res.user, business: res.business });
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
     setToken(null);
     setUser(null);
   }, []);

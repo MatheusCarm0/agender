@@ -138,6 +138,12 @@ export default function ProfessionalsPage() {
       ) : professionals.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-text-muted">Nenhum profissional cadastrado.</p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+          >
+            Cadastrar primeiro profissional
+          </button>
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -147,7 +153,7 @@ export default function ProfessionalsPage() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Nome</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Bio</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Acoes</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
               </tr>
             </thead>
             <tbody>

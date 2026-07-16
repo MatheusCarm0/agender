@@ -18,6 +18,7 @@ import { CustomizationModule } from './customization/customization.module';
 import { RecurringBlockModule } from './recurring-block/recurring-block.module';
 import { ReportModule } from './report/report.module';
 import { ClientModule } from './client/client.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ClientModule } from './client/client.module';
     RecurringBlockModule,
     ReportModule,
     ClientModule,
+    UploadModule,
   ],
   providers: [
     {

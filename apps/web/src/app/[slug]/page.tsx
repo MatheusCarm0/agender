@@ -25,6 +25,8 @@ interface Business {
   slug: string;
   name: string;
   timezone: string;
+  logoUrl?: string;
+  coverUrl?: string;
   customization: Customization | null;
   professionals: {
     id: string;

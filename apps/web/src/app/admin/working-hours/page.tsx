@@ -17,7 +17,7 @@ interface WorkingHour {
   endTime: string;
 }
 
-const DAYS = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
+const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
 export default function WorkingHoursPage() {
   const { token } = useAuth();
@@ -75,7 +75,7 @@ export default function WorkingHoursPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-text-strong">Horarios de trabalho</h1>
+        <h1 className="text-2xl font-semibold text-text-strong">Horários de trabalho</h1>
         {selectedProfId && (
           <button
             onClick={() => setShowForm(true)}
@@ -103,7 +103,7 @@ export default function WorkingHoursPage() {
 
       {showForm && (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 mb-6 shadow-[var(--shadow-elevation-1)]">
-          <h2 className="text-base font-semibold text-text-strong mb-4">Novo horario</h2>
+          <h2 className="text-base font-semibold text-text-strong mb-4">Novo horário</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4 flex-wrap">
               <div className="w-40">
@@ -119,7 +119,7 @@ export default function WorkingHoursPage() {
                 </select>
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Inicio</label>
+                <label className="block text-xs font-medium text-text-muted mb-1">Início</label>
                 <input
                   type="time"
                   value={form.startTime}
@@ -171,8 +171,14 @@ export default function WorkingHoursPage() {
         </div>
       ) : hours.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-text-muted">Nenhum horario configurado.</p>
-          <p className="text-xs text-text-subtle mt-1">Adicione os dias e horarios em que este profissional atende.</p>
+          <p className="text-text-muted">Nenhum horário configurado.</p>
+          <p className="text-xs text-text-subtle mt-1">Adicione os dias e horários em que este profissional atende.</p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+          >
+            Adicionar horário
+          </button>
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -180,9 +186,9 @@ export default function WorkingHoursPage() {
             <thead>
               <tr className="bg-surface-subtle border-b border-border-default">
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Dia</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Inicio</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Início</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Acoes</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
               </tr>
             </thead>
             <tbody>

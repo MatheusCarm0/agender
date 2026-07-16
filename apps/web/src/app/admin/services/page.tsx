@@ -91,7 +91,7 @@ export default function ServicesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-text-strong">Servicos</h1>
+        <h1 className="text-2xl font-semibold text-text-strong">Serviços</h1>
         <button
           onClick={openCreate}
           className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
@@ -103,7 +103,7 @@ export default function ServicesPage() {
       {showForm && (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 mb-6 shadow-[var(--shadow-elevation-1)]">
           <h2 className="text-base font-semibold text-text-strong mb-4">
-            {editingId ? 'Editar servico' : 'Novo servico'}
+            {editingId ? 'Editar serviço' : 'Novo serviço'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -117,7 +117,7 @@ export default function ServicesPage() {
             </div>
             <div className="flex gap-4">
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Duracao (min)</label>
+                <label className="block text-xs font-medium text-text-muted mb-1">Duração (min)</label>
                 <input
                   type="number"
                   value={form.durationMin}
@@ -129,7 +129,7 @@ export default function ServicesPage() {
                 />
               </div>
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Preco (R$)</label>
+                <label className="block text-xs font-medium text-text-muted mb-1">Preço (R$)</label>
                 <input
                   type="number"
                   value={form.price}
@@ -197,7 +197,13 @@ export default function ServicesPage() {
         </div>
       ) : services.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-text-muted">Nenhum servico cadastrado.</p>
+          <p className="text-text-muted">Nenhum serviço cadastrado.</p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+          >
+            Criar primeiro serviço
+          </button>
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -205,10 +211,10 @@ export default function ServicesPage() {
             <thead>
               <tr className="bg-surface-subtle border-b border-border-default">
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Nome</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Duracao</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Preco</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Duração</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Preço</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Acoes</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
               </tr>
             </thead>
             <tbody>

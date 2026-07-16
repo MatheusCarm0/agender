@@ -18,7 +18,7 @@ interface RecurringBlock {
   reason: string | null;
 }
 
-const DAYS = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
+const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
 export default function RecurringBlocksPage() {
   const { token } = useAuth();
@@ -86,7 +86,7 @@ export default function RecurringBlocksPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-text-strong">Bloqueios recorrentes</h1>
-          <p className="text-xs text-text-muted mt-1">Almoco, folgas semanais e bloqueios que se repetem toda semana.</p>
+          <p className="text-xs text-text-muted mt-1">Almoço, folgas semanais e bloqueios que se repetem toda semana.</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -108,7 +108,7 @@ export default function RecurringBlocksPage() {
                   onChange={(e) => setForm((f) => ({ ...f, professionalId: e.target.value }))}
                   className="w-full h-9 px-3 pr-8 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
                 >
-                  <option value="">Todos (negocio inteiro)</option>
+                  <option value="">Todos (negócio inteiro)</option>
                   {professionals.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -127,7 +127,7 @@ export default function RecurringBlocksPage() {
                 </select>
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Inicio</label>
+                <label className="block text-xs font-medium text-text-muted mb-1">Início</label>
                 <input
                   type="time"
                   value={form.startTime}
@@ -152,7 +152,7 @@ export default function RecurringBlocksPage() {
               <input
                 value={form.reason}
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-                placeholder="Ex: Almoco, Folga"
+                placeholder="Ex: Almoço, Folga"
                 className="w-full max-w-sm h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
               />
             </div>
@@ -185,7 +185,13 @@ export default function RecurringBlocksPage() {
       ) : blocks.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-text-muted">Nenhum bloqueio recorrente configurado.</p>
-          <p className="text-xs text-text-subtle mt-1">Adicione bloqueios como almoco ou folgas semanais.</p>
+          <p className="text-xs text-text-subtle mt-1">Adicione bloqueios como almoço ou folgas semanais.</p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+          >
+            Criar primeiro bloqueio
+          </button>
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -194,10 +200,10 @@ export default function RecurringBlocksPage() {
               <tr className="bg-surface-subtle border-b border-border-default">
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Profissional</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Dia</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Inicio</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Início</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Motivo</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Acoes</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
               </tr>
             </thead>
             <tbody>

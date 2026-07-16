@@ -110,8 +110,8 @@ export default function FinanceiroPage() {
     if (serviceFilter) params.set('serviceId', serviceFilter);
 
     const [rev, earn] = await Promise.all([
-      api<RevenueReport>(`/reports/revenue?${params}`, { token }),
-      api<EarningsEntry[]>(`/reports/earnings?from=${dateRange.from}&to=${dateRange.to}`, { token }),
+      api<RevenueReport>(`/reports/revenue?${params}`, { token }).catch(() => null),
+      api<EarningsEntry[]>(`/reports/earnings?from=${dateRange.from}&to=${dateRange.to}`, { token }).catch(() => []),
     ]);
 
     setRevenue(rev);
@@ -146,7 +146,7 @@ export default function FinanceiroPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Ate</label>
+            <label className="block text-xs font-medium text-text-muted mb-1">Até</label>
             <input
               type="date"
               value={dateRange.to}
@@ -168,7 +168,7 @@ export default function FinanceiroPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Servico</label>
+            <label className="block text-xs font-medium text-text-muted mb-1">Serviço</label>
             <select
               value={serviceFilter}
               onChange={(e) => setServiceFilter(e.target.value)}
@@ -205,13 +205,13 @@ export default function FinanceiroPage() {
             </p>
           </div>
           <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] p-6">
-            <p className="text-xs font-medium text-text-muted mb-1">Ticket medio</p>
+            <p className="text-xs font-medium text-text-muted mb-1">Ticket médio</p>
             <p className={`text-2xl font-semibold text-text-strong ${mono}`}>
               {formatCurrency(revenue.averageTicket)}
             </p>
           </div>
           <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] p-6">
-            <p className="text-xs font-medium text-text-muted mb-1">Atendimentos concluidos</p>
+            <p className="text-xs font-medium text-text-muted mb-1">Atendimentos concluídos</p>
             <p className={`text-2xl font-semibold text-text-strong ${mono}`}>
               {revenue.totalCompleted}
             </p>
@@ -249,14 +249,14 @@ export default function FinanceiroPage() {
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-text-muted text-sm">Nenhum dado disponivel para o periodo selecionado.</p>
+            <p className="text-text-muted text-sm">Nenhum dado disponível para o período selecionado.</p>
           </div>
         )}
       </div>
 
       {/* Revenue by service */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-text-strong mb-4">Receita por servico</h2>
+        <h2 className="text-xl font-semibold text-text-strong mb-4">Receita por serviço</h2>
         {loading ? (
           <SkeletonTable />
         ) : revenue && revenue.byService.length > 0 ? (
@@ -264,7 +264,7 @@ export default function FinanceiroPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-surface-subtle border-b border-border-default">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Servico</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Serviço</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Atendimentos</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Receita (R$)</th>
                 </tr>
@@ -284,14 +284,14 @@ export default function FinanceiroPage() {
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-text-muted text-sm">Nenhum dado disponivel para o periodo selecionado.</p>
+            <p className="text-text-muted text-sm">Nenhum dado disponível para o período selecionado.</p>
           </div>
         )}
       </div>
 
       {/* Earnings / commissions */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-text-strong mb-4">Comissoes</h2>
+        <h2 className="text-xl font-semibold text-text-strong mb-4">Comissões</h2>
         {loading ? (
           <SkeletonTable rows={4} />
         ) : earnings.length > 0 ? (
@@ -301,9 +301,9 @@ export default function FinanceiroPage() {
                 <tr className="bg-surface-subtle border-b border-border-default">
                   <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Profissional</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Receita total</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Tipo comissao</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Valor comissao</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Comissao (R$)</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Tipo comissão</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Valor comissão</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Comissão (R$)</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Atendimentos</th>
                 </tr>
               </thead>
@@ -331,7 +331,7 @@ export default function FinanceiroPage() {
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-text-muted text-sm">Nenhum dado de comissao disponivel para o periodo selecionado.</p>
+            <p className="text-text-muted text-sm">Nenhum dado de comissão disponível para o período selecionado.</p>
           </div>
         )}
       </div>
