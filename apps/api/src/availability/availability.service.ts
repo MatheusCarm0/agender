@@ -127,6 +127,17 @@ export class AvailabilityService {
       },
     });
 
+    const recurringBlocks = await this.prisma.raw.recurringBlock.findMany({
+      where: {
+        businessId,
+        weekday,
+        OR: [
+          { professionalId },
+          { professionalId: null },
+        ],
+      },
+    });
+
     const occupied: TimeRange[] = [
       ...appointments.map((a) => ({
         start: a.startAt.getTime(),
@@ -135,6 +146,10 @@ export class AvailabilityService {
       ...blocks.map((b) => ({
         start: b.startAt.getTime(),
         end: b.endAt.getTime(),
+      })),
+      ...recurringBlocks.map((rb) => ({
+        start: this.localTimeToUtcMs(dateStr, rb.startTime, timezone),
+        end: this.localTimeToUtcMs(dateStr, rb.endTime, timezone),
       })),
     ];
 
@@ -190,13 +205,13 @@ export class AvailabilityService {
   }
 
   private parseDateTimeInTimezone(dateTimeStr: string, timezone: string): number {
-    const d = new Date(dateTimeStr);
-    const utcStr = d.toLocaleString('en-US', { timeZone: 'UTC' });
-    const tzStr = d.toLocaleString('en-US', { timeZone: timezone });
+    const utcMs = new Date(dateTimeStr + 'Z').getTime();
+    const utcStr = new Date(utcMs).toLocaleString('en-US', { timeZone: 'UTC' });
+    const tzStr = new Date(utcMs).toLocaleString('en-US', { timeZone: timezone });
     const utcDate = new Date(utcStr);
     const tzDate = new Date(tzStr);
     const offsetMs = utcDate.getTime() - tzDate.getTime();
-    return d.getTime() + offsetMs;
+    return utcMs + offsetMs;
   }
 
   async invalidateCache(

@@ -14,6 +14,10 @@ import { AppointmentModule } from './appointment/appointment.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { PublicModule } from './public/public.module';
 import { HealthModule } from './health/health.module';
+import { CustomizationModule } from './customization/customization.module';
+import { RecurringBlockModule } from './recurring-block/recurring-block.module';
+import { ReportModule } from './report/report.module';
+import { ClientModule } from './client/client.module';
 
 @Module({
   imports: [
@@ -30,6 +34,10 @@ import { HealthModule } from './health/health.module';
     AppointmentModule,
     PublicModule,
     HealthModule,
+    CustomizationModule,
+    RecurringBlockModule,
+    ReportModule,
+    ClientModule,
   ],
   providers: [
     {

@@ -22,6 +22,12 @@ enum AppointmentStatus {
   no_show
 }
 
+enum CommissionType {
+  none
+  percent
+  fixed
+}
+
 model Business {
   id        String   @id @default(cuid())
   slug      String   @unique
@@ -36,8 +42,10 @@ model Business {
   services       Service[]
   workingHours   WorkingHours[]
   scheduleBlocks ScheduleBlock[]
-  clients        Client[]
-  appointments   Appointment[]
+  clients            Client[]
+  appointments       Appointment[]
+  pageCustomization  PageCustomization?
+  recurringBlocks    RecurringBlock[]
 
   @@map("businesses")
 }
@@ -67,13 +75,16 @@ model Professional {
   name       String
   bio        String?  @db.Text
   avatarUrl  String?  @map("avatar_url")
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now()) @map("created_at")
+  active          Boolean        @default(true)
+  commissionType  CommissionType @default(none) @map("commission_type")
+  commissionValue Decimal        @default(0) @db.Decimal(10, 2) @map("commission_value")
+  createdAt       DateTime       @default(now()) @map("created_at")
 
-  services     ProfessionalService[]
-  workingHours WorkingHours[]
-  blocks       ScheduleBlock[]
-  appointments Appointment[]
+  services        ProfessionalService[]
+  workingHours    WorkingHours[]
+  blocks          ScheduleBlock[]
+  recurringBlocks RecurringBlock[]
+  appointments    Appointment[]
 
   @@index([businessId])
   @@map("professionals")
@@ -173,6 +184,8 @@ model Appointment {
   status         AppointmentStatus @default(scheduled)
   price          Decimal           @db.Decimal(10, 2)
   paymentStatus  String            @default("unpaid") @map("payment_status")
+  paymentMethod  String?           @map("payment_method")
+  paidAt         DateTime?         @map("paid_at")
   notes          String?           @db.Text
   idempotencyKey String?           @map("idempotency_key")
   createdAt      DateTime          @default(now()) @map("created_at")
@@ -181,4 +194,33 @@ model Appointment {
   @@index([professionalId, startAt])
   @@unique([businessId, idempotencyKey])
   @@map("appointments")
+}
+
+model PageCustomization {
+  businessId String   @id @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id])
+  theme      Json
+  links      Json     @default("[]")
+  socials    Json     @default("{}")
+  headline   String?
+  about      String?  @db.Text
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("page_customizations")
+}
+
+model RecurringBlock {
+  id             String        @id @default(cuid())
+  businessId     String        @map("business_id")
+  business       Business      @relation(fields: [businessId], references: [id])
+  professionalId String?       @map("professional_id")
+  professional   Professional? @relation(fields: [professionalId], references: [id])
+  weekday        Int
+  startTime      String        @map("start_time")
+  endTime        String        @map("end_time")
+  reason         String?
+
+  @@index([businessId])
+  @@index([professionalId, weekday])
+  @@map("recurring_blocks")
 }

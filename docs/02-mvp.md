@@ -235,15 +235,15 @@ Todas as rotas `/public/*` resolvem o tenant pelo slug e injetam no contexto ant
 
 ## Critérios de aceite
 
-- [ ] Admin cadastra serviço, vincula profissional e define horários de trabalho.
-- [ ] `GET /public/{slug}/availability` retorna slots corretos considerando trabalho, agendamentos e bloqueios.
-- [ ] Slot no passado nunca aparece; timezone do business respeitada.
-- [ ] `POST` de agendamento em slot livre cria com sucesso; em slot ocupado retorna 409.
-- [ ] Dois requests concorrentes no mesmo slot: só um cria, o outro recebe 409 (teste de concorrência).
-- [ ] `Idempotency-Key` repetida não gera duplicata.
-- [ ] Cache de disponibilidade invalidado após criar/cancelar agendamento.
-- [ ] Profissional vê só a própria agenda; admin vê todas.
-- [ ] Fluxo público completo funciona ponta a ponta (e2e).
+- [x] Admin cadastra serviço, vincula profissional e define horários de trabalho.
+- [x] `GET /public/{slug}/availability` retorna slots corretos considerando trabalho, agendamentos e bloqueios.
+- [x] Slot no passado nunca aparece; timezone do business respeitada.
+- [x] `POST` de agendamento em slot livre cria com sucesso; em slot ocupado retorna 409.
+- [x] Dois requests concorrentes no mesmo slot: só um cria, o outro recebe 409 (teste de concorrência).
+- [x] `Idempotency-Key` repetida não gera duplicata.
+- [x] Cache de disponibilidade invalidado após criar/cancelar agendamento.
+- [x] Profissional vê só a própria agenda; admin vê todas.
+- [x] Fluxo público completo funciona ponta a ponta (e2e).
 
 ---
 

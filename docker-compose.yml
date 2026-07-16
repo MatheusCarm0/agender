@@ -1,11 +1,14 @@
 services:
   mysql:
-    image: mysql:8
+    image: mysql:8.0
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-character-set-client-handshake
     ports:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: agenda
+      MYSQL_USER: agenda
+      MYSQL_PASSWORD: agenda
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -29,7 +32,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      DATABASE_URL: mysql://root:root@mysql:3306/agenda
+      DATABASE_URL: mysql://agenda:agenda@mysql:3306/agenda
       REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: troque-em-producao
       JWT_REFRESH_SECRET: troque-em-producao
@@ -62,7 +65,7 @@ services:
       context: .
       dockerfile: apps/worker/Dockerfile
     environment:
-      DATABASE_URL: mysql://root:root@mysql:3306/agenda
+      DATABASE_URL: mysql://agenda:agenda@mysql:3306/agenda
       REDIS_URL: redis://redis:6379
       NODE_ENV: development
     depends_on:

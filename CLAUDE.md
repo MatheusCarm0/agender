@@ -24,8 +24,8 @@ fizer pode contradizer esse arquivo.
 ### Estado atual
 
 ```
-Fase atual: MVP — EM ANDAMENTO (backend API completo; falta painel admin web)
-Próximo documento: docs/02-mvp.md
+Fase atual: Diferenciação — EM ANDAMENTO
+Próximo documento: docs/03-diferenciacao.md
 ```
 
 > Ao concluir uma fase (todos os critérios de aceite marcados), atualize estas duas linhas para a

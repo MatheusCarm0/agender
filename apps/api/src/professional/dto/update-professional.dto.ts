@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsBoolean, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsEnum, IsNumber, Min, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateProfessionalDto {
   @IsString()
@@ -17,4 +18,14 @@ export class UpdateProfessionalDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @IsOptional()
+  @IsEnum(['none', 'percent', 'fixed'])
+  commissionType?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Type(() => Number)
+  commissionValue?: number;
 }

@@ -53,7 +53,10 @@ export class ProfessionalService {
     const professional = await this.findById(id);
     return this.prisma.raw.professional.update({
       where: { id: professional.id },
-      data: dto,
+      data: {
+        ...dto,
+        commissionType: dto.commissionType as any,
+      },
     });
   }
 

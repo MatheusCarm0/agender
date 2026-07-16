@@ -34,6 +34,7 @@ export class PublicController {
             },
           },
         },
+        pageCustomization: true,
       },
     });
 
@@ -56,6 +57,13 @@ export class PublicController {
           price: Number(ps.priceOverride ?? ps.service.price),
         })),
       })),
+      customization: business.pageCustomization ? {
+        theme: business.pageCustomization.theme,
+        links: business.pageCustomization.links,
+        socials: business.pageCustomization.socials,
+        headline: business.pageCustomization.headline,
+        about: business.pageCustomization.about,
+      } : null,
     };
   }
 

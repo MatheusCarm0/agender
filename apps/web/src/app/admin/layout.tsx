@@ -11,6 +11,10 @@ const NAV_ITEMS = [
   { href: '/admin/services', label: 'Serviços', icon: '✂️' },
   { href: '/admin/working-hours', label: 'Horários', icon: '🕐' },
   { href: '/admin/schedule-blocks', label: 'Bloqueios', icon: '🚫' },
+  { href: '/admin/recurring-blocks', label: 'Bloqueios recorrentes', icon: '🔁' },
+  { href: '/admin/clientes', label: 'Clientes', icon: '📋' },
+  { href: '/admin/financeiro', label: 'Financeiro', icon: '💰' },
+  { href: '/admin/customization', label: 'Personalização', icon: '🎨' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

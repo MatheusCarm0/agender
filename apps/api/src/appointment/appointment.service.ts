@@ -10,6 +10,7 @@ import { TenantContext } from '../prisma/tenant-context';
 import { AvailabilityService } from '../availability/availability.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 
 @Injectable()
 export class AppointmentService {
@@ -161,5 +162,22 @@ export class AppointmentService {
     }
 
     return updated;
+  }
+
+  async updatePayment(id: string, dto: UpdatePaymentDto) {
+    const businessId = this.getBusinessId();
+    const appointment = await this.prisma.raw.appointment.findFirst({
+      where: { id, businessId },
+    });
+    if (!appointment) throw new NotFoundException('Appointment not found');
+
+    return this.prisma.raw.appointment.update({
+      where: { id },
+      data: {
+        paymentStatus: dto.paymentStatus,
+        paymentMethod: dto.paymentMethod,
+        paidAt: dto.paidAt ? new Date(dto.paidAt) : undefined,
+      },
+    });
   }
 }
