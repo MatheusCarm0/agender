@@ -24,7 +24,7 @@ interface Coupon {
 
 export default function CouponsPage() {
   const { token } = useAuth();
-  const { addToast } = useToast();
+  const { toast } = useToast();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -45,11 +45,11 @@ export default function CouponsPage() {
     loadData();
   }, [token]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData(silent = false) {
+    if (!silent) setLoading(true);
     const data = await api<Coupon[]>('/coupons', { token: token! });
     setCoupons(data);
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -72,10 +72,10 @@ export default function CouponsPage() {
       });
       setShowForm(false);
       setForm({ code: '', discountType: 'percent', discountValue: '', scope: 'all', maxUses: '', perClientLimit: '', validFrom: new Date().toISOString().slice(0, 10), validUntil: '' });
-      addToast('Cupom criado com sucesso', 'success');
-      loadData();
+      toast('Cupom criado com sucesso', 'success');
+      await loadData(true);
     } catch (err: any) {
-      addToast(err.message || 'Erro ao criar cupom', 'error');
+      toast(err.message || 'Erro ao criar cupom', 'error');
     }
     setSaving(false);
   }
@@ -86,7 +86,7 @@ export default function CouponsPage() {
       token: token!,
       body: JSON.stringify({ active: !coupon.active }),
     });
-    loadData();
+    await loadData(true);
   }
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -98,8 +98,8 @@ export default function CouponsPage() {
     await api(`/coupons/${deleteTarget}`, { method: 'DELETE', token: token! });
     setDeleteTarget(null);
     setDeleting(false);
-    addToast('Cupom removido', 'success');
-    loadData();
+    toast('Cupom removido', 'success');
+    await loadData(true);
   }
 
   function formatDiscount(c: Coupon) {
@@ -261,8 +261,8 @@ export default function CouponsPage() {
                     {c.usedCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ''}
                   </td>
                   <td className="px-4 py-3 text-text-muted whitespace-nowrap">
-                    {new Date(c.validFrom).toLocaleDateString('pt-BR')}
-                    {c.validUntil ? ` — ${new Date(c.validUntil).toLocaleDateString('pt-BR')}` : ' — sem limite'}
+                    {new Date(c.validFrom).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                    {c.validUntil ? ` — ${new Date(c.validUntil).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : ' — sem limite'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${

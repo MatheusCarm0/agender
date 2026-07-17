@@ -39,7 +39,7 @@ const CYCLE_LABELS: Record<string, string> = { monthly: 'Mensal', quarterly: 'Tr
 
 export default function FidelityPage() {
   const { token } = useAuth();
-  const { addToast } = useToast();
+  const { toast } = useToast();
   const [tab, setTab] = useState<'plans' | 'memberships'>('plans');
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [memberships, setMemberships] = useState<ClientMembership[]>([]);
@@ -61,8 +61,8 @@ export default function FidelityPage() {
     loadData();
   }, [token]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData(silent = false) {
+    if (!silent) setLoading(true);
     const [p, m, c] = await Promise.all([
       api<MembershipPlan[]>('/membership-plans', { token: token! }),
       api<ClientMembership[]>('/client-memberships', { token: token! }),
@@ -71,7 +71,7 @@ export default function FidelityPage() {
     setPlans(p);
     setMemberships(m);
     setClients(c);
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
 
   async function handleCreatePlan(e: React.FormEvent) {
@@ -91,10 +91,10 @@ export default function FidelityPage() {
       });
       setShowPlanForm(false);
       setPlanForm({ name: '', price: '', billingCycle: 'monthly', usageLimitType: 'unlimited', usageLimit: '' });
-      addToast('Plano criado com sucesso', 'success');
-      loadData();
+      toast('Plano criado com sucesso', 'success');
+      await loadData(true);
     } catch (err: any) {
-      addToast(err.message || 'Erro ao criar plano', 'error');
+      toast(err.message || 'Erro ao criar plano', 'error');
     }
     setSavingPlan(false);
   }
@@ -113,10 +113,10 @@ export default function FidelityPage() {
       });
       setShowMemberForm(false);
       setMemberForm({ clientId: '', planId: '' });
-      addToast('Cliente matriculado com sucesso', 'success');
-      loadData();
+      toast('Cliente matriculado com sucesso', 'success');
+      await loadData(true);
     } catch (err: any) {
-      addToast(err.message || 'Erro ao matricular', 'error');
+      toast(err.message || 'Erro ao matricular', 'error');
     }
     setSavingMember(false);
   }
@@ -127,7 +127,7 @@ export default function FidelityPage() {
       token: token!,
       body: JSON.stringify({ status }),
     });
-    loadData();
+    await loadData(true);
   }
 
   async function markPaid(id: string) {
@@ -136,8 +136,8 @@ export default function FidelityPage() {
       token: token!,
       body: JSON.stringify({ paymentStatus: 'paid', status: 'active' }),
     });
-    addToast('Pagamento confirmado', 'success');
-    loadData();
+    toast('Pagamento confirmado', 'success');
+    await loadData(true);
   }
 
   return (

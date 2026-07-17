@@ -24,7 +24,8 @@ fizer pode contradizer esse arquivo.
 ### Estado atual
 
 ```
-Fase atual: Retenção — NÃO INICIADA
+Fase atual: Retenção — EM ANDAMENTO (falta apenas proxy wildcard para subdomínio, item de infra)
+Extras concluídos fora de fase: upload de avatar de profissional (admin + página pública)
 Próximo documento: docs/04-retencao.md
 ```
 
