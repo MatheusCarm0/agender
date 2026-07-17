@@ -192,6 +192,12 @@ export default function RecurringBlocksPage() {
         </div>
       ) : blocks.length === 0 ? (
         <div className="text-center py-12">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
+            <path d="M17 2.1l4 4-4 4" />
+            <path d="M3 12.2v-2a4 4 0 014-4h12.8" />
+            <path d="M7 21.9l-4-4 4-4" />
+            <path d="M21 11.8v2a4 4 0 01-4 4H4.2" />
+          </svg>
           <p className="text-text-muted">Nenhum bloqueio recorrente configurado.</p>
           <p className="text-xs text-text-subtle mt-1">Adicione bloqueios como almoço ou folgas semanais.</p>
           <button
@@ -208,8 +214,8 @@ export default function RecurringBlocksPage() {
               <tr className="bg-surface-subtle border-b border-border-default">
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Profissional</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Dia</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Início</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Início</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Motivo</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
               </tr>
@@ -219,8 +225,8 @@ export default function RecurringBlocksPage() {
                 <tr key={b.id} className="border-b border-border-default hover:bg-surface-subtle">
                   <td className="px-4 py-3 font-medium text-text-strong">{getProfName(b.professionalId)}</td>
                   <td className="px-4 py-3">{DAYS[b.weekday]}</td>
-                  <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums">{b.startTime}</td>
-                  <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums">{b.endTime}</td>
+                  <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">{b.startTime}</td>
+                  <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">{b.endTime}</td>
                   <td className="px-4 py-3 text-text-muted">{b.reason || '—'}</td>
                   <td className="px-4 py-3 text-right">
                     <button

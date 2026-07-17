@@ -63,6 +63,10 @@ export default function AgendaPage() {
         </div>
       ) : appointments.length === 0 ? (
         <div className="text-center py-12">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+          </svg>
           <p className="text-text-muted mb-1">Nenhum agendamento ainda.</p>
           <p className="text-xs text-text-subtle">Os agendamentos aparecerão aqui quando clientes marcarem horário.</p>
         </div>

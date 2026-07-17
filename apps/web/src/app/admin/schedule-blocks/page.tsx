@@ -162,6 +162,10 @@ export default function ScheduleBlocksPage() {
         </div>
       ) : blocks.length === 0 ? (
         <div className="text-center py-12">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M4.93 4.93l14.14 14.14" />
+          </svg>
           <p className="text-text-muted">Nenhum bloqueio cadastrado.</p>
           <p className="text-xs text-text-subtle mt-1">Bloqueios impedem agendamentos em períodos específicos.</p>
           <button
@@ -177,8 +181,8 @@ export default function ScheduleBlocksPage() {
             <thead>
               <tr className="bg-surface-subtle border-b border-border-default">
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Profissional</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Início</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Início</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Motivo</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
               </tr>
@@ -187,10 +191,10 @@ export default function ScheduleBlocksPage() {
               {blocks.map((b) => (
                 <tr key={b.id} className="border-b border-border-default hover:bg-surface-subtle">
                   <td className="px-4 py-3 font-medium text-text-strong">{b.professional?.name || 'Negócio inteiro'}</td>
-                  <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums whitespace-nowrap">
+                  <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums whitespace-nowrap">
                     {new Date(b.startAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </td>
-                  <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums whitespace-nowrap">
+                  <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums whitespace-nowrap">
                     {new Date(b.endAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </td>
                   <td className="px-4 py-3 text-text-muted">{b.reason || '—'}</td>

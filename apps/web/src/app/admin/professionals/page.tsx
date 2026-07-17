@@ -137,6 +137,11 @@ export default function ProfessionalsPage() {
         </div>
       ) : professionals.length === 0 ? (
         <div className="text-center py-12">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
+            <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M19 8v6M22 11h-6" />
+          </svg>
           <p className="text-text-muted">Nenhum profissional cadastrado.</p>
           <button
             onClick={() => setShowForm(true)}

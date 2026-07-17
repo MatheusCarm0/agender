@@ -197,6 +197,13 @@ export default function ServicesPage() {
         </div>
       ) : services.length === 0 ? (
         <div className="text-center py-12">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
+            <circle cx="6" cy="6" r="3" />
+            <path d="M8.12 8.12L12 12" />
+            <path d="M20 4L8.12 15.88" />
+            <circle cx="6" cy="18" r="3" />
+            <path d="M14.8 14.8L20 20" />
+          </svg>
           <p className="text-text-muted">Nenhum serviço cadastrado.</p>
           <button
             onClick={() => setShowForm(true)}

@@ -24,7 +24,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    }, 4000);
   }, []);
 
   return (
@@ -36,9 +36,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             className={`pointer-events-auto px-4 py-3 rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-3)] text-sm font-medium animate-[slideIn_0.2s_ease-out] ${
               t.type === 'success'
-                ? 'bg-success-bg text-success-text border border-success-border'
+                ? 'bg-success-bg text-success-text border border-success-fg/20'
                 : t.type === 'error'
-                  ? 'bg-danger-bg text-danger-fg border border-danger-border'
+                  ? 'bg-danger-bg text-danger-text border border-danger-fg/20'
                   : 'bg-surface-card text-text-strong border border-border-default'
             }`}
           >

@@ -24,8 +24,8 @@ fizer pode contradizer esse arquivo.
 ### Estado atual
 
 ```
-Fase atual: Diferenciação — EM ANDAMENTO
-Próximo documento: docs/03-diferenciacao.md
+Fase atual: Retenção — NÃO INICIADA
+Próximo documento: docs/04-retencao.md
 ```
 
 > Ao concluir uma fase (todos os critérios de aceite marcados), atualize estas duas linhas para a
@@ -38,7 +38,7 @@ Próximo documento: docs/03-diferenciacao.md
 | Sem repo / fundação não iniciada ou em andamento | `docs/01-fundacao.md` |
 | Fundação pronta; construindo o núcleo de agendamento | `docs/02-mvp.md` |
 | MVP pronto; personalização + financeiro | `docs/03-diferenciacao.md` *(a criar)* |
-| Diferenciação pronta; notificações + subdomínios | `docs/04-retencao.md` *(a criar)* |
+| Diferenciação pronta; notificações, subdomínios, cupons, fidelidade e identidade do cliente (OTP) | `docs/04-retencao.md` |
 | Retenção pronta; pagamentos + domínio próprio | `docs/05-monetizacao.md` *(a criar)* |
 | Produto validado; escala + observabilidade | `docs/06-hardening.md` *(a criar)* |
 

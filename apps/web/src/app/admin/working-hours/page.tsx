@@ -175,10 +175,20 @@ export default function WorkingHoursPage() {
         </div>
       ) : !selectedProfId ? (
         <div className="text-center py-12">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
+            <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M19 8v6M22 11h-6" />
+          </svg>
           <p className="text-text-muted">Cadastre um profissional primeiro.</p>
+          <p className="text-xs text-text-subtle mt-1">É necessário ter ao menos um profissional para configurar horários.</p>
         </div>
       ) : hours.length === 0 ? (
         <div className="text-center py-12">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </svg>
           <p className="text-text-muted">Nenhum horário configurado.</p>
           <p className="text-xs text-text-subtle mt-1">Adicione os dias e horários em que este profissional atende.</p>
           <button
@@ -194,8 +204,8 @@ export default function WorkingHoursPage() {
             <thead>
               <tr className="bg-surface-subtle border-b border-border-default">
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Dia</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Início</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Início</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
               </tr>
             </thead>
@@ -205,8 +215,8 @@ export default function WorkingHoursPage() {
                 .map((h) => (
                   <tr key={h.id} className="border-b border-border-default hover:bg-surface-subtle">
                     <td className="px-4 py-3 font-medium text-text-strong">{DAYS[h.weekday]}</td>
-                    <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums">{h.startTime}</td>
-                    <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums">{h.endTime}</td>
+                    <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">{h.startTime}</td>
+                    <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">{h.endTime}</td>
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => setDeleteTarget(h.id)}

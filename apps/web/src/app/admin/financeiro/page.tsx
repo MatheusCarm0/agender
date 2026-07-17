@@ -142,7 +142,7 @@ export default function FinanceiroPage() {
               type="date"
               value={dateRange.from}
               onChange={(e) => setDateRange((r) => ({ ...r, from: e.target.value }))}
-              className="h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
+              className="h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
             />
           </div>
           <div>
@@ -151,7 +151,7 @@ export default function FinanceiroPage() {
               type="date"
               value={dateRange.to}
               onChange={(e) => setDateRange((r) => ({ ...r, to: e.target.value }))}
-              className="h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
+              className="h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
             />
           </div>
           <div>

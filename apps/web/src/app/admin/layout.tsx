@@ -33,6 +33,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [user, loading, router]);
 
   useEffect(() => {
+    const saved = localStorage.getItem('admin_theme') as 'light' | 'dark' | null;
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  }, []);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
@@ -80,12 +89,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2 text-sm rounded-[var(--radius-sm)] transition-colors ${
+                className={`relative flex items-center gap-3 px-3 py-2 text-sm rounded-[var(--radius-sm)] transition-colors ${
                   active
-                    ? 'bg-primary-tint-bg text-primary-tint-text border-l-2 border-primary-default'
+                    ? 'bg-primary-tint-bg text-primary-tint-text'
                     : 'text-text-default hover:bg-surface-subtle'
                 }`}
               >
+                {active && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-default rounded-r" />
+                )}
                 <span className="text-base">{item.icon}</span>
                 {item.label}
               </Link>
