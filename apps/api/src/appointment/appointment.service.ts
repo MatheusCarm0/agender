@@ -3,6 +3,7 @@ import {
   ConflictException,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -112,6 +113,252 @@ export class AppointmentService {
 
       return appointment;
     });
+  }
+
+  async createWithExtras(
+    dto: CreateAppointmentDto,
+    businessId: string,
+    couponCode?: string,
+    authenticatedClientId?: string,
+  ) {
+    const profService = await this.prisma.raw.professionalService.findUnique({
+      where: {
+        professionalId_serviceId: {
+          professionalId: dto.professionalId,
+          serviceId: dto.serviceId,
+        },
+      },
+      include: { service: true },
+    });
+    if (!profService) {
+      throw new NotFoundException('Professional does not offer this service');
+    }
+
+    const durationMin = profService.durationOverride ?? profService.service.durationMin;
+    const bufferBefore = profService.service.bufferBefore;
+    const bufferAfter = profService.service.bufferAfter;
+    const price = profService.priceOverride ?? profService.service.price;
+
+    const startAt = new Date(dto.startAt);
+    const endAt = new Date(startAt.getTime() + durationMin * 60 * 1000);
+    const blockStart = new Date(startAt.getTime() - bufferBefore * 60 * 1000);
+    const blockEnd = new Date(endAt.getTime() + bufferAfter * 60 * 1000);
+
+    return this.prisma.raw.$transaction(async (tx) => {
+      if (dto.idempotencyKey) {
+        const existing = await tx.appointment.findUnique({
+          where: {
+            businessId_idempotencyKey: {
+              businessId,
+              idempotencyKey: dto.idempotencyKey,
+            },
+          },
+        });
+        if (existing) return existing;
+      }
+
+      const conflicts: { id: string }[] = await tx.$queryRaw`
+        SELECT id FROM appointments
+        WHERE professional_id = ${dto.professionalId}
+          AND status IN ('scheduled', 'confirmed')
+          AND start_at < ${blockEnd}
+          AND end_at > ${blockStart}
+        FOR UPDATE
+      `;
+
+      if (conflicts.length > 0) {
+        throw new ConflictException('Time slot is already booked');
+      }
+
+      const client = await tx.client.upsert({
+        where: {
+          businessId_phone: {
+            businessId,
+            phone: dto.clientPhone,
+          },
+        },
+        create: {
+          businessId,
+          name: dto.clientName,
+          phone: dto.clientPhone,
+          email: dto.clientEmail,
+        },
+        update: {
+          name: dto.clientName,
+          email: dto.clientEmail,
+        },
+      });
+
+      let couponId: string | undefined;
+      let membershipId: string | undefined;
+      let discountAmount = new Prisma.Decimal(0);
+
+      if (authenticatedClientId) {
+        const membershipResult = await this.tryApplyMembership(
+          tx,
+          businessId,
+          authenticatedClientId,
+          dto.serviceId,
+          price as Prisma.Decimal,
+        );
+        if (membershipResult) {
+          membershipId = membershipResult.membershipId;
+          discountAmount = membershipResult.discountAmount;
+        }
+      }
+
+      if (!membershipId && couponCode) {
+        const couponResult = await this.tryApplyCoupon(
+          tx,
+          businessId,
+          couponCode,
+          dto.serviceId,
+          client.id,
+          price as Prisma.Decimal,
+        );
+        if (couponResult) {
+          couponId = couponResult.couponId;
+          discountAmount = couponResult.discountAmount;
+        }
+      }
+
+      const appointment = await tx.appointment.create({
+        data: {
+          businessId,
+          professionalId: dto.professionalId,
+          serviceId: dto.serviceId,
+          clientId: client.id,
+          startAt,
+          endAt,
+          price,
+          couponId,
+          membershipId,
+          discountAmount,
+          idempotencyKey: dto.idempotencyKey,
+        },
+      });
+
+      if (couponId) {
+        await tx.couponRedemption.create({
+          data: {
+            couponId,
+            appointmentId: appointment.id,
+            clientId: client.id,
+            discountApplied: discountAmount,
+          },
+        });
+      }
+
+      return appointment;
+    });
+  }
+
+  private async tryApplyCoupon(
+    tx: Prisma.TransactionClient,
+    businessId: string,
+    couponCode: string,
+    serviceId: string,
+    clientId: string,
+    price: Prisma.Decimal,
+  ) {
+    const coupon = await tx.coupon.findUnique({
+      where: { businessId_code: { businessId, code: couponCode.toUpperCase().trim() } },
+    });
+
+    if (!coupon || !coupon.active) {
+      throw new BadRequestException('Invalid or inactive coupon');
+    }
+    if (new Date() < coupon.validFrom) {
+      throw new BadRequestException('Coupon not yet valid');
+    }
+    if (coupon.validUntil && new Date() > coupon.validUntil) {
+      throw new BadRequestException('Coupon expired');
+    }
+    if (coupon.scope === 'service' && coupon.serviceId !== serviceId) {
+      throw new BadRequestException('Coupon does not apply to this service');
+    }
+    if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
+      throw new BadRequestException('Coupon usage limit reached');
+    }
+
+    if (coupon.perClientLimit !== null) {
+      const clientRedemptions = await tx.couponRedemption.count({
+        where: { couponId: coupon.id, clientId },
+      });
+      if (clientRedemptions >= coupon.perClientLimit) {
+        throw new BadRequestException('Coupon per-client limit reached');
+      }
+    }
+
+    let discountAmount: Prisma.Decimal;
+    if (coupon.discountType === 'percent') {
+      discountAmount = price.mul(coupon.discountValue).div(100);
+    } else {
+      discountAmount = Prisma.Decimal.min(coupon.discountValue, price);
+    }
+
+    await tx.coupon.update({
+      where: { id: coupon.id },
+      data: { usedCount: { increment: 1 } },
+    });
+
+    return { couponId: coupon.id, discountAmount };
+  }
+
+  private async tryApplyMembership(
+    tx: Prisma.TransactionClient,
+    businessId: string,
+    clientId: string,
+    serviceId: string,
+    price: Prisma.Decimal,
+  ) {
+    const now = new Date();
+
+    const memberships = await tx.clientMembership.findMany({
+      where: {
+        businessId,
+        clientId,
+        status: 'active',
+        cycleStart: { lte: now },
+        cycleEnd: { gte: now },
+      },
+      include: { plan: true },
+    });
+
+    for (const m of memberships) {
+      const serviceIds: string[] = JSON.parse(m.plan.serviceIds as string);
+      if (serviceIds.length > 0 && !serviceIds.includes(serviceId)) {
+        continue;
+      }
+
+      if (m.plan.usageLimitType === 'limited') {
+        if (m.usageInCycle >= (m.plan.usageLimit ?? 0)) {
+          continue;
+        }
+      }
+
+      await tx.$queryRaw`
+        SELECT id FROM client_memberships
+        WHERE id = ${m.id}
+        FOR UPDATE
+      `;
+
+      const fresh = await tx.clientMembership.findUnique({ where: { id: m.id } });
+      if (!fresh || fresh.status !== 'active') continue;
+
+      if (m.plan.usageLimitType === 'limited' && fresh.usageInCycle >= (m.plan.usageLimit ?? 0)) {
+        continue;
+      }
+
+      await tx.clientMembership.update({
+        where: { id: m.id },
+        data: { usageInCycle: { increment: 1 } },
+      });
+
+      return { membershipId: m.id, discountAmount: price };
+    }
+
+    return null;
   }
 
   async findAll(role: string, userId: string) {

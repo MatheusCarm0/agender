@@ -58,7 +58,7 @@ export default async function PublicBookingPage({
 
   let business: Business;
   try {
-    const res = await fetch(`${API_URL}/public/${slug}`, {
+    const res = await fetch(`${API_URL}/public/v1/${slug}`, {
       cache: 'no-store',
     });
     if (!res.ok) return notFound();

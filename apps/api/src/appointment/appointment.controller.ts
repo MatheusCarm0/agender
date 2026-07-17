@@ -11,6 +11,7 @@ import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { NotificationService } from '../notification/notification.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -25,7 +26,10 @@ interface RequestUser {
 @Controller('appointments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AppointmentController {
-  constructor(private readonly appointmentService: AppointmentService) {}
+  constructor(
+    private readonly appointmentService: AppointmentService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   @Get()
   async findAll(@CurrentUser() user: RequestUser) {
@@ -41,10 +45,15 @@ export class AppointmentController {
   @Patch(':id')
   @Roles('owner', 'admin', 'professional')
   async update(
+    @CurrentUser() user: RequestUser,
     @Param('id') id: string,
     @Body() dto: UpdateAppointmentDto,
   ) {
-    return this.appointmentService.updateStatus(id, dto);
+    const result = await this.appointmentService.updateStatus(id, dto);
+    if (dto.status === 'cancelled') {
+      await this.notificationService.enqueueBookingCancellation(id, user.businessId);
+    }
+    return result;
   }
 
   @Patch(':id/payment')

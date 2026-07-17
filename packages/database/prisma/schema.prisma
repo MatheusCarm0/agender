@@ -28,26 +28,83 @@ enum CommissionType {
   fixed
 }
 
+enum NotificationChannel {
+  email
+  whatsapp
+}
+
+enum NotificationType {
+  booking_reminder
+  booking_confirmation
+  booking_cancelled
+  membership_expiring
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+enum CouponDiscountType {
+  percent
+  fixed
+}
+
+enum CouponScope {
+  all
+  service
+}
+
+enum BillingCycle {
+  monthly
+  quarterly
+  yearly
+}
+
+enum UsageLimitType {
+  unlimited
+  limited
+}
+
+enum MembershipStatus {
+  pending
+  active
+  suspended
+  cancelled
+  expired
+}
+
+enum PaymentStatusEnum {
+  unpaid
+  paid
+}
+
 model Business {
   id        String   @id @default(cuid())
   slug      String   @unique
   name      String
   timezone  String   @default("America/Sao_Paulo")
   plan      String   @default("free")
+  subdomain String?  @unique
   logoUrl   String?  @map("logo_url")
   coverUrl  String?  @map("cover_url")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users          User[]
-  professionals  Professional[]
-  services       Service[]
-  workingHours   WorkingHours[]
-  scheduleBlocks ScheduleBlock[]
+  users              User[]
+  professionals      Professional[]
+  services           Service[]
+  workingHours       WorkingHours[]
+  scheduleBlocks     ScheduleBlock[]
   clients            Client[]
   appointments       Appointment[]
   pageCustomization  PageCustomization?
   recurringBlocks    RecurringBlock[]
+  notificationLogs   NotificationLog[]
+  coupons            Coupon[]
+  membershipPlans    MembershipPlan[]
+  clientMemberships  ClientMembership[]
 
   @@map("businesses")
 }
@@ -161,10 +218,15 @@ model Client {
   name       String
   phone      String
   email      String?
-  notes      String?  @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
+  notes           String?   @db.Text
+  phoneVerifiedAt DateTime? @map("phone_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
-  appointments Appointment[]
+  appointments      Appointment[]
+  otps              ClientOtp[]
+  notificationLogs  NotificationLog[]
+  couponRedemptions CouponRedemption[]
+  memberships       ClientMembership[]
 
   @@unique([businessId, phone])
   @@index([businessId])
@@ -188,9 +250,14 @@ model Appointment {
   paymentStatus  String            @default("unpaid") @map("payment_status")
   paymentMethod  String?           @map("payment_method")
   paidAt         DateTime?         @map("paid_at")
-  notes          String?           @db.Text
-  idempotencyKey String?           @map("idempotency_key")
-  createdAt      DateTime          @default(now()) @map("created_at")
+  couponId        String?  @map("coupon_id")
+  membershipId    String?  @map("membership_id")
+  discountAmount  Decimal  @default(0) @db.Decimal(10, 2) @map("discount_amount")
+  notes           String?  @db.Text
+  idempotencyKey  String?  @map("idempotency_key")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  couponRedemption CouponRedemption?
 
   @@index([businessId])
   @@index([professionalId, startAt])
@@ -225,4 +292,120 @@ model RecurringBlock {
   @@index([businessId])
   @@index([professionalId, weekday])
   @@map("recurring_blocks")
+}
+
+model ClientOtp {
+  id         String    @id @default(cuid())
+  businessId String    @map("business_id")
+  clientId   String    @map("client_id")
+  client     Client    @relation(fields: [clientId], references: [id])
+  code       String
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([clientId])
+  @@index([businessId, createdAt])
+  @@map("client_otps")
+}
+
+model NotificationLog {
+  id         String              @id @default(cuid())
+  businessId String              @map("business_id")
+  business   Business            @relation(fields: [businessId], references: [id])
+  clientId   String?             @map("client_id")
+  client     Client?             @relation(fields: [clientId], references: [id])
+  channel    NotificationChannel
+  type       NotificationType
+  status     NotificationStatus  @default(pending)
+  payload    Json
+  sentAt     DateTime?           @map("sent_at")
+  error      String?
+  referenceId String?            @map("reference_id")
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  @@unique([referenceId, type])
+  @@index([businessId])
+  @@index([status, createdAt])
+  @@map("notification_logs")
+}
+
+model Coupon {
+  id             String             @id @default(cuid())
+  businessId     String             @map("business_id")
+  business       Business           @relation(fields: [businessId], references: [id])
+  code           String
+  discountType   CouponDiscountType @map("discount_type")
+  discountValue  Decimal            @db.Decimal(10, 2) @map("discount_value")
+  scope          CouponScope        @default(all)
+  serviceId      String?            @map("service_id")
+  maxUses        Int?               @map("max_uses")
+  usedCount      Int                @default(0) @map("used_count")
+  perClientLimit Int?               @map("per_client_limit")
+  validFrom      DateTime           @map("valid_from")
+  validUntil     DateTime?          @map("valid_until")
+  active         Boolean            @default(true)
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  redemptions CouponRedemption[]
+
+  @@unique([businessId, code])
+  @@index([businessId])
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id              String   @id @default(cuid())
+  couponId        String   @map("coupon_id")
+  coupon          Coupon   @relation(fields: [couponId], references: [id])
+  appointmentId   String   @unique @map("appointment_id")
+  appointment     Appointment @relation(fields: [appointmentId], references: [id])
+  clientId        String   @map("client_id")
+  client          Client   @relation(fields: [clientId], references: [id])
+  discountApplied Decimal  @db.Decimal(10, 2) @map("discount_applied")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([couponId])
+  @@index([clientId])
+  @@map("coupon_redemptions")
+}
+
+model MembershipPlan {
+  id             String         @id @default(cuid())
+  businessId     String         @map("business_id")
+  business       Business       @relation(fields: [businessId], references: [id])
+  name           String
+  price          Decimal        @db.Decimal(10, 2)
+  billingCycle   BillingCycle   @default(monthly) @map("billing_cycle")
+  usageLimitType UsageLimitType @map("usage_limit_type")
+  usageLimit     Int?           @map("usage_limit")
+  serviceIds     Json           @default("[]") @map("service_ids")
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  memberships ClientMembership[]
+
+  @@index([businessId])
+  @@map("membership_plans")
+}
+
+model ClientMembership {
+  id            String           @id @default(cuid())
+  businessId    String           @map("business_id")
+  business      Business         @relation(fields: [businessId], references: [id])
+  clientId      String           @map("client_id")
+  client        Client           @relation(fields: [clientId], references: [id])
+  planId        String           @map("plan_id")
+  plan          MembershipPlan   @relation(fields: [planId], references: [id])
+  status        MembershipStatus @default(pending)
+  cycleStart    DateTime         @map("cycle_start")
+  cycleEnd      DateTime         @map("cycle_end")
+  usageInCycle  Int              @default(0) @map("usage_in_cycle")
+  paymentStatus PaymentStatusEnum @default(unpaid) @map("payment_status_enum")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([clientId])
+  @@map("client_memberships")
 }

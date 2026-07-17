@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 
@@ -14,11 +14,28 @@ export class BusinessService {
     return business;
   }
 
+  async findBySubdomain(subdomain: string) {
+    const business = await this.prisma.raw.business.findFirst({
+      where: { subdomain },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    return business;
+  }
+
   async update(id: string, dto: UpdateBusinessDto) {
     const business = await this.prisma.raw.business.findUnique({
       where: { id },
     });
     if (!business) throw new NotFoundException('Business not found');
+
+    if (dto.subdomain) {
+      const existing = await this.prisma.raw.business.findFirst({
+        where: { subdomain: dto.subdomain, id: { not: id } },
+      });
+      if (existing) {
+        throw new ConflictException('Subdomain already taken');
+      }
+    }
 
     return this.prisma.raw.business.update({
       where: { id },

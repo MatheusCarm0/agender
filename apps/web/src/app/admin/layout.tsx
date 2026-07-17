@@ -15,6 +15,9 @@ const NAV_ITEMS = [
   { href: '/admin/recurring-blocks', label: 'Bloqueios recorrentes', icon: '🔁', roles: ['owner', 'admin'] },
   { href: '/admin/clientes', label: 'Clientes', icon: '📋', roles: ['owner', 'admin'] },
   { href: '/admin/financeiro', label: 'Financeiro', icon: '💰', roles: ['owner', 'admin', 'professional'] },
+  { href: '/admin/cupons', label: 'Cupons', icon: '🏷️', roles: ['owner', 'admin'] },
+  { href: '/admin/fidelidade', label: 'Fidelidade', icon: '⭐', roles: ['owner', 'admin'] },
+  { href: '/admin/notificacoes', label: 'Notificações', icon: '🔔', roles: ['owner', 'admin'] },
   { href: '/admin/customization', label: 'Personalização', icon: '🎨', roles: ['owner', 'admin'] },
 ];
 

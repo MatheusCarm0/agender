@@ -84,6 +84,7 @@ export default function BookingClient({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [clientForm, setClientForm] = useState({ name: '', phone: '', email: '' });
+  const [couponCode, setCouponCode] = useState('');
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState('');
 
@@ -123,7 +124,7 @@ export default function BookingClient({
     setError('');
     try {
       const res = await fetch(
-        `${API_URL}/public/${business.slug}/availability?professionalId=${pId}&serviceId=${sId}&dateFrom=${date}&dateTo=${date}`,
+        `${API_URL}/public/v1/${business.slug}/availability?professionalId=${pId}&serviceId=${sId}&dateFrom=${date}&dateTo=${date}`,
       );
       if (!res.ok) throw new Error('Erro ao buscar horários');
       const data: Slot[] = await res.json();
@@ -152,7 +153,7 @@ export default function BookingClient({
     setError('');
     const idempotencyKey = crypto.randomUUID();
     try {
-      const res = await fetch(`${API_URL}/public/${business.slug}/appointments`, {
+      const res = await fetch(`${API_URL}/public/v1/${business.slug}/appointments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,6 +166,7 @@ export default function BookingClient({
           clientName: clientForm.name,
           clientPhone: clientForm.phone,
           ...(clientForm.email ? { clientEmail: clientForm.email } : {}),
+          ...(couponCode.trim() ? { couponCode: couponCode.trim() } : {}),
         }),
       });
       if (!res.ok) {
@@ -502,6 +504,16 @@ export default function BookingClient({
                     onChange={(e) => setClientForm((f) => ({ ...f, email: e.target.value }))}
                     className="w-full h-10 px-3 text-sm border focus:outline-none"
                     style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Cupom de desconto (opcional)</label>
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="CODIGO10"
+                    className="w-full h-10 px-3 text-sm border focus:outline-none uppercase tracking-wider"
+                    style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, fontFamily: 'monospace' }}
                   />
                 </div>
                 {error && (

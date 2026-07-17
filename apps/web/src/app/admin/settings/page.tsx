@@ -12,18 +12,19 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   const [profileForm, setProfileForm] = useState({ name: '', email: '' });
-  const [businessForm, setBusinessForm] = useState({ name: '', logoUrl: '' });
+  const [businessForm, setBusinessForm] = useState({ name: '', logoUrl: '', subdomain: '' });
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
+  const [savingSubdomain, setSavingSubdomain] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     if (!user || !token) return;
     setProfileForm({ name: user.name, email: user.email });
-    api<{ name: string; logoUrl?: string }>('/business', { token })
-      .then((b) => setBusinessForm({ name: b.name, logoUrl: b.logoUrl || '' }))
-      .catch(() => setBusinessForm({ name: user.business.name, logoUrl: '' }));
+    api<{ name: string; logoUrl?: string; subdomain?: string }>('/business', { token })
+      .then((b) => setBusinessForm({ name: b.name, logoUrl: b.logoUrl || '', subdomain: b.subdomain || '' }))
+      .catch(() => setBusinessForm({ name: user.business.name, logoUrl: '', subdomain: '' }));
   }, [user, token]);
 
   useEffect(() => {
@@ -112,6 +113,23 @@ export default function SettingsPage() {
       toast(err instanceof Error ? err.message : 'Erro ao salvar negócio', 'error');
     }
     setSavingBusiness(false);
+  }
+
+  async function handleSaveSubdomain(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    setSavingSubdomain(true);
+    try {
+      await api('/business', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ subdomain: businessForm.subdomain || null }),
+      });
+      toast('Subdomínio salvo');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao salvar subdomínio', 'error');
+    }
+    setSavingSubdomain(false);
   }
 
   const isOwner = user?.role === 'owner' || user?.role === 'admin';
@@ -270,6 +288,35 @@ export default function SettingsPage() {
             >
               /{user?.business.slug}
             </a>
+          </section>
+        )}
+
+        {isOwner && (
+          <section className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 shadow-[var(--shadow-elevation-1)]">
+            <h2 className="text-base font-semibold text-text-strong mb-4">Subdomínio</h2>
+            <p className="text-sm text-text-muted mb-3">
+              Defina um subdomínio personalizado para sua página de agendamento.
+            </p>
+            <form onSubmit={handleSaveSubdomain} className="space-y-3">
+              <div className="flex items-center gap-1">
+                <input
+                  value={businessForm.subdomain}
+                  onChange={(e) => setBusinessForm((f) => ({ ...f, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                  placeholder="meu-negocio"
+                  className="w-48 h-9 px-3 text-sm border border-border-strong rounded-l-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none"
+                />
+                <span className="h-9 px-3 flex items-center text-sm text-text-muted bg-surface-subtle border border-l-0 border-border-strong rounded-r-[var(--radius-sm)]">
+                  .app.com
+                </span>
+              </div>
+              <button
+                type="submit"
+                disabled={savingSubdomain}
+                className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
+              >
+                {savingSubdomain ? 'Salvando...' : 'Salvar subdomínio'}
+              </button>
+            </form>
           </section>
         )}
       </div>
