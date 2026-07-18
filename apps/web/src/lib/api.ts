@@ -26,14 +26,19 @@ export async function api<T = unknown>(
   options: FetchOptions = {},
 ): Promise<T> {
   const { token, headers, ...rest } = options;
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    ...rest,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      ...rest,
+    });
+  } catch {
+    throw new ApiError(0, 'Não foi possível conectar ao servidor. Verifique sua conexão.');
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

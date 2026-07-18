@@ -66,7 +66,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ logoUrl: fullUrl }),
       });
     } catch {
-      // upload error
+      toast('Erro ao enviar logo', 'error');
     }
     setUploadingLogo(false);
   }
@@ -74,11 +74,16 @@ export default function SettingsPage() {
   async function handleRemoveLogo() {
     if (!token) return;
     setBusinessForm((f) => ({ ...f, logoUrl: '' }));
-    await api('/business', {
-      method: 'PATCH',
-      token,
-      body: JSON.stringify({ logoUrl: null }),
-    });
+    try {
+      await api('/business', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ logoUrl: null }),
+      });
+      toast('Logo removida');
+    } catch {
+      toast('Erro ao remover logo', 'error');
+    }
   }
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -143,16 +148,18 @@ export default function SettingsPage() {
           <h2 className="text-base font-semibold text-text-strong mb-4">Perfil</h2>
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-text-muted mb-1">Nome</label>
+              <label htmlFor="settings-name" className="block text-xs font-medium text-text-muted mb-1">Nome</label>
               <input
+                id="settings-name"
                 value={profileForm.name}
                 onChange={(e) => setProfileForm((f) => ({ ...f, name: e.target.value }))}
                 className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-muted mb-1">E-mail</label>
+              <label htmlFor="settings-email" className="block text-xs font-medium text-text-muted mb-1">E-mail</label>
               <input
+                id="settings-email"
                 type="email"
                 value={profileForm.email}
                 onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))}
@@ -185,7 +192,13 @@ export default function SettingsPage() {
                       className="w-20 h-20 rounded-full object-cover border border-border-default"
                     />
                   ) : (
-                    <div className="w-20 h-20 rounded-full bg-primary-default text-primary-fg flex items-center justify-center text-2xl font-semibold">
+                    <div
+                      className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-medium tracking-wide shadow-sm ring-1 ring-border-default"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--color-primary-default) 0%, var(--color-primary-hover) 100%)',
+                        color: 'var(--color-primary-fg)',
+                      }}
+                    >
                       {(user?.business.name || 'N')[0].toUpperCase()}
                     </div>
                   )}
@@ -222,8 +235,9 @@ export default function SettingsPage() {
               </div>
               <form onSubmit={handleSaveBusiness} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1">Nome do negócio</label>
+                  <label htmlFor="settings-biz-name" className="block text-xs font-medium text-text-muted mb-1">Nome do negócio</label>
                   <input
+                    id="settings-biz-name"
                     value={businessForm.name}
                     onChange={(e) => setBusinessForm((f) => ({ ...f, name: e.target.value }))}
                     className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
@@ -300,6 +314,7 @@ export default function SettingsPage() {
             <form onSubmit={handleSaveSubdomain} className="space-y-3">
               <div className="flex items-center gap-1">
                 <input
+                  id="settings-subdomain"
                   value={businessForm.subdomain}
                   onChange={(e) => setBusinessForm((f) => ({ ...f, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
                   placeholder="meu-negocio"

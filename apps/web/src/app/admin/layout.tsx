@@ -5,29 +5,247 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/toast';
+import { api } from '@/lib/api';
+import { AgenderLogo } from '@/components/logo';
 
-const NAV_ITEMS = [
-  { href: '/admin', label: 'Agenda', icon: '📅', roles: ['owner', 'admin', 'professional'] },
-  { href: '/admin/professionals', label: 'Profissionais', icon: '👤', roles: ['owner', 'admin'] },
-  { href: '/admin/services', label: 'Serviços', icon: '✂️', roles: ['owner', 'admin'] },
-  { href: '/admin/working-hours', label: 'Horários', icon: '🕐', roles: ['owner', 'admin', 'professional'] },
-  { href: '/admin/schedule-blocks', label: 'Bloqueios', icon: '🚫', roles: ['owner', 'admin'] },
-  { href: '/admin/recurring-blocks', label: 'Bloqueios recorrentes', icon: '🔁', roles: ['owner', 'admin'] },
-  { href: '/admin/clientes', label: 'Clientes', icon: '📋', roles: ['owner', 'admin'] },
-  { href: '/admin/financeiro', label: 'Financeiro', icon: '💰', roles: ['owner', 'admin', 'professional'] },
-  { href: '/admin/cupons', label: 'Cupons', icon: '🏷️', roles: ['owner', 'admin'] },
-  { href: '/admin/fidelidade', label: 'Fidelidade', icon: '⭐', roles: ['owner', 'admin'] },
-  { href: '/admin/notificacoes', label: 'Notificações', icon: '🔔', roles: ['owner', 'admin'] },
-  { href: '/admin/customization', label: 'Personalização', icon: '🎨', roles: ['owner', 'admin'] },
+function IconCalendar() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+}
+
+function IconUsers() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+    </svg>
+  );
+}
+
+function IconScissors() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="6" cy="6" r="3" />
+      <path d="M8.12 8.12L12 12" />
+      <path d="M20 4L8.12 15.88" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M14.8 14.8L20 20" />
+    </svg>
+  );
+}
+
+function IconClock() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+function IconBan() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M4.93 4.93l14.14 14.14" />
+    </svg>
+  );
+}
+
+function IconClipboard() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
+      <path d="M12 11h4M12 16h4M8 11h.01M8 16h.01" />
+    </svg>
+  );
+}
+
+function IconWallet() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12V7H5a2 2 0 010-4h14v4" />
+      <path d="M3 5v14a2 2 0 002 2h16v-5" />
+      <path d="M18 12a2 2 0 100 4h4v-4z" />
+    </svg>
+  );
+}
+
+function IconTag() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2H2v10l9.29 9.29a1 1 0 001.42 0l6.58-6.58a1 1 0 000-1.42z" />
+      <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconStar() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
+function IconBell() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 01-3.46 0" />
+    </svg>
+  );
+}
+
+function IconPalette() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" />
+      <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" />
+      <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" />
+      <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" />
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.04-.23-.29-.38-.63-.38-1.01 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.17-4.49-9-10-9z" />
+    </svg>
+  );
+}
+
+function IconSettings() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+    </svg>
+  );
+}
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType;
+  roles: string[];
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Operação',
+    items: [
+      { href: '/admin', label: 'Agenda', icon: IconCalendar, roles: ['owner', 'admin', 'professional'] },
+      { href: '/admin/clientes', label: 'Clientes', icon: IconClipboard, roles: ['owner', 'admin'] },
+    ],
+  },
+  {
+    label: 'Configuração',
+    items: [
+      { href: '/admin/professionals', label: 'Profissionais', icon: IconUsers, roles: ['owner', 'admin'] },
+      { href: '/admin/services', label: 'Serviços', icon: IconScissors, roles: ['owner', 'admin'] },
+      { href: '/admin/working-hours', label: 'Horários', icon: IconClock, roles: ['owner', 'admin', 'professional'] },
+      { href: '/admin/schedule-blocks', label: 'Bloqueios', icon: IconBan, roles: ['owner', 'admin'] },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { href: '/admin/cupons', label: 'Cupons', icon: IconTag, roles: ['owner', 'admin'] },
+      { href: '/admin/fidelidade', label: 'Fidelidade', icon: IconStar, roles: ['owner', 'admin'] },
+    ],
+  },
+  {
+    label: 'Gestão',
+    items: [
+      { href: '/admin/financeiro', label: 'Financeiro', icon: IconWallet, roles: ['owner', 'admin', 'professional'] },
+      { href: '/admin/notificacoes', label: 'Notificações', icon: IconBell, roles: ['owner', 'admin'] },
+      { href: '/admin/customization', label: 'Personalização', icon: IconPalette, roles: ['owner', 'admin'] },
+    ],
+  },
 ];
 
+const BREADCRUMB_LABELS: Record<string, string> = {
+  '/admin': 'Agenda',
+  '/admin/clientes': 'Clientes',
+  '/admin/professionals': 'Profissionais',
+  '/admin/services': 'Serviços',
+  '/admin/working-hours': 'Horários',
+  '/admin/schedule-blocks': 'Bloqueios',
+  '/admin/recurring-blocks': 'Bloqueios recorrentes',
+  '/admin/cupons': 'Cupons',
+  '/admin/fidelidade': 'Fidelidade',
+  '/admin/financeiro': 'Financeiro',
+  '/admin/notificacoes': 'Notificações',
+  '/admin/customization': 'Personalização',
+  '/admin/settings': 'Configurações',
+};
+
+function Breadcrumb({ pathname }: { pathname: string }) {
+  if (pathname === '/admin') return null;
+  const label = BREADCRUMB_LABELS[pathname];
+  if (!label) return null;
+  return (
+    <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-xs text-text-muted">
+      <Link href="/admin" className="hover:text-text-default transition-colors">Painel</Link>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <path d="M9 18l6-6-6-6" />
+      </svg>
+      <span className="text-text-strong font-medium">{label}</span>
+    </nav>
+  );
+}
+
+function ShellSkeleton() {
+  return (
+    <div className="min-h-screen flex bg-surface-app">
+      <aside className="hidden md:flex w-60 bg-surface-card border-r border-border-default flex-col">
+        <div className="h-14 flex items-center gap-3 px-5 border-b border-border-default">
+          <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-surface-subtle animate-pulse" />
+          <div className="h-4 w-28 bg-surface-subtle rounded animate-pulse" />
+        </div>
+        <nav className="flex-1 py-4 px-2 space-y-6">
+          {[1, 2, 3].map((g) => (
+            <div key={g} className="space-y-1">
+              <div className="h-3 w-16 bg-surface-subtle rounded animate-pulse mx-3 mb-2" />
+              {[1, 2].map((i) => (
+                <div key={i} className="h-8 bg-surface-subtle rounded-[var(--radius-sm)] animate-pulse mx-1" />
+              ))}
+            </div>
+          ))}
+        </nav>
+      </aside>
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-14 bg-surface-card border-b border-border-default flex items-center px-4">
+          <div className="flex-1" />
+          <div className="w-7 h-7 rounded-full bg-surface-subtle animate-pulse" />
+        </header>
+        <main className="flex-1 p-6">
+          <div className="h-7 w-40 bg-surface-subtle rounded animate-pulse mb-6" />
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-surface-subtle rounded-[var(--radius-md)] animate-pulse" />
+            ))}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth();
+  const { token, user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [businessLogoUrl, setBusinessLogoUrl] = useState('');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -42,7 +260,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       document.documentElement.setAttribute('data-theme', 'dark');
     }
+
   }, []);
+
+    useEffect(() => {
+    if (!token) return;
+    loadBusinessLogo();
+  }, [token]);
+
+  async function loadBusinessLogo() {
+    try {
+      const biz = await api<{ logoUrl?: string }>('/business', {
+        token: token!,
+      });
+
+      if (biz?.logoUrl) {
+        setBusinessLogoUrl(biz.logoUrl);
+      }
+    } catch {
+      // keep defaults
+    }
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -54,18 +292,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  if (loading || !user) return null;
-
-  const initials = user.business.name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase();
-
+  if (loading || !user) return <ShellSkeleton />;
+    
   return (
     <ToastProvider>
       <div className="min-h-screen flex bg-surface-app">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-primary-default focus:text-primary-fg focus:rounded-[var(--radius-sm)] focus:text-sm focus:font-medium">
+        Pular para o conteúdo
+      </a>
+
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/30 z-30 md:hidden"
@@ -79,43 +314,58 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }`}
       >
         <div className="h-14 flex items-center gap-3 px-5 border-b border-border-default">
-          <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-primary-default text-primary-fg flex items-center justify-center text-xs font-semibold shrink-0">
-            {initials}
-          </div>
-          <span className="text-sm font-semibold text-text-strong truncate">{user.business.name}</span>
+          <AgenderLogo size="sm" />
         </div>
-        <nav className="flex-1 py-2 px-2 space-y-0.5">
-          {NAV_ITEMS.filter((item) => item.roles.includes(user.role)).map((item) => {
-            const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+        <nav className="flex-1 py-3 px-2 overflow-y-auto" aria-label="Menu principal">
+          {NAV_GROUPS.map((group) => {
+            const visibleItems = group.items.filter((item) => item.roles.includes(user.role));
+            if (visibleItems.length === 0) return null;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`relative flex items-center gap-3 px-3 py-2 text-sm rounded-[var(--radius-sm)] transition-colors ${
-                  active
-                    ? 'bg-primary-tint-bg text-primary-tint-text'
-                    : 'text-text-default hover:bg-surface-subtle'
-                }`}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-default rounded-r" />
-                )}
-                <span className="text-base">{item.icon}</span>
-                {item.label}
-              </Link>
+              <div key={group.label} className="mb-4">
+                <span className="block px-3 mb-1 text-[11px] font-medium text-text-subtle uppercase tracking-wider">
+                  {group.label}
+                </span>
+                <div className="space-y-0.5">
+                  {visibleItems.map((item) => {
+                    const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setSidebarOpen(false)}
+                        className={`relative flex items-center gap-3 px-3 py-2 text-sm rounded-[var(--radius-sm)] transition-colors ${
+                          active
+                            ? 'bg-primary-tint-bg text-primary-tint-text'
+                            : 'text-text-default hover:bg-surface-subtle'
+                        }`}
+                      >
+                        {active && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-default rounded-r" />
+                        )}
+                        <span className={active ? 'text-primary-tint-text' : 'text-text-muted'}>
+                          <Icon />
+                        </span>
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </nav>
         <div className="p-3 border-t border-border-default">
           <Link
             href="/admin/settings"
-            className="flex items-center gap-2 px-2 py-1.5 text-xs text-text-muted hover:text-text-strong hover:bg-surface-subtle rounded-[var(--radius-sm)] transition-colors"
+            onClick={() => setSidebarOpen(false)}
+            className={`flex items-center gap-2 px-3 py-2 text-sm rounded-[var(--radius-sm)] transition-colors ${
+              pathname === '/admin/settings'
+                ? 'bg-primary-tint-bg text-primary-tint-text'
+                : 'text-text-muted hover:text-text-strong hover:bg-surface-subtle'
+            }`}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-            </svg>
+            <IconSettings />
             Configurações
           </Link>
         </div>
@@ -128,7 +378,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             onClick={() => setSidebarOpen(true)}
             aria-label="Abrir menu"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M3 12h18M3 6h18M3 18h18" />
             </svg>
           </button>
@@ -138,18 +388,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="flex items-center gap-2 h-9 px-2 rounded-[var(--radius-sm)] hover:bg-surface-subtle transition-colors"
+              aria-expanded={menuOpen}
+              aria-haspopup="true"
             >
-              <div className="w-7 h-7 rounded-full bg-primary-default text-primary-fg flex items-center justify-center text-xs font-semibold">
-                {user.name[0].toUpperCase()}
+              <div className="w-9 h-9 rounded-full overflow-hidden shadow-sm ring-1 ring-border-default">
+                  {businessLogoUrl ? (
+                    <img
+                      src={businessLogoUrl}
+                      alt="Logo"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center text-[13px] font-medium tracking-wide"
+                      style={{
+                        background: 'linear-gradient(135deg, var(--color-primary-default) 0%, var(--color-primary-hover) 100%)',
+                        color: 'var(--color-primary-fg)',
+                      }}
+                    >
+                      {user.name.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
+                    </div>
+                  )}
               </div>
               <span className="text-sm text-text-default hidden sm:block">{user.name}</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-muted">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-muted" aria-hidden="true">
                 <path d="M6 9l6 6 6-6" />
               </svg>
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-2)] py-1 z-30">
+              <div className="absolute right-0 top-full mt-1 w-56 bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-2)] py-1 z-30" role="menu">
                 <div className="px-3 py-2 border-b border-border-default">
                   <p className="text-sm font-medium text-text-strong">{user.name}</p>
                   <p className="text-xs text-text-muted">{user.email}</p>
@@ -159,18 +427,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   href="/admin/settings"
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-text-default hover:bg-surface-subtle transition-colors"
+                  role="menuitem"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-                  </svg>
+                  <IconSettings />
                   Configurações
                 </Link>
                 <button
                   onClick={() => { setMenuOpen(false); logout(); }}
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-danger-fg hover:bg-surface-subtle transition-colors"
+                  role="menuitem"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
@@ -181,7 +448,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </div>
         </header>
-        <main className="flex-1 p-6">
+        <main id="main-content" className="flex-1 p-6">
+          <Breadcrumb pathname={pathname} />
           {children}
         </main>
       </div>

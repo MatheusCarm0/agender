@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
 
 interface Client {
   id: string;
@@ -44,6 +45,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function ClientsPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -54,27 +56,45 @@ export default function ClientsPage() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', phone: '', notes: '' });
   const [saving, setSaving] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
 
   useEffect(() => {
     if (!token) return;
     loadClients();
-  }, [token, page, search]);
+  }, [token, page, debouncedSearch]);
 
   async function loadClients() {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: '20' });
-    if (search) params.set('search', search);
-    const data = await api<PaginatedResult>(`/clients?${params}`, { token: token! });
-    setClients(data.data);
-    setTotalPages(data.totalPages);
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      const data = await api<PaginatedResult>(`/clients?${params}`, { token: token! });
+      setClients(data.data);
+      setTotalPages(data.totalPages);
+    } catch {
+      toast('Não foi possível carregar os clientes', 'error');
+    }
     setLoading(false);
   }
 
   async function openDetail(id: string) {
     setLoadingDetail(true);
     setEditing(false);
-    const data = await api<ClientDetail>(`/clients/${id}`, { token: token! });
-    setSelectedClient(data);
+    try {
+      const data = await api<ClientDetail>(`/clients/${id}`, { token: token! });
+      setSelectedClient(data);
+    } catch {
+      toast('Não foi possível carregar os detalhes do cliente', 'error');
+    }
     setLoadingDetail(false);
   }
 
@@ -91,15 +111,20 @@ export default function ClientsPage() {
   async function handleSave() {
     if (!selectedClient) return;
     setSaving(true);
-    await api(`/clients/${selectedClient.id}`, {
-      method: 'PATCH',
-      token: token!,
-      body: JSON.stringify(editForm),
-    });
+    try {
+      await api(`/clients/${selectedClient.id}`, {
+        method: 'PATCH',
+        token: token!,
+        body: JSON.stringify(editForm),
+      });
+      toast('Cliente atualizado');
+      setEditing(false);
+      openDetail(selectedClient.id);
+      loadClients();
+    } catch {
+      toast('Erro ao salvar cliente', 'error');
+    }
     setSaving(false);
-    setEditing(false);
-    openDetail(selectedClient.id);
-    loadClients();
   }
 
   function handleSearch(value: string) {
@@ -108,10 +133,13 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="flex gap-6">
+    <div className="flex flex-col lg:flex-row gap-6">
       <div className={selectedClient ? 'flex-1 min-w-0' : 'w-full'}>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-semibold text-text-strong">Clientes</h1>
+          <div>
+            <h1 className="text-2xl font-semibold text-text-strong">Clientes</h1>
+            <p className="text-xs text-text-muted mt-1">Base de clientes que agendaram pelo seu link.</p>
+          </div>
         </div>
 
         <div className="mb-4">
@@ -200,7 +228,7 @@ export default function ClientsPage() {
       </div>
 
       {selectedClient && (
-        <div className="w-96 shrink-0 bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] p-6 h-fit sticky top-6">
+        <div className="w-full lg:w-96 shrink-0 bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] p-6 h-fit sticky top-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-text-strong">Detalhes do cliente</h2>
             <button
@@ -220,24 +248,27 @@ export default function ClientsPage() {
           ) : editing ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Nome</label>
+                <label htmlFor="client-name" className="block text-xs font-medium text-text-muted mb-1">Nome</label>
                 <input
+                  id="client-name"
                   value={editForm.name}
                   onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                   className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Telefone</label>
+                <label htmlFor="client-phone" className="block text-xs font-medium text-text-muted mb-1">Telefone</label>
                 <input
+                  id="client-phone"
                   value={editForm.phone}
                   onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                   className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Notas</label>
+                <label htmlFor="client-notes" className="block text-xs font-medium text-text-muted mb-1">Notas</label>
                 <textarea
+                  id="client-notes"
                   value={editForm.notes}
                   onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
                   rows={3}

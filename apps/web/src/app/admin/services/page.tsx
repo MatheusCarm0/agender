@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
 
 interface Service {
   id: string;
@@ -19,6 +20,7 @@ interface Professional {
 
 export default function ServicesPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [services, setServices] = useState<Service[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,12 +37,16 @@ export default function ServicesPage() {
 
   async function loadData() {
     setLoading(true);
-    const [s, p] = await Promise.all([
-      api<Service[]>('/services', { token: token! }),
-      api<Professional[]>('/professionals', { token: token! }),
-    ]);
-    setServices(s);
-    setProfessionals(p);
+    try {
+      const [s, p] = await Promise.all([
+        api<Service[]>('/services', { token: token! }),
+        api<Professional[]>('/professionals', { token: token! }),
+      ]);
+      setServices(s);
+      setProfessionals(p);
+    } catch {
+      toast('Não foi possível carregar os serviços', 'error');
+    }
     setLoading(false);
   }
 
@@ -71,27 +77,42 @@ export default function ServicesPage() {
       price: Number(form.price),
     });
 
-    if (editingId) {
-      await api(`/services/${editingId}`, { method: 'PATCH', token: token!, body });
-    } else {
-      const created = await api<Service>('/services', { method: 'POST', token: token!, body });
-      for (const profId of selectedProfessionals) {
-        await api(`/services/${created.id}/professionals`, {
-          method: 'POST',
-          token: token!,
-          body: JSON.stringify({ professionalId: profId }),
-        });
+    try {
+      if (editingId) {
+        await api(`/services/${editingId}`, { method: 'PATCH', token: token!, body });
+        toast('Serviço atualizado');
+      } else {
+        const created = await api<Service>('/services', { method: 'POST', token: token!, body });
+        for (const profId of selectedProfessionals) {
+          await api(`/services/${created.id}/professionals`, {
+            method: 'POST',
+            token: token!,
+            body: JSON.stringify({ professionalId: profId }),
+          });
+        }
+        toast('Serviço criado com sucesso');
       }
+      setShowForm(false);
+      loadData();
+    } catch {
+      toast('Erro ao salvar serviço', 'error');
     }
     setSaving(false);
-    setShowForm(false);
-    loadData();
   }
+
+  const [search, setSearch] = useState('');
+
+  const filteredServices = services.filter((s) =>
+    s.name.toLowerCase().includes(search.toLowerCase()),
+  );
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-text-strong">Serviços</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-text-strong">Serviços</h1>
+          <p className="text-xs text-text-muted mt-1">Cadastre os serviços oferecidos pelo seu negócio.</p>
+        </div>
         <button
           onClick={openCreate}
           className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
@@ -100,6 +121,18 @@ export default function ServicesPage() {
         </button>
       </div>
 
+      {services.length > 0 && (
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Buscar serviço..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full max-w-sm h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-default/20"
+          />
+        </div>
+      )}
+
       {showForm && (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 mb-6 shadow-[var(--shadow-elevation-1)]">
           <h2 className="text-base font-semibold text-text-strong mb-4">
@@ -107,8 +140,9 @@ export default function ServicesPage() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-text-muted mb-1">Nome</label>
+              <label htmlFor="svc-name" className="block text-xs font-medium text-text-muted mb-1">Nome</label>
               <input
+                id="svc-name"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 required
@@ -117,8 +151,9 @@ export default function ServicesPage() {
             </div>
             <div className="flex gap-4">
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Duração (min)</label>
+                <label htmlFor="svc-duration" className="block text-xs font-medium text-text-muted mb-1">Duração (min)</label>
                 <input
+                  id="svc-duration"
                   type="number"
                   value={form.durationMin}
                   onChange={(e) => setForm((f) => ({ ...f, durationMin: e.target.value }))}
@@ -129,8 +164,9 @@ export default function ServicesPage() {
                 />
               </div>
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Preço (R$)</label>
+                <label htmlFor="svc-price" className="block text-xs font-medium text-text-muted mb-1">Preço (R$)</label>
                 <input
+                  id="svc-price"
                   type="number"
                   value={form.price}
                   onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
@@ -195,6 +231,10 @@ export default function ServicesPage() {
             <div key={i} className="h-14 bg-surface-subtle rounded-[var(--radius-md)] animate-pulse" />
           ))}
         </div>
+      ) : filteredServices.length === 0 && search ? (
+        <div className="text-center py-12">
+          <p className="text-text-muted">Nenhum serviço encontrado para "{search}".</p>
+        </div>
       ) : services.length === 0 ? (
         <div className="text-center py-12">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
@@ -225,7 +265,7 @@ export default function ServicesPage() {
               </tr>
             </thead>
             <tbody>
-              {services.map((s) => (
+              {filteredServices.map((s) => (
                 <tr key={s.id} className="border-b border-border-default hover:bg-surface-subtle">
                   <td className="px-4 py-3 font-medium text-text-strong">{s.name}</td>
                   <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">

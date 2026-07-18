@@ -130,7 +130,7 @@ export default function CustomizationPage() {
       const fullUrl = `${API_URL}${url}`;
       updateTheme({ coverUrl: fullUrl, background: { type: 'image', value: fullUrl } });
     } catch {
-      // upload error
+      toast('Erro ao enviar imagem de capa', 'error');
     }
     setUploadingCover(false);
   }
@@ -217,10 +217,11 @@ export default function CustomizationPage() {
     if (!token) return;
     setSaving(true);
     try {
+      const { theme, headline, about, links, socials } = data;
       await api('/customization', {
         method: 'PUT',
         token,
-        body: JSON.stringify(data),
+        body: JSON.stringify({ theme, headline, about, links, socials }),
       });
       toast('Personalização salva');
     } catch (err) {
@@ -260,10 +261,11 @@ export default function CustomizationPage() {
             <h2 className="text-base font-semibold text-text-strong mb-4">Identidade</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">
+                <label htmlFor="cust-headline" className="block text-xs font-medium text-text-muted mb-1">
                   Título da página
                 </label>
                 <input
+                  id="cust-headline"
                   value={data.headline ?? ''}
                   onChange={(e) => setData((prev) => ({ ...prev, headline: e.target.value }))}
                   placeholder="Ex.: Barbearia do Juninho"
@@ -271,8 +273,9 @@ export default function CustomizationPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Sobre</label>
+                <label htmlFor="cust-about" className="block text-xs font-medium text-text-muted mb-1">Sobre</label>
                 <textarea
+                  id="cust-about"
                   value={data.about ?? ''}
                   onChange={(e) => setData((prev) => ({ ...prev, about: e.target.value }))}
                   rows={3}
@@ -356,8 +359,9 @@ export default function CustomizationPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Fonte</label>
+                <label htmlFor="cust-font" className="block text-xs font-medium text-text-muted mb-1">Fonte</label>
                 <select
+                  id="cust-font"
                   value={theme.font}
                   onChange={(e) => updateTheme({ font: e.target.value as Theme['font'] })}
                   className="w-full max-w-xs h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"

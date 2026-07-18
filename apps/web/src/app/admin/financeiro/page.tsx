@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
 
 interface RevenueReport {
   realized: number;
@@ -77,6 +78,7 @@ function SkeletonTable({ rows = 3 }: { rows?: number }) {
 
 export default function FinanceiroPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
 
   const [dateRange, setDateRange] = useState(getCurrentMonthRange);
   const [professionalFilter, setProfessionalFilter] = useState('');
@@ -90,13 +92,17 @@ export default function FinanceiroPage() {
 
   const loadFilters = useCallback(async () => {
     if (!token) return;
-    const [p, s] = await Promise.all([
-      api<Professional[]>('/professionals', { token }),
-      api<Service[]>('/services', { token }),
-    ]);
-    setProfessionals(p);
-    setServices(s);
-  }, [token]);
+    try {
+      const [p, s] = await Promise.all([
+        api<Professional[]>('/professionals', { token }),
+        api<Service[]>('/services', { token }),
+      ]);
+      setProfessionals(p);
+      setServices(s);
+    } catch {
+      toast('Não foi possível carregar os filtros', 'error');
+    }
+  }, [token, toast]);
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -109,23 +115,62 @@ export default function FinanceiroPage() {
     if (professionalFilter) params.set('professionalId', professionalFilter);
     if (serviceFilter) params.set('serviceId', serviceFilter);
 
-    const [rev, earn] = await Promise.all([
-      api<RevenueReport>(`/reports/revenue?${params}`, { token }).catch(() => null),
-      api<EarningsEntry[]>(`/reports/earnings?from=${dateRange.from}&to=${dateRange.to}`, { token }).catch(() => []),
-    ]);
-
-    setRevenue(rev);
-    setEarnings(earn);
+    try {
+      const [rev, earn] = await Promise.all([
+        api<RevenueReport>(`/reports/revenue?${params}`, { token }),
+        api<EarningsEntry[]>(`/reports/earnings?from=${dateRange.from}&to=${dateRange.to}`, { token }),
+      ]);
+      setRevenue(rev);
+      setEarnings(earn);
+    } catch {
+      toast('Não foi possível carregar os dados financeiros', 'error');
+    }
     setLoading(false);
-  }, [token, dateRange, professionalFilter, serviceFilter]);
+  }, [token, dateRange, professionalFilter, serviceFilter, toast]);
 
   useEffect(() => {
     loadFilters();
   }, [loadFilters]);
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
-    loadData();
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      loadData();
+    }, 400);
+    return () => clearTimeout(debounceRef.current);
   }, [loadData]);
+
+  function exportCSV() {
+    if (!revenue) return;
+    const rows = [
+      ['Tipo', 'Nome', 'Atendimentos', 'Receita (R$)'],
+      ...revenue.byProfessional.map((p) => ['Profissional', p.name, String(p.count), p.revenue.toFixed(2)]),
+      ...revenue.byService.map((s) => ['Serviço', s.name, String(s.count), s.revenue.toFixed(2)]),
+    ];
+    if (earnings.length > 0) {
+      rows.push([]);
+      rows.push(['Profissional', 'Receita total', 'Tipo comissão', 'Valor comissão', 'Comissão (R$)', 'Atendimentos']);
+      earnings.forEach((e) => {
+        rows.push([
+          e.name,
+          e.totalRevenue.toFixed(2),
+          e.commissionType === 'percent' ? 'Percentual' : e.commissionType === 'fixed' ? 'Fixo' : 'Nenhuma',
+          e.commissionType === 'percent' ? `${e.commissionValue}%` : e.commissionValue.toFixed(2),
+          e.commission.toFixed(2),
+          String(e.count),
+        ]);
+      });
+    }
+    const csv = rows.map((r) => r.join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `financeiro_${dateRange.from}_${dateRange.to}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const mono = 'font-[family-name:var(--font-geist-mono)] tabular-nums';
 
@@ -133,12 +178,16 @@ export default function FinanceiroPage() {
     <div>
       {/* Header + filters */}
       <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="text-2xl font-semibold text-text-strong">Financeiro</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-text-strong">Financeiro</h1>
+          <p className="text-xs text-text-muted mt-1">Acompanhe receita, comissões e desempenho do negócio.</p>
+        </div>
 
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">De</label>
+            <label htmlFor="fin-from" className="block text-xs font-medium text-text-muted mb-1">De</label>
             <input
+              id="fin-from"
               type="date"
               value={dateRange.from}
               onChange={(e) => setDateRange((r) => ({ ...r, from: e.target.value }))}
@@ -146,8 +195,9 @@ export default function FinanceiroPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Até</label>
+            <label htmlFor="fin-to" className="block text-xs font-medium text-text-muted mb-1">Até</label>
             <input
+              id="fin-to"
               type="date"
               value={dateRange.to}
               onChange={(e) => setDateRange((r) => ({ ...r, to: e.target.value }))}
@@ -155,8 +205,9 @@ export default function FinanceiroPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
+            <label htmlFor="fin-prof" className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
             <select
+              id="fin-prof"
               value={professionalFilter}
               onChange={(e) => setProfessionalFilter(e.target.value)}
               className="h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
@@ -168,8 +219,9 @@ export default function FinanceiroPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Serviço</label>
+            <label htmlFor="fin-svc" className="block text-xs font-medium text-text-muted mb-1">Serviço</label>
             <select
+              id="fin-svc"
               value={serviceFilter}
               onChange={(e) => setServiceFilter(e.target.value)}
               className="h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
@@ -180,6 +232,18 @@ export default function FinanceiroPage() {
               ))}
             </select>
           </div>
+          <button
+            onClick={exportCSV}
+            disabled={loading || !revenue}
+            className="h-9 px-4 border border-border-strong text-text-default text-sm rounded-[var(--radius-sm)] hover:bg-surface-subtle disabled:opacity-50 flex items-center gap-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Exportar CSV
+          </button>
         </div>
       </div>
 

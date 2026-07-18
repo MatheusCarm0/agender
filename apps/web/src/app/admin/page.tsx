@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { ConfirmModal } from '@/components/confirm-modal';
+import { useToast } from '@/components/toast';
 
 interface Appointment {
   id: string;
@@ -26,40 +27,87 @@ const STATUS_MAP: Record<string, { label: string; dotClass: string; bgClass: str
 
 export default function AgendaPage() {
   const { token, user } = useAuth();
+  const { toast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const [completeTarget, setCompleteTarget] = useState<string | null>(null);
+  const [noShowTarget, setNoShowTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
+    setError(false);
     api<Appointment[]>('/appointments', { token })
       .then(setAppointments)
-      .catch(() => {})
+      .catch(() => {
+        setError(true);
+        toast('Não foi possível carregar os agendamentos', 'error');
+      })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, toast]);
 
   async function updateStatus(id: string, status: string) {
-    await api(`/appointments/${id}`, {
-      method: 'PATCH',
-      token: token!,
-      body: JSON.stringify({ status }),
-    });
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status } : a)),
-    );
+    try {
+      await api(`/appointments/${id}`, {
+        method: 'PATCH',
+        token: token!,
+        body: JSON.stringify({ status }),
+      });
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status } : a)),
+      );
+      const labels: Record<string, string> = {
+        confirmed: 'Agendamento confirmado',
+        completed: 'Agendamento concluído',
+        cancelled: 'Agendamento cancelado',
+        no_show: 'Marcado como não compareceu',
+      };
+      toast(labels[status] || 'Status atualizado');
+    } catch {
+      toast('Erro ao atualizar status', 'error');
+    }
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-text-strong mb-6">
-        {user?.role === 'professional' ? 'Minha agenda' : 'Agenda'}
-      </h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-text-strong">
+          {user?.role === 'professional' ? 'Minha agenda' : 'Agenda'}
+        </h1>
+        <p className="text-xs text-text-muted mt-1">Acompanhe e gerencie todos os agendamentos.</p>
+      </div>
 
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-16 bg-surface-subtle rounded-[var(--radius-md)] animate-pulse" />
           ))}
+        </div>
+      ) : error ? (
+        <div className="text-center py-12">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-danger-fg">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          <p className="text-text-muted mb-1">Erro ao carregar agendamentos.</p>
+          <p className="text-xs text-text-subtle mb-3">Verifique sua conexão e tente novamente.</p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              setError(false);
+              api<Appointment[]>('/appointments', { token: token! })
+                .then(setAppointments)
+                .catch(() => {
+                  setError(true);
+                  toast('Não foi possível carregar os agendamentos', 'error');
+                })
+                .finally(() => setLoading(false));
+            }}
+            className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+          >
+            Tentar novamente
+          </button>
         </div>
       ) : appointments.length === 0 ? (
         <div className="text-center py-12">
@@ -131,13 +179,13 @@ export default function AgendaPage() {
                       {appt.status === 'confirmed' && (
                         <div className="flex gap-1 justify-end">
                           <button
-                            onClick={() => updateStatus(appt.id, 'completed')}
+                            onClick={() => setCompleteTarget(appt.id)}
                             className="text-xs px-2 py-1 text-success-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
                           >
                             Concluir
                           </button>
                           <button
-                            onClick={() => updateStatus(appt.id, 'no_show')}
+                            onClick={() => setNoShowTarget(appt.id)}
                             className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
                           >
                             Não compareceu
@@ -152,6 +200,7 @@ export default function AgendaPage() {
           </table>
         </div>
       )}
+
       <ConfirmModal
         open={!!cancelTarget}
         title="Cancelar agendamento"
@@ -165,6 +214,35 @@ export default function AgendaPage() {
           }
         }}
         onCancel={() => setCancelTarget(null)}
+      />
+
+      <ConfirmModal
+        open={!!completeTarget}
+        title="Concluir agendamento"
+        description="Marcar este agendamento como concluído? Essa ação não pode ser desfeita."
+        confirmLabel="Concluir"
+        onConfirm={() => {
+          if (completeTarget) {
+            updateStatus(completeTarget, 'completed');
+            setCompleteTarget(null);
+          }
+        }}
+        onCancel={() => setCompleteTarget(null)}
+      />
+
+      <ConfirmModal
+        open={!!noShowTarget}
+        title="Registrar ausência"
+        description="Marcar que o cliente não compareceu? Essa ação não pode ser desfeita."
+        confirmLabel="Não compareceu"
+        variant="danger"
+        onConfirm={() => {
+          if (noShowTarget) {
+            updateStatus(noShowTarget, 'no_show');
+            setNoShowTarget(null);
+          }
+        }}
+        onCancel={() => setNoShowTarget(null)}
       />
     </div>
   );

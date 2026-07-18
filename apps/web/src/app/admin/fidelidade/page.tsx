@@ -63,14 +63,18 @@ export default function FidelityPage() {
 
   async function loadData(silent = false) {
     if (!silent) setLoading(true);
-    const [p, m, c] = await Promise.all([
-      api<MembershipPlan[]>('/membership-plans', { token: token! }),
-      api<ClientMembership[]>('/client-memberships', { token: token! }),
-      api<Client[]>('/clients', { token: token! }),
-    ]);
-    setPlans(p);
-    setMemberships(m);
-    setClients(c);
+    try {
+      const [p, m, c] = await Promise.all([
+        api<MembershipPlan[]>('/membership-plans', { token: token! }),
+        api<ClientMembership[]>('/client-memberships', { token: token! }),
+        api<Client[]>('/clients', { token: token! }),
+      ]);
+      setPlans(p);
+      setMemberships(m);
+      setClients(c);
+    } catch {
+      toast('Não foi possível carregar os dados de fidelidade', 'error');
+    }
     if (!silent) setLoading(false);
   }
 
@@ -122,22 +126,30 @@ export default function FidelityPage() {
   }
 
   async function updateMembershipStatus(id: string, status: string) {
-    await api(`/client-memberships/${id}`, {
-      method: 'PATCH',
-      token: token!,
-      body: JSON.stringify({ status }),
-    });
-    await loadData(true);
+    try {
+      await api(`/client-memberships/${id}`, {
+        method: 'PATCH',
+        token: token!,
+        body: JSON.stringify({ status }),
+      });
+      await loadData(true);
+    } catch {
+      toast('Erro ao alterar status da matrícula', 'error');
+    }
   }
 
   async function markPaid(id: string) {
-    await api(`/client-memberships/${id}`, {
-      method: 'PATCH',
-      token: token!,
-      body: JSON.stringify({ paymentStatus: 'paid', status: 'active' }),
-    });
-    toast('Pagamento confirmado', 'success');
-    await loadData(true);
+    try {
+      await api(`/client-memberships/${id}`, {
+        method: 'PATCH',
+        token: token!,
+        body: JSON.stringify({ paymentStatus: 'paid', status: 'active' }),
+      });
+      toast('Pagamento confirmado', 'success');
+      await loadData(true);
+    } catch {
+      toast('Erro ao confirmar pagamento', 'error');
+    }
   }
 
   return (
@@ -186,18 +198,18 @@ export default function FidelityPage() {
               <form onSubmit={handleCreatePlan} className="space-y-4">
                 <div className="flex gap-4 flex-wrap">
                   <div className="w-48">
-                    <label className="block text-xs font-medium text-text-muted mb-1">Nome</label>
-                    <input value={planForm.name} onChange={(e) => setPlanForm((f) => ({ ...f, name: e.target.value }))} required placeholder="Plano Ouro"
+                    <label htmlFor="plan-name" className="block text-xs font-medium text-text-muted mb-1">Nome</label>
+                    <input id="plan-name" value={planForm.name} onChange={(e) => setPlanForm((f) => ({ ...f, name: e.target.value }))} required placeholder="Plano Ouro"
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none" />
                   </div>
                   <div className="w-32">
-                    <label className="block text-xs font-medium text-text-muted mb-1">Preço (R$)</label>
-                    <input type="number" value={planForm.price} onChange={(e) => setPlanForm((f) => ({ ...f, price: e.target.value }))} required min={0} step={0.01}
+                    <label htmlFor="plan-price" className="block text-xs font-medium text-text-muted mb-1">Preço (R$)</label>
+                    <input id="plan-price" type="number" value={planForm.price} onChange={(e) => setPlanForm((f) => ({ ...f, price: e.target.value }))} required min={0} step={0.01}
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none" />
                   </div>
                   <div className="w-36">
-                    <label className="block text-xs font-medium text-text-muted mb-1">Ciclo</label>
-                    <select value={planForm.billingCycle} onChange={(e) => setPlanForm((f) => ({ ...f, billingCycle: e.target.value }))}
+                    <label htmlFor="plan-cycle" className="block text-xs font-medium text-text-muted mb-1">Ciclo</label>
+                    <select id="plan-cycle" value={planForm.billingCycle} onChange={(e) => setPlanForm((f) => ({ ...f, billingCycle: e.target.value }))}
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none">
                       <option value="monthly">Mensal</option>
                       <option value="quarterly">Trimestral</option>
@@ -205,8 +217,8 @@ export default function FidelityPage() {
                     </select>
                   </div>
                   <div className="w-36">
-                    <label className="block text-xs font-medium text-text-muted mb-1">Tipo de uso</label>
-                    <select value={planForm.usageLimitType} onChange={(e) => setPlanForm((f) => ({ ...f, usageLimitType: e.target.value }))}
+                    <label htmlFor="plan-usage-type" className="block text-xs font-medium text-text-muted mb-1">Tipo de uso</label>
+                    <select id="plan-usage-type" value={planForm.usageLimitType} onChange={(e) => setPlanForm((f) => ({ ...f, usageLimitType: e.target.value }))}
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none">
                       <option value="unlimited">Ilimitado</option>
                       <option value="limited">Limitado</option>
@@ -214,8 +226,8 @@ export default function FidelityPage() {
                   </div>
                   {planForm.usageLimitType === 'limited' && (
                     <div className="w-32">
-                      <label className="block text-xs font-medium text-text-muted mb-1">Limite/ciclo</label>
-                      <input type="number" value={planForm.usageLimit} onChange={(e) => setPlanForm((f) => ({ ...f, usageLimit: e.target.value }))} required min={1}
+                      <label htmlFor="plan-limit" className="block text-xs font-medium text-text-muted mb-1">Limite/ciclo</label>
+                      <input id="plan-limit" type="number" value={planForm.usageLimit} onChange={(e) => setPlanForm((f) => ({ ...f, usageLimit: e.target.value }))} required min={1}
                         className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none" />
                     </div>
                   )}
@@ -279,16 +291,16 @@ export default function FidelityPage() {
               <form onSubmit={handleCreateMembership} className="space-y-4">
                 <div className="flex gap-4 flex-wrap">
                   <div className="w-56">
-                    <label className="block text-xs font-medium text-text-muted mb-1">Cliente</label>
-                    <select value={memberForm.clientId} onChange={(e) => setMemberForm((f) => ({ ...f, clientId: e.target.value }))} required
+                    <label htmlFor="member-client" className="block text-xs font-medium text-text-muted mb-1">Cliente</label>
+                    <select id="member-client" value={memberForm.clientId} onChange={(e) => setMemberForm((f) => ({ ...f, clientId: e.target.value }))} required
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none">
                       <option value="">Selecione...</option>
                       {clients.map((c) => <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>)}
                     </select>
                   </div>
                   <div className="w-48">
-                    <label className="block text-xs font-medium text-text-muted mb-1">Plano</label>
-                    <select value={memberForm.planId} onChange={(e) => setMemberForm((f) => ({ ...f, planId: e.target.value }))} required
+                    <label htmlFor="member-plan" className="block text-xs font-medium text-text-muted mb-1">Plano</label>
+                    <select id="member-plan" value={memberForm.planId} onChange={(e) => setMemberForm((f) => ({ ...f, planId: e.target.value }))} required
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none">
                       <option value="">Selecione...</option>
                       {plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} — R$ {Number(p.price).toFixed(2)}</option>)}

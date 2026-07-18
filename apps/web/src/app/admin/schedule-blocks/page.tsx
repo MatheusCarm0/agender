@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { ConfirmModal } from '@/components/confirm-modal';
+import { useToast } from '@/components/toast';
+import Link from 'next/link';
 
 interface Professional {
   id: string;
@@ -21,6 +23,7 @@ interface ScheduleBlock {
 
 export default function ScheduleBlocksPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,31 +38,40 @@ export default function ScheduleBlocksPage() {
 
   async function loadData() {
     setLoading(true);
-    const [b, p] = await Promise.all([
-      api<ScheduleBlock[]>('/schedule-blocks', { token: token! }),
-      api<Professional[]>('/professionals', { token: token! }),
-    ]);
-    setBlocks(b);
-    setProfessionals(p);
+    try {
+      const [b, p] = await Promise.all([
+        api<ScheduleBlock[]>('/schedule-blocks', { token: token! }),
+        api<Professional[]>('/professionals', { token: token! }),
+      ]);
+      setBlocks(b);
+      setProfessionals(p);
+    } catch {
+      toast('Não foi possível carregar os bloqueios', 'error');
+    }
     setLoading(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await api('/schedule-blocks', {
-      method: 'POST',
-      token: token!,
-      body: JSON.stringify({
-        ...(form.professionalId ? { professionalId: form.professionalId } : {}),
-        startAt: new Date(form.startAt).toISOString(),
-        endAt: new Date(form.endAt).toISOString(),
-        ...(form.reason ? { reason: form.reason } : {}),
-      }),
-    });
+    try {
+      await api('/schedule-blocks', {
+        method: 'POST',
+        token: token!,
+        body: JSON.stringify({
+          ...(form.professionalId ? { professionalId: form.professionalId } : {}),
+          startAt: new Date(form.startAt).toISOString(),
+          endAt: new Date(form.endAt).toISOString(),
+          ...(form.reason ? { reason: form.reason } : {}),
+        }),
+      });
+      toast('Bloqueio criado');
+      setShowForm(false);
+      loadData();
+    } catch {
+      toast('Erro ao criar bloqueio', 'error');
+    }
     setSaving(false);
-    setShowForm(false);
-    loadData();
   }
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -68,16 +80,24 @@ export default function ScheduleBlocksPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    await api(`/schedule-blocks/${deleteTarget}`, { method: 'DELETE', token: token! });
+    try {
+      await api(`/schedule-blocks/${deleteTarget}`, { method: 'DELETE', token: token! });
+      toast('Bloqueio removido');
+      loadData();
+    } catch {
+      toast('Erro ao remover bloqueio', 'error');
+    }
     setDeleteTarget(null);
     setDeleting(false);
-    loadData();
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-text-strong">Bloqueios de agenda</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-text-strong">Bloqueios</h1>
+          <p className="text-xs text-text-muted mt-1">Bloqueie períodos para impedir agendamentos.</p>
+        </div>
         <button
           onClick={() => setShowForm(true)}
           className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
@@ -86,14 +106,33 @@ export default function ScheduleBlocksPage() {
         </button>
       </div>
 
+      <div className="flex gap-0 border-b border-border-default mb-6" role="tablist">
+        <span
+          role="tab"
+          aria-selected="true"
+          className="px-4 py-2.5 text-sm font-medium text-primary-default border-b-2 border-primary-default -mb-px cursor-default"
+        >
+          Pontuais
+        </span>
+        <Link
+          href="/admin/recurring-blocks"
+          role="tab"
+          aria-selected="false"
+          className="px-4 py-2.5 text-sm text-text-muted hover:text-text-default -mb-px border-b-2 border-transparent"
+        >
+          Recorrentes
+        </Link>
+      </div>
+
       {showForm && (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 mb-6 shadow-[var(--shadow-elevation-1)]">
           <h2 className="text-base font-semibold text-text-strong mb-4">Novo bloqueio</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4 flex-wrap">
               <div className="w-52">
-                <label className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
+                <label htmlFor="sb-prof" className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
                 <select
+                  id="sb-prof"
                   value={form.professionalId}
                   onChange={(e) => setForm((f) => ({ ...f, professionalId: e.target.value }))}
                   className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
@@ -105,8 +144,9 @@ export default function ScheduleBlocksPage() {
                 </select>
               </div>
               <div className="w-52">
-                <label className="block text-xs font-medium text-text-muted mb-1">Início</label>
+                <label htmlFor="sb-start" className="block text-xs font-medium text-text-muted mb-1">Início</label>
                 <input
+                  id="sb-start"
                   type="datetime-local"
                   value={form.startAt}
                   onChange={(e) => setForm((f) => ({ ...f, startAt: e.target.value }))}
@@ -115,8 +155,9 @@ export default function ScheduleBlocksPage() {
                 />
               </div>
               <div className="w-52">
-                <label className="block text-xs font-medium text-text-muted mb-1">Fim</label>
+                <label htmlFor="sb-end" className="block text-xs font-medium text-text-muted mb-1">Fim</label>
                 <input
+                  id="sb-end"
                   type="datetime-local"
                   value={form.endAt}
                   onChange={(e) => setForm((f) => ({ ...f, endAt: e.target.value }))}
@@ -126,8 +167,9 @@ export default function ScheduleBlocksPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-muted mb-1">Motivo (opcional)</label>
+              <label htmlFor="sb-reason" className="block text-xs font-medium text-text-muted mb-1">Motivo (opcional)</label>
               <input
+                id="sb-reason"
                 value={form.reason}
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                 placeholder="Ex: férias, consulta médica"
@@ -166,8 +208,8 @@ export default function ScheduleBlocksPage() {
             <circle cx="12" cy="12" r="10" />
             <path d="M4.93 4.93l14.14 14.14" />
           </svg>
-          <p className="text-text-muted">Nenhum bloqueio cadastrado.</p>
-          <p className="text-xs text-text-subtle mt-1">Bloqueios impedem agendamentos em períodos específicos.</p>
+          <p className="text-text-muted">Nenhum bloqueio pontual cadastrado.</p>
+          <p className="text-xs text-text-subtle mt-1">Bloqueios pontuais impedem agendamentos em datas específicas.</p>
           <button
             onClick={() => setShowForm(true)}
             className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"

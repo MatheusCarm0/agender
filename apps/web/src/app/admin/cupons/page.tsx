@@ -47,8 +47,12 @@ export default function CouponsPage() {
 
   async function loadData(silent = false) {
     if (!silent) setLoading(true);
-    const data = await api<Coupon[]>('/coupons', { token: token! });
-    setCoupons(data);
+    try {
+      const data = await api<Coupon[]>('/coupons', { token: token! });
+      setCoupons(data);
+    } catch {
+      toast('Não foi possível carregar os cupons', 'error');
+    }
     if (!silent) setLoading(false);
   }
 
@@ -81,12 +85,16 @@ export default function CouponsPage() {
   }
 
   async function toggleActive(coupon: Coupon) {
-    await api(`/coupons/${coupon.id}`, {
-      method: 'PATCH',
-      token: token!,
-      body: JSON.stringify({ active: !coupon.active }),
-    });
-    await loadData(true);
+    try {
+      await api(`/coupons/${coupon.id}`, {
+        method: 'PATCH',
+        token: token!,
+        body: JSON.stringify({ active: !coupon.active }),
+      });
+      await loadData(true);
+    } catch {
+      toast('Erro ao alterar status do cupom', 'error');
+    }
   }
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -95,11 +103,15 @@ export default function CouponsPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    await api(`/coupons/${deleteTarget}`, { method: 'DELETE', token: token! });
+    try {
+      await api(`/coupons/${deleteTarget}`, { method: 'DELETE', token: token! });
+      toast('Cupom removido', 'success');
+      await loadData(true);
+    } catch {
+      toast('Erro ao remover cupom', 'error');
+    }
     setDeleteTarget(null);
     setDeleting(false);
-    toast('Cupom removido', 'success');
-    await loadData(true);
   }
 
   function formatDiscount(c: Coupon) {
@@ -128,8 +140,9 @@ export default function CouponsPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4 flex-wrap">
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Código</label>
+                <label htmlFor="coupon-code" className="block text-xs font-medium text-text-muted mb-1">Código</label>
                 <input
+                  id="coupon-code"
                   value={form.code}
                   onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
                   required
@@ -138,8 +151,9 @@ export default function CouponsPage() {
                 />
               </div>
               <div className="w-36">
-                <label className="block text-xs font-medium text-text-muted mb-1">Tipo</label>
+                <label htmlFor="coupon-type" className="block text-xs font-medium text-text-muted mb-1">Tipo</label>
                 <select
+                  id="coupon-type"
                   value={form.discountType}
                   onChange={(e) => setForm((f) => ({ ...f, discountType: e.target.value as 'percent' | 'fixed' }))}
                   className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
@@ -149,8 +163,9 @@ export default function CouponsPage() {
                 </select>
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Desconto</label>
+                <label htmlFor="coupon-discount" className="block text-xs font-medium text-text-muted mb-1">Desconto</label>
                 <input
+                  id="coupon-discount"
                   type="number"
                   value={form.discountValue}
                   onChange={(e) => setForm((f) => ({ ...f, discountValue: e.target.value }))}
@@ -163,8 +178,9 @@ export default function CouponsPage() {
             </div>
             <div className="flex gap-4 flex-wrap">
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Válido de</label>
+                <label htmlFor="coupon-from" className="block text-xs font-medium text-text-muted mb-1">Válido de</label>
                 <input
+                  id="coupon-from"
                   type="date"
                   value={form.validFrom}
                   onChange={(e) => setForm((f) => ({ ...f, validFrom: e.target.value }))}
@@ -173,8 +189,9 @@ export default function CouponsPage() {
                 />
               </div>
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Válido até (opcional)</label>
+                <label htmlFor="coupon-until" className="block text-xs font-medium text-text-muted mb-1">Válido até (opcional)</label>
                 <input
+                  id="coupon-until"
                   type="date"
                   value={form.validUntil}
                   onChange={(e) => setForm((f) => ({ ...f, validUntil: e.target.value }))}
@@ -182,8 +199,9 @@ export default function CouponsPage() {
                 />
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Usos máx.</label>
+                <label htmlFor="coupon-max" className="block text-xs font-medium text-text-muted mb-1">Usos máx.</label>
                 <input
+                  id="coupon-max"
                   type="number"
                   value={form.maxUses}
                   onChange={(e) => setForm((f) => ({ ...f, maxUses: e.target.value }))}
@@ -193,8 +211,9 @@ export default function CouponsPage() {
                 />
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Por cliente</label>
+                <label htmlFor="coupon-per-client" className="block text-xs font-medium text-text-muted mb-1">Por cliente</label>
                 <input
+                  id="coupon-per-client"
                   type="number"
                   value={form.perClientLimit}
                   onChange={(e) => setForm((f) => ({ ...f, perClientLimit: e.target.value }))}

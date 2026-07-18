@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { ConfirmModal } from '@/components/confirm-modal';
+import { useToast } from '@/components/toast';
+import Link from 'next/link';
 
 interface Professional {
   id: string;
@@ -23,6 +25,7 @@ const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sáb
 
 export default function RecurringBlocksPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [blocks, setBlocks] = useState<RecurringBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,33 +46,42 @@ export default function RecurringBlocksPage() {
 
   async function loadData() {
     setLoading(true);
-    const [p, b] = await Promise.all([
-      api<Professional[]>('/professionals', { token: token! }),
-      api<RecurringBlock[]>('/recurring-blocks', { token: token! }),
-    ]);
-    setProfessionals(p);
-    setBlocks(b);
+    try {
+      const [p, b] = await Promise.all([
+        api<Professional[]>('/professionals', { token: token! }),
+        api<RecurringBlock[]>('/recurring-blocks', { token: token! }),
+      ]);
+      setProfessionals(p);
+      setBlocks(b);
+    } catch {
+      toast('Não foi possível carregar os bloqueios recorrentes', 'error');
+    }
     setLoading(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await api('/recurring-blocks', {
-      method: 'POST',
-      token: token!,
-      body: JSON.stringify({
-        professionalId: form.professionalId || undefined,
-        weekday: Number(form.weekday),
-        startTime: form.startTime,
-        endTime: form.endTime,
-        reason: form.reason || undefined,
-      }),
-    });
+    try {
+      await api('/recurring-blocks', {
+        method: 'POST',
+        token: token!,
+        body: JSON.stringify({
+          professionalId: form.professionalId || undefined,
+          weekday: Number(form.weekday),
+          startTime: form.startTime,
+          endTime: form.endTime,
+          reason: form.reason || undefined,
+        }),
+      });
+      toast('Bloqueio recorrente criado');
+      setShowForm(false);
+      setForm({ professionalId: '', weekday: '1', startTime: '12:00', endTime: '13:00', reason: '' });
+      loadData();
+    } catch {
+      toast('Erro ao criar bloqueio recorrente', 'error');
+    }
     setSaving(false);
-    setShowForm(false);
-    setForm({ professionalId: '', weekday: '1', startTime: '12:00', endTime: '13:00', reason: '' });
-    loadData();
   }
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -78,10 +90,15 @@ export default function RecurringBlocksPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    await api(`/recurring-blocks/${deleteTarget}`, { method: 'DELETE', token: token! });
+    try {
+      await api(`/recurring-blocks/${deleteTarget}`, { method: 'DELETE', token: token! });
+      toast('Bloqueio recorrente removido');
+      loadData();
+    } catch {
+      toast('Erro ao remover bloqueio', 'error');
+    }
     setDeleteTarget(null);
     setDeleting(false);
-    loadData();
   }
 
   function getProfName(id: string | null) {
@@ -93,7 +110,7 @@ export default function RecurringBlocksPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-text-strong">Bloqueios recorrentes</h1>
+          <h1 className="text-2xl font-semibold text-text-strong">Bloqueios</h1>
           <p className="text-xs text-text-muted mt-1">Almoço, folgas semanais e bloqueios que se repetem toda semana.</p>
         </div>
         <button
@@ -104,14 +121,33 @@ export default function RecurringBlocksPage() {
         </button>
       </div>
 
+      <div className="flex gap-0 border-b border-border-default mb-6" role="tablist">
+        <Link
+          href="/admin/schedule-blocks"
+          role="tab"
+          aria-selected="false"
+          className="px-4 py-2.5 text-sm text-text-muted hover:text-text-default -mb-px border-b-2 border-transparent"
+        >
+          Pontuais
+        </Link>
+        <span
+          role="tab"
+          aria-selected="true"
+          className="px-4 py-2.5 text-sm font-medium text-primary-default border-b-2 border-primary-default -mb-px cursor-default"
+        >
+          Recorrentes
+        </span>
+      </div>
+
       {showForm && (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 mb-6 shadow-[var(--shadow-elevation-1)]">
           <h2 className="text-base font-semibold text-text-strong mb-4">Novo bloqueio recorrente</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4 flex-wrap">
               <div className="w-48">
-                <label className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
+                <label htmlFor="rb-prof" className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
                 <select
+                  id="rb-prof"
                   value={form.professionalId}
                   onChange={(e) => setForm((f) => ({ ...f, professionalId: e.target.value }))}
                   className="w-full h-9 px-3 pr-8 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
@@ -123,8 +159,9 @@ export default function RecurringBlocksPage() {
                 </select>
               </div>
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Dia da semana</label>
+                <label htmlFor="rb-weekday" className="block text-xs font-medium text-text-muted mb-1">Dia da semana</label>
                 <select
+                  id="rb-weekday"
                   value={form.weekday}
                   onChange={(e) => setForm((f) => ({ ...f, weekday: e.target.value }))}
                   className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
@@ -135,8 +172,9 @@ export default function RecurringBlocksPage() {
                 </select>
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Início</label>
+                <label htmlFor="rb-start" className="block text-xs font-medium text-text-muted mb-1">Início</label>
                 <input
+                  id="rb-start"
                   type="time"
                   value={form.startTime}
                   onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
@@ -145,8 +183,9 @@ export default function RecurringBlocksPage() {
                 />
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Fim</label>
+                <label htmlFor="rb-end" className="block text-xs font-medium text-text-muted mb-1">Fim</label>
                 <input
+                  id="rb-end"
                   type="time"
                   value={form.endTime}
                   onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
@@ -156,8 +195,9 @@ export default function RecurringBlocksPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-muted mb-1">Motivo (opcional)</label>
+              <label htmlFor="rb-reason" className="block text-xs font-medium text-text-muted mb-1">Motivo (opcional)</label>
               <input
+                id="rb-reason"
                 value={form.reason}
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                 placeholder="Ex: Almoço, Folga"

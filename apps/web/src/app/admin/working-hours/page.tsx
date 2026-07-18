@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { ConfirmModal } from '@/components/confirm-modal';
+import { useToast } from '@/components/toast';
 
 interface Professional {
   id: string;
@@ -22,6 +23,7 @@ const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sáb
 
 export default function WorkingHoursPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [selectedProfId, setSelectedProfId] = useState<string>('');
   const [hours, setHours] = useState<WorkingHour[]>([]);
@@ -37,6 +39,7 @@ export default function WorkingHoursPage() {
         setProfessionals(data);
         if (data.length > 0) setSelectedProfId(data[0].id);
       })
+      .catch(() => toast('Não foi possível carregar os profissionais', 'error'))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -46,26 +49,35 @@ export default function WorkingHoursPage() {
   }, [token, selectedProfId]);
 
   async function loadHours() {
-    const data = await api<WorkingHour[]>(`/working-hours?professionalId=${selectedProfId}`, { token: token! });
-    setHours(data);
+    try {
+      const data = await api<WorkingHour[]>(`/working-hours?professionalId=${selectedProfId}`, { token: token! });
+      setHours(data);
+    } catch {
+      toast('Não foi possível carregar os horários', 'error');
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await api('/working-hours', {
-      method: 'POST',
-      token: token!,
-      body: JSON.stringify({
-        professionalId: selectedProfId,
-        weekday: Number(form.weekday),
-        startTime: form.startTime,
-        endTime: form.endTime,
-      }),
-    });
+    try {
+      await api('/working-hours', {
+        method: 'POST',
+        token: token!,
+        body: JSON.stringify({
+          professionalId: selectedProfId,
+          weekday: Number(form.weekday),
+          startTime: form.startTime,
+          endTime: form.endTime,
+        }),
+      });
+      toast('Horário adicionado');
+      setShowForm(false);
+      loadHours();
+    } catch {
+      toast('Erro ao salvar horário', 'error');
+    }
     setSaving(false);
-    setShowForm(false);
-    loadHours();
   }
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -74,16 +86,24 @@ export default function WorkingHoursPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    await api(`/working-hours/${deleteTarget}`, { method: 'DELETE', token: token! });
+    try {
+      await api(`/working-hours/${deleteTarget}`, { method: 'DELETE', token: token! });
+      toast('Horário removido');
+      loadHours();
+    } catch {
+      toast('Erro ao remover horário', 'error');
+    }
     setDeleteTarget(null);
     setDeleting(false);
-    loadHours();
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-text-strong">Horários de trabalho</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-text-strong">Horários de trabalho</h1>
+          <p className="text-xs text-text-muted mt-1">Defina os dias e horários de atendimento de cada profissional.</p>
+        </div>
         {selectedProfId && (
           <button
             onClick={() => setShowForm(true)}
@@ -96,8 +116,9 @@ export default function WorkingHoursPage() {
 
       {professionals.length > 1 && (
         <div className="mb-4">
-          <label className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
+          <label htmlFor="wh-prof" className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
           <select
+            id="wh-prof"
             value={selectedProfId}
             onChange={(e) => setSelectedProfId(e.target.value)}
             className="h-9 px-3 pr-8 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
@@ -115,8 +136,9 @@ export default function WorkingHoursPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4 flex-wrap">
               <div className="w-40">
-                <label className="block text-xs font-medium text-text-muted mb-1">Dia da semana</label>
+                <label htmlFor="wh-weekday" className="block text-xs font-medium text-text-muted mb-1">Dia da semana</label>
                 <select
+                  id="wh-weekday"
                   value={form.weekday}
                   onChange={(e) => setForm((f) => ({ ...f, weekday: e.target.value }))}
                   className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none"
@@ -127,8 +149,9 @@ export default function WorkingHoursPage() {
                 </select>
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Início</label>
+                <label htmlFor="wh-start" className="block text-xs font-medium text-text-muted mb-1">Início</label>
                 <input
+                  id="wh-start"
                   type="time"
                   value={form.startTime}
                   onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
@@ -137,8 +160,9 @@ export default function WorkingHoursPage() {
                 />
               </div>
               <div className="w-32">
-                <label className="block text-xs font-medium text-text-muted mb-1">Fim</label>
+                <label htmlFor="wh-end" className="block text-xs font-medium text-text-muted mb-1">Fim</label>
                 <input
+                  id="wh-end"
                   type="time"
                   value={form.endTime}
                   onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}

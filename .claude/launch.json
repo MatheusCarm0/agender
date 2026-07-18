@@ -5,13 +5,15 @@
       "name": "api-dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@agenda/api", "dev"],
-      "port": 3001
+      "port": 3001,
+      "autoPort": true
     },
     {
       "name": "web-dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@agenda/web", "dev"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

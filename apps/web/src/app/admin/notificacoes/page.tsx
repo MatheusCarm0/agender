@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
 
 interface NotificationLog {
   id: string;
@@ -36,6 +37,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function NotificationsPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +45,7 @@ export default function NotificationsPage() {
     if (!token) return;
     api<NotificationLog[]>('/notifications/log', { token })
       .then(setLogs)
+      .catch(() => toast('Não foi possível carregar as notificações', 'error'))
       .finally(() => setLoading(false));
   }, [token]);
 

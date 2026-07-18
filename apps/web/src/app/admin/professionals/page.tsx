@@ -137,12 +137,17 @@ export default function ProfessionalsPage() {
   }
 
   async function toggleActive(p: Professional) {
-    await api(`/professionals/${p.id}`, {
-      method: 'PATCH',
-      token: token!,
-      body: JSON.stringify({ active: !p.active }),
-    });
-    await loadData(true);
+    try {
+      await api(`/professionals/${p.id}`, {
+        method: 'PATCH',
+        token: token!,
+        body: JSON.stringify({ active: !p.active }),
+      });
+      toast(p.active ? 'Profissional desativado' : 'Profissional ativado');
+      await loadData(true);
+    } catch {
+      toast('Erro ao alterar status', 'error');
+    }
   }
 
   function removeAvatar() {
@@ -150,6 +155,12 @@ export default function ProfessionalsPage() {
     setAvatarFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
+
+  const [search, setSearch] = useState('');
+
+  const filteredProfessionals = professionals.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase()),
+  );
 
   return (
     <div>
@@ -165,6 +176,18 @@ export default function ProfessionalsPage() {
           Adicionar
         </button>
       </div>
+
+      {professionals.length > 0 && (
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Buscar profissional..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full max-w-sm h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-default/20"
+          />
+        </div>
+      )}
 
       {showForm && (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 mb-6 shadow-[var(--shadow-elevation-1)]">
@@ -212,8 +235,9 @@ export default function ProfessionalsPage() {
               </div>
               <div className="flex-1 space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1">Nome</label>
+                  <label htmlFor="prof-name" className="block text-xs font-medium text-text-muted mb-1">Nome</label>
                   <input
+                    id="prof-name"
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                     required
@@ -222,8 +246,9 @@ export default function ProfessionalsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1">Bio (opcional)</label>
+                  <label htmlFor="prof-bio" className="block text-xs font-medium text-text-muted mb-1">Bio (opcional)</label>
                   <input
+                    id="prof-bio"
                     value={form.bio}
                     onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
                     placeholder="Ex: Especialista em cortes modernos"
@@ -258,6 +283,10 @@ export default function ProfessionalsPage() {
             <div key={i} className="h-14 bg-surface-subtle rounded-[var(--radius-md)] animate-pulse" />
           ))}
         </div>
+      ) : filteredProfessionals.length === 0 && search ? (
+        <div className="text-center py-12">
+          <p className="text-text-muted">Nenhum profissional encontrado para "{search}".</p>
+        </div>
       ) : professionals.length === 0 ? (
         <div className="text-center py-12">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 text-text-subtle">
@@ -285,7 +314,7 @@ export default function ProfessionalsPage() {
               </tr>
             </thead>
             <tbody>
-              {professionals.map((p) => (
+              {filteredProfessionals.map((p) => (
                 <tr key={p.id} className="border-b border-border-default hover:bg-surface-subtle">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
