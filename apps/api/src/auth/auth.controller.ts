@@ -13,6 +13,8 @@ import { AuthService } from './auth.service';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { PasswordResetStartDto } from './dto/password-reset-start.dto';
+import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -59,5 +61,15 @@ export class AuthController {
     @Body() body: { name?: string; email?: string },
   ) {
     return this.authService.updateProfile(user.userId, body);
+  }
+
+  @Post('password-reset/start')
+  async passwordResetStart(@Body() dto: PasswordResetStartDto) {
+    return this.authService.passwordResetStart(dto.email);
+  }
+
+  @Post('password-reset/confirm')
+  async passwordResetConfirm(@Body() dto: PasswordResetConfirmDto) {
+    return this.authService.passwordResetConfirm(dto.token, dto.password);
   }
 }

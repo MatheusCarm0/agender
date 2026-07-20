@@ -1,11 +1,13 @@
 import {
   Injectable,
+  BadRequestException,
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
+import * as crypto from 'crypto';
 import slugify from 'slugify';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterBusinessDto } from './dto/register-business.dto';
@@ -34,6 +36,11 @@ export class AuthService {
       data: {
         name: dto.businessName,
         slug,
+        professionals: {
+          create: {
+            name: dto.ownerName,
+          },
+        },
         users: {
           create: {
             name: dto.ownerName,
@@ -43,18 +50,38 @@ export class AuthService {
           },
         },
       },
-      include: { users: true },
+      include: { users: true, professionals: true },
     });
 
     const user = business.users[0];
+    const professional = business.professionals[0];
+
+    await this.prisma.raw.$transaction([
+      this.prisma.raw.user.update({
+        where: { id: user.id },
+        data: { professionalId: professional.id },
+      }),
+      this.prisma.raw.business.update({
+        where: { id: business.id },
+        data: { onboardingStep: 2 },
+      }),
+    ]);
+
     const tokens = await this.generateTokens({
       sub: user.id,
       businessId: business.id,
       role: user.role,
+      tokenVersion: user.tokenVersion,
     });
 
     return {
-      business: { id: business.id, slug: business.slug, name: business.name },
+      business: {
+        id: business.id,
+        slug: business.slug,
+        name: business.name,
+        onboardingStep: 2,
+        onboardingCompletedAt: null,
+      },
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
       ...tokens,
     };
@@ -70,6 +97,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.active) {
+      throw new UnauthorizedException('Account deactivated');
+    }
+
     const valid = await argon2.verify(user.passwordHash, dto.password);
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
@@ -79,6 +110,7 @@ export class AuthService {
       sub: user.id,
       businessId: user.businessId,
       role: user.role,
+      tokenVersion: user.tokenVersion,
     });
 
     return {
@@ -87,6 +119,8 @@ export class AuthService {
         id: user.business.id,
         slug: user.business.slug,
         name: user.business.name,
+        onboardingStep: user.business.onboardingStep,
+        onboardingCompletedAt: user.business.onboardingCompletedAt,
       },
       ...tokens,
     };
@@ -94,7 +128,7 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     try {
-      const payload = this.jwt.verify<{ sub: string; businessId: string; role: string }>(refreshToken, {
+      const payload = this.jwt.verify<{ sub: string; businessId: string; role: string; tokenVersion: number }>(refreshToken, {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
       });
 
@@ -102,14 +136,19 @@ export class AuthService {
         where: { id: payload.sub },
       });
 
-      if (!user) {
+      if (!user || !user.active) {
         throw new UnauthorizedException('User not found');
+      }
+
+      if (user.tokenVersion !== payload.tokenVersion) {
+        throw new UnauthorizedException('Session invalidated');
       }
 
       return this.generateTokens({
         sub: user.id,
         businessId: user.businessId,
         role: user.role,
+        tokenVersion: user.tokenVersion,
       });
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -136,6 +175,8 @@ export class AuthService {
         slug: user.business.slug,
         name: user.business.name,
         timezone: user.business.timezone,
+        onboardingStep: user.business.onboardingStep,
+        onboardingCompletedAt: user.business.onboardingCompletedAt,
       },
     };
   }
@@ -164,10 +205,62 @@ export class AuthService {
     };
   }
 
+  async passwordResetStart(email: string) {
+    const user = await this.prisma.raw.user.findFirst({
+      where: { email, active: true },
+    });
+
+    // Always return success to avoid email enumeration
+    if (!user) return { message: 'If the email exists, a reset link was sent' };
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    await this.prisma.raw.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+      },
+    });
+
+    // TODO: send email via notification worker
+    // For now return token in dev (remove in production)
+    return { message: 'If the email exists, a reset link was sent', token };
+  }
+
+  async passwordResetConfirm(token: string, newPassword: string) {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const resetToken = await this.prisma.raw.passwordResetToken.findFirst({
+      where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
+    });
+
+    if (!resetToken) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await argon2.hash(newPassword);
+
+    await this.prisma.raw.$transaction([
+      this.prisma.raw.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash, tokenVersion: { increment: 1 } },
+      }),
+      this.prisma.raw.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    return { message: 'Password updated' };
+  }
+
   private async generateTokens(payload: {
     sub: string;
     businessId: string;
     role: string;
+    tokenVersion: number;
   }) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync({ ...payload }),
