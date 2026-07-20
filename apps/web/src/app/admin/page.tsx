@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { ConfirmModal } from '@/components/confirm-modal';
@@ -25,8 +27,85 @@ const STATUS_MAP: Record<string, { label: string; dotClass: string; bgClass: str
   no_show: { label: 'Não compareceu', dotClass: 'bg-status-noshow-dot', bgClass: 'bg-status-noshow-bg', textClass: 'text-status-noshow-text' },
 };
 
+interface OnboardingStatus {
+  onboardingStep: number;
+  onboardingCompletedAt: string | null;
+  pendingItems: string[];
+  completed: boolean;
+}
+
+const CHECKLIST_ITEMS: Record<string, { label: string; href: string }> = {
+  logo: { label: 'Adicione sua logo', href: '/admin/customization' },
+  service: { label: 'Crie seu primeiro serviço', href: '/admin/services' },
+  working_hours: { label: 'Defina seus horários', href: '/admin/working-hours' },
+  team: { label: 'Convide sua equipe', href: '/admin/equipe' },
+};
+
+function OnboardingChecklist({ token }: { token: string }) {
+  const [status, setStatus] = useState<OnboardingStatus | null>(null);
+  const router = useRouter();
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await api<OnboardingStatus>('/onboarding/status', { token });
+      setStatus(res);
+    } catch {
+      // ignore
+    }
+  }, [token]);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  if (!status || status.completed || status.pendingItems.length === 0) return null;
+
+  async function dismiss(item: string) {
+    try {
+      const res = await api<OnboardingStatus>('/onboarding/dismiss', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ item }),
+      });
+      setStatus(res);
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <div className="mb-6 bg-surface-card border border-border-default rounded-[var(--radius-md)] p-5 shadow-[var(--shadow-elevation-1)]">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-text-strong">Complete a configuração</h3>
+        <span className="text-xs text-text-muted">{status.pendingItems.length} pendente{status.pendingItems.length > 1 ? 's' : ''}</span>
+      </div>
+      <div className="space-y-2">
+        {status.pendingItems.map((item) => {
+          const info = CHECKLIST_ITEMS[item];
+          if (!info) return null;
+          return (
+            <div key={item} className="flex items-center justify-between py-1.5">
+              <Link href={info.href} className="text-sm text-primary-default hover:text-primary-hover font-medium">
+                {info.label}
+              </Link>
+              <button
+                onClick={() => dismiss(item)}
+                className="text-text-subtle hover:text-text-muted p-1"
+                aria-label={`Dispensar "${info.label}"`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function AgendaPage() {
   const { token, user } = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,11 +150,14 @@ export default function AgendaPage() {
 
   return (
     <div>
+      {token && <OnboardingChecklist token={token} />}
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-text-strong">
           {user?.role === 'professional' ? 'Minha agenda' : 'Agenda'}
         </h1>
-        <p className="text-xs text-text-muted mt-1">Acompanhe e gerencie todos os agendamentos.</p>
+        <p className="text-xs text-text-muted mt-1">
+          {user?.role === 'professional' ? 'Seus agendamentos aparecem aqui.' : 'Acompanhe e gerencie todos os agendamentos.'}
+        </p>
       </div>
 
       {loading ? (

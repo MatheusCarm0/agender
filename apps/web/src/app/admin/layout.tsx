@@ -115,6 +115,20 @@ function IconPalette() {
   );
 }
 
+function IconUserCog() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="18" cy="15" r="3" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M10 15H6a4 4 0 00-4 4v2" />
+      <path d="M21.7 16.4l.3-.9" />
+      <path d="M14.3 13.6l-.3.9" />
+      <path d="M14.6 16.4l.9.3" />
+      <path d="M21.1 13.3l-.9-.3" />
+    </svg>
+  );
+}
+
 function IconSettings() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -140,32 +154,33 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Operação',
     items: [
-      { href: '/admin', label: 'Agenda', icon: IconCalendar, roles: ['owner', 'admin', 'professional'] },
-      { href: '/admin/clientes', label: 'Clientes', icon: IconClipboard, roles: ['owner', 'admin'] },
+      { href: '/admin', label: 'Agenda', icon: IconCalendar, roles: ['owner', 'admin', 'receptionist', 'professional'] },
+      { href: '/admin/clientes', label: 'Clientes', icon: IconClipboard, roles: ['owner', 'admin', 'receptionist'] },
     ],
   },
   {
     label: 'Configuração',
     items: [
-      { href: '/admin/professionals', label: 'Profissionais', icon: IconUsers, roles: ['owner', 'admin'] },
-      { href: '/admin/services', label: 'Serviços', icon: IconScissors, roles: ['owner', 'admin'] },
-      { href: '/admin/working-hours', label: 'Horários', icon: IconClock, roles: ['owner', 'admin', 'professional'] },
-      { href: '/admin/schedule-blocks', label: 'Bloqueios', icon: IconBan, roles: ['owner', 'admin'] },
+      { href: '/admin/professionals', label: 'Profissionais', icon: IconUsers, roles: ['owner', 'admin', 'receptionist'] },
+      { href: '/admin/services', label: 'Serviços', icon: IconScissors, roles: ['owner', 'admin', 'receptionist'] },
+      { href: '/admin/working-hours', label: 'Horários', icon: IconClock, roles: ['owner', 'admin', 'receptionist'] },
+      { href: '/admin/schedule-blocks', label: 'Bloqueios', icon: IconBan, roles: ['owner', 'admin', 'receptionist'] },
     ],
   },
   {
     label: 'Marketing',
     items: [
-      { href: '/admin/cupons', label: 'Cupons', icon: IconTag, roles: ['owner', 'admin'] },
-      { href: '/admin/fidelidade', label: 'Fidelidade', icon: IconStar, roles: ['owner', 'admin'] },
+      { href: '/admin/cupons', label: 'Cupons', icon: IconTag, roles: ['owner', 'admin', 'receptionist'] },
+      { href: '/admin/fidelidade', label: 'Fidelidade', icon: IconStar, roles: ['owner', 'admin', 'receptionist'] },
     ],
   },
   {
     label: 'Gestão',
     items: [
-      { href: '/admin/financeiro', label: 'Financeiro', icon: IconWallet, roles: ['owner', 'admin', 'professional'] },
-      { href: '/admin/notificacoes', label: 'Notificações', icon: IconBell, roles: ['owner', 'admin'] },
-      { href: '/admin/customization', label: 'Personalização', icon: IconPalette, roles: ['owner', 'admin'] },
+      { href: '/admin/equipe', label: 'Equipe', icon: IconUserCog, roles: ['owner', 'admin'] },
+      { href: '/admin/financeiro', label: 'Financeiro', icon: IconWallet, roles: ['owner', 'admin'] },
+      { href: '/admin/notificacoes', label: 'Notificações', icon: IconBell, roles: ['owner', 'admin', 'receptionist'] },
+      { href: '/admin/customization', label: 'Personalização', icon: IconPalette, roles: ['owner', 'admin', 'receptionist'] },
     ],
   },
 ];
@@ -178,6 +193,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/working-hours': 'Horários',
   '/admin/schedule-blocks': 'Bloqueios',
   '/admin/recurring-blocks': 'Bloqueios recorrentes',
+  '/admin/equipe': 'Equipe',
   '/admin/cupons': 'Cupons',
   '/admin/fidelidade': 'Fidelidade',
   '/admin/financeiro': 'Financeiro',
@@ -250,6 +266,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/login');
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!loading && user && !user.business.onboardingCompletedAt && user.business.onboardingStep && user.business.onboardingStep <= 6) {
+      router.replace('/onboarding');
     }
   }, [user, loading, router]);
 

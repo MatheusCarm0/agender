@@ -20,6 +20,8 @@ interface User {
     slug: string;
     name: string;
     timezone: string;
+    onboardingStep?: number;
+    onboardingCompletedAt?: string | null;
   };
 }
 
@@ -30,6 +32,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 interface RegisterData {
@@ -123,6 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ ...res.user, business: res.business });
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const t = localStorage.getItem('auth_token');
+    if (!t) return;
+    try {
+      const me = await api<User>('/auth/me', { token: t });
+      setUser(me);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');
@@ -131,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

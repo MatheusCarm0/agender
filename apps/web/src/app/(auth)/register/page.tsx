@@ -31,7 +31,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(form);
-      router.push('/admin');
+      router.push('/onboarding');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta');
     } finally {
