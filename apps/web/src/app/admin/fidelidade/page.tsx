@@ -38,8 +38,9 @@ interface ClientMembership {
 const CYCLE_LABELS: Record<string, string> = { monthly: 'Mensal', quarterly: 'Trimestral', yearly: 'Anual' };
 
 export default function FidelityPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { toast } = useToast();
+  const canEdit = user?.role !== 'receptionist';
   const [tab, setTab] = useState<'plans' | 'memberships'>('plans');
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [memberships, setMemberships] = useState<ClientMembership[]>([]);
@@ -186,11 +187,11 @@ export default function FidelityPage() {
         </div>
       ) : tab === 'plans' ? (
         <>
-          <div className="flex justify-end mb-4">
+          {canEdit && <div className="flex justify-end mb-4">
             <button onClick={() => setShowPlanForm(true)} className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover">
               Criar plano
             </button>
-          </div>
+          </div>}
 
           {showPlanForm && (
             <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 mb-6 shadow-[var(--shadow-elevation-1)]">
@@ -279,11 +280,11 @@ export default function FidelityPage() {
         </>
       ) : (
         <>
-          <div className="flex justify-end mb-4">
+          {canEdit && <div className="flex justify-end mb-4">
             <button onClick={() => setShowMemberForm(true)} className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover" disabled={plans.length === 0 || clients.length === 0}>
               Matricular cliente
             </button>
-          </div>
+          </div>}
 
           {showMemberForm && (
             <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 mb-6 shadow-[var(--shadow-elevation-1)]">
@@ -341,7 +342,7 @@ export default function FidelityPage() {
                     <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Uso</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Ciclo</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Pagamento</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
+                    {canEdit && <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -378,7 +379,7 @@ export default function FidelityPage() {
                             {m.paymentStatus === 'paid' ? 'Pago' : 'Pendente'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        {canEdit && <td className="px-4 py-3 text-right">
                           <div className="flex gap-1 justify-end">
                             {m.paymentStatus !== 'paid' && (
                               <button onClick={() => markPaid(m.id)} className="text-xs px-2 py-1 text-success-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]">
@@ -401,7 +402,7 @@ export default function FidelityPage() {
                               </button>
                             )}
                           </div>
-                        </td>
+                        </td>}
                       </tr>
                     );
                   })}

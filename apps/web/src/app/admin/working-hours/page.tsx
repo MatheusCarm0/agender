@@ -22,8 +22,9 @@ interface WorkingHour {
 const DAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
 export default function WorkingHoursPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { toast } = useToast();
+  const canEdit = user?.role !== 'receptionist';
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [selectedProfId, setSelectedProfId] = useState<string>('');
   const [hours, setHours] = useState<WorkingHour[]>([]);
@@ -104,7 +105,7 @@ export default function WorkingHoursPage() {
           <h1 className="text-2xl font-semibold text-text-strong">Horários de trabalho</h1>
           <p className="text-xs text-text-muted mt-1">Defina os dias e horários de atendimento de cada profissional.</p>
         </div>
-        {selectedProfId && (
+        {canEdit && selectedProfId && (
           <button
             onClick={() => setShowForm(true)}
             className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
@@ -215,12 +216,14 @@ export default function WorkingHoursPage() {
           </svg>
           <p className="text-text-muted">Nenhum horário configurado.</p>
           <p className="text-xs text-text-subtle mt-1">Adicione os dias e horários em que este profissional atende.</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
-          >
-            Adicionar horário
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+            >
+              Adicionar horário
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -230,7 +233,7 @@ export default function WorkingHoursPage() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Dia</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Início</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
+                {canEdit && <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -241,14 +244,14 @@ export default function WorkingHoursPage() {
                     <td className="px-4 py-3 font-medium text-text-strong">{DAYS[h.weekday]}</td>
                     <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">{h.startTime}</td>
                     <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">{h.endTime}</td>
-                    <td className="px-4 py-3 text-right">
+                    {canEdit && <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => setDeleteTarget(h.id)}
                         className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
                       >
                         Remover
                       </button>
-                    </td>
+                    </td>}
                   </tr>
                 ))}
             </tbody>

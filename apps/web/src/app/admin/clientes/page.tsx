@@ -44,8 +44,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function ClientsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { toast } = useToast();
+  const canEdit = user?.role !== 'receptionist';
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -312,12 +313,14 @@ export default function ClientsPage() {
                     <p className="text-sm text-text-default">{selectedClient.notes}</p>
                   </div>
                 )}
-                <button
-                  onClick={startEdit}
-                  className="text-xs px-2 py-1 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
-                >
-                  Editar
-                </button>
+                {canEdit && (
+                  <button
+                    onClick={startEdit}
+                    className="text-xs px-2 py-1 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                  >
+                    Editar
+                  </button>
+                )}
               </div>
 
               <div>

@@ -19,8 +19,9 @@ interface Professional {
 }
 
 export default function ServicesPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { toast } = useToast();
+  const canEdit = user?.role !== 'receptionist';
   const [services, setServices] = useState<Service[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,12 +114,14 @@ export default function ServicesPage() {
           <h1 className="text-2xl font-semibold text-text-strong">Serviços</h1>
           <p className="text-xs text-text-muted mt-1">Cadastre os serviços oferecidos pelo seu negócio.</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
-        >
-          Adicionar
-        </button>
+        {canEdit && (
+          <button
+            onClick={openCreate}
+            className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
+          >
+            Adicionar
+          </button>
+        )}
       </div>
 
       {services.length > 0 && (
@@ -245,12 +248,14 @@ export default function ServicesPage() {
             <path d="M14.8 14.8L20 20" />
           </svg>
           <p className="text-text-muted">Nenhum serviço cadastrado.</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
-          >
-            Criar primeiro serviço
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+            >
+              Criar primeiro serviço
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -261,7 +266,7 @@ export default function ServicesPage() {
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Duração</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Preço</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
+                {canEdit && <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -284,14 +289,16 @@ export default function ServicesPage() {
                       {s.active ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => openEdit(s)}
-                      className="text-xs px-2 py-1 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
-                    >
-                      Editar
-                    </button>
-                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => openEdit(s)}
+                        className="text-xs px-2 py-1 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                      >
+                        Editar
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

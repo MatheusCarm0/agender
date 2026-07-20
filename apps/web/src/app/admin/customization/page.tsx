@@ -107,6 +107,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 export default function CustomizationPage() {
   const { token, user } = useAuth();
   const { toast } = useToast();
+  const canEdit = user?.role !== 'receptionist';
   const businessName = user?.business?.name || '';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -293,13 +294,13 @@ export default function CustomizationPage() {
                         alt="Capa"
                         className="w-full h-32 object-cover rounded-[var(--radius-sm)] border border-border-default"
                       />
-                      <button
+                      {canEdit && <button
                         type="button"
                         onClick={() => updateTheme({ coverUrl: undefined, background: { type: 'solid', value: theme.colors.background } })}
                         className="absolute top-2 right-2 h-7 px-2 text-xs bg-surface-card/90 border border-border-default rounded-[var(--radius-sm)] text-danger-fg hover:bg-surface-card"
                       >
                         Remover
-                      </button>
+                      </button>}
                     </div>
                   ) : (
                     <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border-strong rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-subtle transition-colors">
@@ -458,13 +459,15 @@ export default function CustomizationPage() {
           <section className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 shadow-[var(--shadow-elevation-1)]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-text-strong">Links extras</h2>
-              <button
-                type="button"
-                onClick={addLink}
-                className="h-8 px-3 text-xs font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle"
-              >
-                Adicionar
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={addLink}
+                  className="h-8 px-3 text-xs font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle"
+                >
+                  Adicionar
+                </button>
+              )}
             </div>
             {data.links.length === 0 ? (
               <p className="text-sm text-text-muted">Nenhum link adicionado.</p>
@@ -486,14 +489,16 @@ export default function CustomizationPage() {
                         className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong placeholder:text-text-subtle focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeLink(i)}
-                      className="mt-1 h-8 px-2 text-xs text-danger-fg hover:bg-danger-bg rounded-[var(--radius-sm)]"
-                      aria-label="Remover link"
-                    >
-                      Remover
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => removeLink(i)}
+                        className="mt-1 h-8 px-2 text-xs text-danger-fg hover:bg-danger-bg rounded-[var(--radius-sm)]"
+                        aria-label="Remover link"
+                      >
+                        Remover
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -524,16 +529,18 @@ export default function CustomizationPage() {
             </div>
           </section>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active disabled:opacity-50"
-            >
-              {saving ? 'Salvando...' : 'Salvar alterações'}
-            </button>
-          </div>
+          {canEdit && (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active disabled:opacity-50"
+              >
+                {saving ? 'Salvando...' : 'Salvar alterações'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 lg:mt-0 lg:sticky lg:top-6 lg:self-start">

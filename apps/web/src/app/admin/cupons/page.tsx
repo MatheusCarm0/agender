@@ -23,8 +23,9 @@ interface Coupon {
 }
 
 export default function CouponsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { toast } = useToast();
+  const canEdit = user?.role !== 'receptionist';
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -126,12 +127,14 @@ export default function CouponsPage() {
           <h1 className="text-2xl font-semibold text-text-strong">Cupons</h1>
           <p className="text-xs text-text-muted mt-1">Crie cupons de desconto para seus clientes.</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
-        >
-          Criar cupom
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
+          >
+            Criar cupom
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -251,12 +254,12 @@ export default function CouponsPage() {
           </svg>
           <p className="text-text-muted">Nenhum cupom cadastrado.</p>
           <p className="text-xs text-text-subtle mt-1">Crie cupons de desconto para atrair e fidelizar clientes.</p>
-          <button
+          {canEdit && <button
             onClick={() => setShowForm(true)}
             className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
           >
             Criar primeiro cupom
-          </button>
+          </button>}
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -268,7 +271,7 @@ export default function CouponsPage() {
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Usos</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Validade</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
+                {canEdit && <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -291,22 +294,24 @@ export default function CouponsPage() {
                       {c.active ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        onClick={() => toggleActive(c)}
-                        className="text-xs px-2 py-1 text-text-muted hover:bg-surface-subtle rounded-[var(--radius-sm)]"
-                      >
-                        {c.active ? 'Desativar' : 'Ativar'}
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(c.id)}
-                        className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          onClick={() => toggleActive(c)}
+                          className="text-xs px-2 py-1 text-text-muted hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                        >
+                          {c.active ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(c.id)}
+                          className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

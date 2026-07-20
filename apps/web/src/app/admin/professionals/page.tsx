@@ -16,8 +16,9 @@ interface Professional {
 }
 
 export default function ProfessionalsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { toast } = useToast();
+  const canEdit = user?.role !== 'receptionist';
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -169,12 +170,14 @@ export default function ProfessionalsPage() {
           <h1 className="text-2xl font-semibold text-text-strong">Profissionais</h1>
           <p className="text-xs text-text-muted mt-1">Gerencie sua equipe de profissionais.</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
-        >
-          Adicionar
-        </button>
+        {canEdit && (
+          <button
+            onClick={openCreate}
+            className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
+          >
+            Adicionar
+          </button>
+        )}
       </div>
 
       {professionals.length > 0 && (
@@ -295,12 +298,14 @@ export default function ProfessionalsPage() {
             <path d="M19 8v6M22 11h-6" />
           </svg>
           <p className="text-text-muted">Nenhum profissional cadastrado.</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
-          >
-            Cadastrar primeiro profissional
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+            >
+              Cadastrar primeiro profissional
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -310,7 +315,7 @@ export default function ProfessionalsPage() {
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Profissional</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Bio</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
+                {canEdit && <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -341,22 +346,24 @@ export default function ProfessionalsPage() {
                       {p.active ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        onClick={() => openEdit(p)}
-                        className="text-xs px-2 py-1 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => toggleActive(p)}
-                        className="text-xs px-2 py-1 text-text-muted hover:bg-surface-subtle rounded-[var(--radius-sm)]"
-                      >
-                        {p.active ? 'Desativar' : 'Ativar'}
-                      </button>
-                    </div>
-                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          onClick={() => openEdit(p)}
+                          className="text-xs px-2 py-1 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => toggleActive(p)}
+                          className="text-xs px-2 py-1 text-text-muted hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                        >
+                          {p.active ? 'Desativar' : 'Ativar'}
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

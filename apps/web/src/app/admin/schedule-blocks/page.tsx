@@ -22,8 +22,9 @@ interface ScheduleBlock {
 }
 
 export default function ScheduleBlocksPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { toast } = useToast();
+  const canEdit = user?.role !== 'receptionist';
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,12 +99,14 @@ export default function ScheduleBlocksPage() {
           <h1 className="text-2xl font-semibold text-text-strong">Bloqueios</h1>
           <p className="text-xs text-text-muted mt-1">Bloqueie períodos para impedir agendamentos.</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
-        >
-          Adicionar
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active"
+          >
+            Adicionar
+          </button>
+        )}
       </div>
 
       <div className="flex gap-0 border-b border-border-default mb-6" role="tablist">
@@ -210,12 +213,14 @@ export default function ScheduleBlocksPage() {
           </svg>
           <p className="text-text-muted">Nenhum bloqueio pontual cadastrado.</p>
           <p className="text-xs text-text-subtle mt-1">Bloqueios pontuais impedem agendamentos em datas específicas.</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
-          >
-            Criar primeiro bloqueio
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-3 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
+            >
+              Criar primeiro bloqueio
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-1)] overflow-x-auto">
@@ -226,7 +231,7 @@ export default function ScheduleBlocksPage() {
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Início</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Fim</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Motivo</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>
+                {canEdit && <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -240,14 +245,16 @@ export default function ScheduleBlocksPage() {
                     {new Date(b.endAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </td>
                   <td className="px-4 py-3 text-text-muted">{b.reason || '—'}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => setDeleteTarget(b.id)}
-                      className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
-                    >
-                      Remover
-                    </button>
-                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => setDeleteTarget(b.id)}
+                        className="text-xs px-2 py-1 text-danger-fg hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                      >
+                        Remover
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -11,6 +11,20 @@ const ERROR_TRANSLATIONS: Record<string, string> = {
   'User not found': 'Usuário não encontrado',
   'No tenant context': 'Sessão inválida',
   'Invalid refresh token': 'Sessão expirada',
+  'Account deactivated': 'Conta desativada',
+  'Session invalidated': 'Sessão expirada',
+  'Active user with this email already exists': 'Já existe um usuário ativo com este e-mail',
+  'Professional already linked to an active user': 'Profissional já vinculado a outro usuário ativo',
+  'Professional already linked to another active user': 'Profissional já vinculado a outro usuário ativo',
+  'professionalId is required for professional role': 'Selecione um profissional para vincular',
+  'Cannot deactivate owner': 'Não é possível desativar o proprietário',
+  'Cannot deactivate the last admin/owner': 'Não é possível desativar o último administrador',
+  'Cannot modify owner': 'Não é possível modificar o proprietário',
+  'Invalid or expired invite': 'Convite inválido ou expirado',
+  'Invite not found or already accepted': 'Convite não encontrado ou já aceito',
+  'Invalid or expired reset token': 'Link de redefinição inválido ou expirado',
+  'Professional not found': 'Profissional não encontrado',
+  'Inactive user not found': 'Usuário inativo não encontrado',
 };
 
 function translateError(message: string): string {
