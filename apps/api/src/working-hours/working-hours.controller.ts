@@ -15,6 +15,13 @@ import { UpdateWorkingHoursDto } from './dto/update-working-hours.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+
+interface RequestUser {
+  userId: string;
+  businessId: string;
+  role: string;
+}
 
 @Controller('working-hours')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,6 +43,15 @@ export class WorkingHoursController {
   @Roles('owner', 'admin')
   async update(@Param('id') id: string, @Body() dto: UpdateWorkingHoursDto) {
     return this.workingHoursService.update(id, dto);
+  }
+
+  @Post('bulk')
+  @Roles('owner', 'admin')
+  async createBulk(
+    @CurrentUser() user: RequestUser,
+    @Body() body: { entries: Array<{ weekday: number; startTime: string; endTime: string }> },
+  ) {
+    return this.workingHoursService.createBulk(user.userId, body.entries);
   }
 
   @Delete(':id')

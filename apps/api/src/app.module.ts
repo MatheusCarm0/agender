@@ -25,6 +25,8 @@ import { NotificationModule } from './notification/notification.module';
 import { ClientAuthModule } from './client-auth/client-auth.module';
 import { CouponModule } from './coupon/coupon.module';
 import { MembershipModule } from './membership/membership.module';
+import { StaffModule } from './staff/staff.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { MembershipModule } from './membership/membership.module';
     ClientAuthModule,
     CouponModule,
     MembershipModule,
+    StaffModule,
+    OnboardingModule,
   ],
   providers: [
     {

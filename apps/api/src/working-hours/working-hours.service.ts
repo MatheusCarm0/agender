@@ -61,6 +61,33 @@ export class WorkingHoursService {
     });
   }
 
+  async createBulk(
+    userId: string,
+    entries: Array<{ weekday: number; startTime: string; endTime: string }>,
+  ) {
+    const businessId = this.getBusinessId();
+
+    const user = await this.prisma.raw.user.findUnique({
+      where: { id: userId },
+      select: { professionalId: true },
+    });
+
+    if (!user?.professionalId) {
+      throw new NotFoundException('No professional linked to user');
+    }
+
+    const data = entries.map((entry) => ({
+      businessId,
+      professionalId: user.professionalId!,
+      weekday: entry.weekday,
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+    }));
+
+    await this.prisma.raw.workingHours.createMany({ data });
+    return this.findByProfessional(user.professionalId);
+  }
+
   async remove(id: string) {
     const businessId = this.getBusinessId();
     const record = await this.prisma.raw.workingHours.findFirst({
