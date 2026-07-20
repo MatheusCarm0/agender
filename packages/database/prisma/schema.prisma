@@ -89,6 +89,9 @@ model Business {
   subdomain String?  @unique
   logoUrl   String?  @map("logo_url")
   coverUrl  String?  @map("cover_url")
+  onboardingStep        Int       @default(1) @map("onboarding_step")
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  onboardingSkipped     Json      @default("[]") @map("onboarding_skipped")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -105,6 +108,7 @@ model Business {
   coupons            Coupon[]
   membershipPlans    MembershipPlan[]
   clientMemberships  ClientMembership[]
+  staffInvites       StaffInvite[]
 
   @@map("businesses")
 }
@@ -119,7 +123,12 @@ model User {
   role           Role          @default(owner)
   professionalId String?       @unique @map("professional_id")
   professional   Professional? @relation(fields: [professionalId], references: [id])
+  active         Boolean       @default(true)
+  tokenVersion   Int           @default(0) @map("token_version")
   createdAt      DateTime      @default(now()) @map("created_at")
+
+  staffInvites     StaffInvite[]
+  passwordResets   PasswordResetToken[]
 
   @@unique([businessId, email])
   @@index([businessId])
@@ -408,4 +417,36 @@ model ClientMembership {
   @@index([businessId])
   @@index([clientId])
   @@map("client_memberships")
+}
+
+model StaffInvite {
+  id              String    @id @default(cuid())
+  businessId      String    @map("business_id")
+  business        Business  @relation(fields: [businessId], references: [id])
+  email           String
+  role            Role
+  professionalId  String?   @map("professional_id")
+  tokenHash       String    @map("token_hash")
+  expiresAt       DateTime  @map("expires_at")
+  acceptedAt      DateTime? @map("accepted_at")
+  invitedByUserId String    @map("invited_by_user_id")
+  invitedBy       User      @relation(fields: [invitedByUserId], references: [id])
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([businessId, email])
+  @@map("staff_invites")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
