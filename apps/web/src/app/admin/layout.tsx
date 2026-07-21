@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/toast';
 import { api } from '@/lib/api';
 import { AgenderLogo } from '@/components/logo';
+import { prefetchForRoute } from '@/lib/prefetch-cache';
 
 function IconCalendar() {
   return (
@@ -170,6 +171,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Marketing',
     items: [
+      { href: '/admin/campanhas', label: 'Campanhas', icon: IconBell, roles: ['owner', 'admin'] },
       { href: '/admin/cupons', label: 'Cupons', icon: IconTag, roles: ['owner', 'admin', 'receptionist'] },
       { href: '/admin/fidelidade', label: 'Fidelidade', icon: IconStar, roles: ['owner', 'admin', 'receptionist'] },
     ],
@@ -194,11 +196,13 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/schedule-blocks': 'Bloqueios',
   '/admin/recurring-blocks': 'Bloqueios recorrentes',
   '/admin/equipe': 'Equipe',
+  '/admin/campanhas': 'Campanhas',
   '/admin/cupons': 'Cupons',
   '/admin/fidelidade': 'Fidelidade',
   '/admin/financeiro': 'Financeiro',
   '/admin/notificacoes': 'Notificações',
   '/admin/customization': 'Personalização',
+  '/admin/plano': 'Plano',
   '/admin/settings': 'Configurações',
 };
 
@@ -274,6 +278,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace('/onboarding');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!loading && user && user.business.planStatus === 'expired' && pathname !== '/admin/plano') {
+      router.replace('/admin/plano');
+    }
+  }, [user, loading, pathname, router]);
 
   useEffect(() => {
     const saved = localStorage.getItem('admin_theme') as 'light' | 'dark' | null;
@@ -356,6 +366,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         key={item.href}
                         href={item.href}
                         onClick={() => setSidebarOpen(false)}
+                        onMouseEnter={() => token && prefetchForRoute(item.href, token)}
                         className={`relative flex items-center gap-3 px-3 py-2 text-sm rounded-[var(--radius-sm)] transition-colors ${
                           active
                             ? 'bg-primary-tint-bg text-primary-tint-text'
@@ -472,7 +483,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
         <main id="main-content" className="flex-1 p-6">
           <Breadcrumb pathname={pathname} />
-          {children}
+          <div key={pathname} className="admin-page-enter">
+            {children}
+          </div>
+          <style>{`
+            @keyframes adminPageEnter {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            .admin-page-enter {
+              animation: adminPageEnter 0.15s ease-out both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .admin-page-enter { animation: none; }
+            }
+          `}</style>
         </main>
       </div>
       </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached, invalidateCache } from '@/lib/prefetch-cache';
 import { ConfirmModal } from '@/components/confirm-modal';
 import { useToast } from '@/components/toast';
 
@@ -116,12 +117,22 @@ export default function AgendaPage() {
 
   useEffect(() => {
     if (!token) return;
+    const cached = getCached<Appointment[]>('/appointments');
+    if (cached) {
+      setAppointments(cached);
+      setLoading(false);
+    }
     setError(false);
     api<Appointment[]>('/appointments', { token })
-      .then(setAppointments)
+      .then((data) => {
+        setAppointments(data);
+        invalidateCache('/appointments');
+      })
       .catch(() => {
-        setError(true);
-        toast('Não foi possível carregar os agendamentos', 'error');
+        if (!cached) {
+          setError(true);
+          toast('Não foi possível carregar os agendamentos', 'error');
+        }
       })
       .finally(() => setLoading(false));
   }, [token, toast]);
@@ -148,6 +159,18 @@ export default function AgendaPage() {
     }
   }
 
+  const todayStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const todayAppts = appointments.filter((a) => { const d = new Date(a.startAt); return d >= todayStart && d <= todayEnd; });
+  const activeToday = todayAppts.filter((a) => a.status !== 'cancelled');
+  const completedToday = todayAppts.filter((a) => a.status === 'completed');
+  const revenueToday = activeToday.reduce((sum, a) => sum + Number(a.price), 0);
+  const totalActive = appointments.filter((a) => a.status === 'scheduled' || a.status === 'confirmed');
+  const noShowCount = appointments.filter((a) => a.status === 'no_show').length;
+  const completedCount = appointments.filter((a) => a.status === 'completed').length;
+  const noShowRate = (completedCount + noShowCount) > 0 ? Math.round((noShowCount / (completedCount + noShowCount)) * 100) : 0;
+
   return (
     <div>
       {token && <OnboardingChecklist token={token} />}
@@ -159,6 +182,43 @@ export default function AgendaPage() {
           {user?.role === 'professional' ? 'Seus agendamentos aparecem aqui.' : 'Acompanhe e gerencie todos os agendamentos.'}
         </p>
       </div>
+
+      {!loading && !error && appointments.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-4 shadow-[var(--shadow-elevation-1)]">
+            <div className="flex items-center gap-2 mb-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary-default"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Hoje</span>
+            </div>
+            <p className="text-2xl font-bold text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums">{activeToday.length}</p>
+            <p className="text-[11px] text-text-subtle mt-0.5">{completedToday.length} concluído{completedToday.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-4 shadow-[var(--shadow-elevation-1)]">
+            <div className="flex items-center gap-2 mb-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-success-fg"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Receita hoje</span>
+            </div>
+            <p className="text-2xl font-bold text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums">R$ {revenueToday.toFixed(0)}</p>
+            <p className="text-[11px] text-text-subtle mt-0.5">previsão do dia</p>
+          </div>
+          <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-4 shadow-[var(--shadow-elevation-1)]">
+            <div className="flex items-center gap-2 mb-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-info-fg"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Pendentes</span>
+            </div>
+            <p className="text-2xl font-bold text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums">{totalActive.length}</p>
+            <p className="text-[11px] text-text-subtle mt-0.5">aguardando confirmação</p>
+          </div>
+          <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-4 shadow-[var(--shadow-elevation-1)]">
+            <div className="flex items-center gap-2 mb-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={noShowRate > 20 ? 'text-danger-fg' : 'text-text-muted'}><circle cx="12" cy="12" r="10" /><path d="M4.93 4.93l14.14 14.14" /></svg>
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">No-show</span>
+            </div>
+            <p className="text-2xl font-bold text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums">{noShowRate}%</p>
+            <p className="text-[11px] text-text-subtle mt-0.5">{noShowCount} de {completedCount + noShowCount} atendidos</p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-3">
