@@ -28,6 +28,34 @@ enum CommissionType {
   fixed
 }
 
+enum PlanTier {
+  basico
+  profissional
+  pro
+}
+
+enum PlanStatus {
+  trialing
+  active
+  pastDue
+  expired
+}
+
+enum CampaignChannel {
+  whatsapp
+  email
+  both
+}
+
+enum CampaignStatus {
+  draft
+  scheduled
+  sending
+  sent
+  failed
+  cancelled
+}
+
 enum NotificationChannel {
   email
   whatsapp
@@ -38,6 +66,7 @@ enum NotificationType {
   booking_confirmation
   booking_cancelled
   membership_expiring
+  trial_warning
 }
 
 enum NotificationStatus {
@@ -85,7 +114,10 @@ model Business {
   slug      String   @unique
   name      String
   timezone  String   @default("America/Sao_Paulo")
-  plan      String   @default("free")
+  plan          PlanTier   @default(basico)
+  planStatus    PlanStatus @default(trialing) @map("plan_status")
+  trialEndsAt   DateTime   @default(now()) @map("trial_ends_at")
+  planUpdatedAt DateTime?  @map("plan_updated_at")
   subdomain String?  @unique
   logoUrl   String?  @map("logo_url")
   coverUrl  String?  @map("cover_url")
@@ -109,6 +141,8 @@ model Business {
   membershipPlans    MembershipPlan[]
   clientMemberships  ClientMembership[]
   staffInvites       StaffInvite[]
+  campaigns          Campaign[]
+  planUsages         PlanUsage[]
 
   @@map("businesses")
 }
@@ -229,6 +263,8 @@ model Client {
   email      String?
   notes           String?   @db.Text
   phoneVerifiedAt DateTime? @map("phone_verified_at")
+  marketingOptIn   Boolean   @default(false) @map("marketing_opt_in")
+  marketingOptInAt DateTime? @map("marketing_opt_in_at")
   createdAt       DateTime  @default(now()) @map("created_at")
 
   appointments      Appointment[]
@@ -236,6 +272,7 @@ model Client {
   notificationLogs  NotificationLog[]
   couponRedemptions CouponRedemption[]
   memberships       ClientMembership[]
+  campaignRecipients CampaignRecipient[]
 
   @@unique([businessId, phone])
   @@index([businessId])
@@ -275,14 +312,19 @@ model Appointment {
 }
 
 model PageCustomization {
-  businessId String   @id @map("business_id")
-  business   Business @relation(fields: [businessId], references: [id])
-  theme      Json
-  links      Json     @default("[]")
-  socials    Json     @default("{}")
-  headline   String?
-  about      String?  @db.Text
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  businessId   String   @id @map("business_id")
+  business     Business @relation(fields: [businessId], references: [id])
+  theme        Json
+  links        Json     @default("[]")
+  socials      Json     @default("{}")
+  headline     String?
+  about        String?  @db.Text
+  welcomeMsg   String?  @map("welcome_msg")
+  address      Json?
+  gallery      Json     @default("[]")
+  showHours    Boolean  @default(false) @map("show_hours")
+  faviconUrl   String?  @map("favicon_url")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("page_customizations")
 }
@@ -449,4 +491,60 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model Campaign {
+  id              String          @id @default(cuid())
+  businessId      String          @map("business_id")
+  business        Business        @relation(fields: [businessId], references: [id])
+  name            String
+  channel         CampaignChannel
+  messageText     String          @db.Text @map("message_text")
+  emailSubject    String?         @map("email_subject")
+  audienceFilter  Json            @default("{}") @map("audience_filter")
+  scheduledFor    DateTime?       @map("scheduled_for")
+  status          CampaignStatus  @default(draft)
+  totalRecipients Int             @default(0) @map("total_recipients")
+  totalSent       Int             @default(0) @map("total_sent")
+  totalFailed     Int             @default(0) @map("total_failed")
+  costEstimate    Decimal         @default(0) @db.Decimal(10, 2) @map("cost_estimate")
+  costActual      Decimal         @default(0) @db.Decimal(10, 2) @map("cost_actual")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  recipients CampaignRecipient[]
+
+  @@index([businessId])
+  @@map("campaigns")
+}
+
+model CampaignRecipient {
+  id         String             @id @default(cuid())
+  campaignId String             @map("campaign_id")
+  campaign   Campaign           @relation(fields: [campaignId], references: [id])
+  clientId   String             @map("client_id")
+  client     Client             @relation(fields: [clientId], references: [id])
+  status     NotificationStatus @default(pending)
+  sentAt     DateTime?          @map("sent_at")
+  error      String?
+
+  @@unique([campaignId, clientId])
+  @@index([campaignId])
+  @@map("campaign_recipients")
+}
+
+model PlanUsage {
+  id                     String   @id @default(cuid())
+  businessId             String   @map("business_id")
+  business               Business @relation(fields: [businessId], references: [id])
+  periodStart            DateTime @map("period_start")
+  periodEnd              DateTime @map("period_end")
+  planAtSnapshot         PlanTier @map("plan_at_snapshot")
+  campaignSendsIncluded  Int      @default(0) @map("campaign_sends_included")
+  campaignSendsUsed      Int      @default(0) @map("campaign_sends_used")
+  overageSends           Int      @default(0) @map("overage_sends")
+  overageCost            Decimal  @default(0) @db.Decimal(10, 2) @map("overage_cost")
+
+  @@unique([businessId, periodStart])
+  @@index([businessId])
+  @@map("plan_usages")
 }

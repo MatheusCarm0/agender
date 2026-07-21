@@ -116,7 +116,7 @@ export class AppointmentService {
   }
 
   async createWithExtras(
-    dto: CreateAppointmentDto,
+    dto: CreateAppointmentDto & { marketingOptIn?: boolean },
     businessId: string,
     couponCode?: string,
     authenticatedClientId?: string,
@@ -170,6 +170,10 @@ export class AppointmentService {
         throw new ConflictException('Time slot is already booked');
       }
 
+      const optInData = dto.marketingOptIn
+        ? { marketingOptIn: true, marketingOptInAt: new Date() }
+        : {};
+
       const client = await tx.client.upsert({
         where: {
           businessId_phone: {
@@ -182,10 +186,12 @@ export class AppointmentService {
           name: dto.clientName,
           phone: dto.clientPhone,
           email: dto.clientEmail,
+          ...optInData,
         },
         update: {
           name: dto.clientName,
           email: dto.clientEmail,
+          ...(dto.marketingOptIn ? optInData : {}),
         },
       });
 

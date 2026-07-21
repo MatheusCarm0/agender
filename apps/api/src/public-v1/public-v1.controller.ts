@@ -8,6 +8,7 @@ import {
   Headers,
   Req,
   NotFoundException,
+  ForbiddenException,
   UseGuards,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -49,10 +50,15 @@ export class PublicV1Controller {
           },
         },
         pageCustomization: true,
+        workingHours: true,
       },
     });
 
     if (!business) throw new NotFoundException('Business not found');
+
+    const cust = business.pageCustomization;
+
+    const acceptingBookings = business.planStatus !== 'expired';
 
     return {
       id: business.id,
@@ -61,6 +67,7 @@ export class PublicV1Controller {
       timezone: business.timezone,
       logoUrl: business.logoUrl,
       coverUrl: business.coverUrl,
+      acceptingBookings,
       professionals: business.professionals.map((p) => ({
         id: p.id,
         name: p.name,
@@ -73,13 +80,23 @@ export class PublicV1Controller {
           price: Number(ps.priceOverride ?? ps.service.price),
         })),
       })),
-      customization: business.pageCustomization
+      workingHours: business.workingHours.map((wh) => ({
+        weekday: wh.weekday,
+        startTime: wh.startTime,
+        endTime: wh.endTime,
+      })),
+      customization: cust
         ? {
-            theme: business.pageCustomization.theme,
-            links: business.pageCustomization.links,
-            socials: business.pageCustomization.socials,
-            headline: business.pageCustomization.headline,
-            about: business.pageCustomization.about,
+            theme: cust.theme,
+            links: cust.links,
+            socials: cust.socials,
+            headline: cust.headline,
+            about: cust.about,
+            welcomeMsg: cust.welcomeMsg,
+            address: cust.address,
+            gallery: cust.gallery,
+            showHours: cust.showHours,
+            faviconUrl: cust.faviconUrl,
           }
         : null,
     };
@@ -119,6 +136,10 @@ export class PublicV1Controller {
       where: { slug },
     });
     if (!business) throw new NotFoundException('Business not found');
+
+    if (business.planStatus === 'expired') {
+      throw new ForbiddenException('Este negócio não está aceitando novos agendamentos no momento.');
+    }
 
     const clientUser = req.clientUser as
       | { clientId: string; businessId: string }

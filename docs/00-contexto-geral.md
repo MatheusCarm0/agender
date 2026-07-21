@@ -237,7 +237,7 @@ Gerenciador de workspace (pnpm/turborepo) a definir na Fundação.
 | MVP | `02-mvp.md` | Serviços, horários, página pública básica, agendamento com anti-conflito, agenda "minha" vs "todas". |
 | Diferenciação | `03-diferenciacao.md` | Personalização Linktree, relatório financeiro, fechar agenda, base de clientes. |
 | Retenção | `04-retencao.md` | Notificações (WhatsApp/e-mail), subdomínios, cupons, clube de fidelidade, identidade do cliente (OTP) como base para o futuro app mobile. |
-| Monetização | `05-monetizacao.md` | PIX/depósito antecipado, domínio próprio, multi-unidade. |
+| Monetização | `05-monetizacao.md` | **Em andamento.** Modelo de planos (teste de 7 dias → Básico/Profissional/Pro) e campanhas de disparo pagas já detalhados; PIX/depósito, domínio próprio e multi-unidade a especificar depois. |
 | Hardening | `06-hardening.md` | Réplicas, cache agressivo, métricas, alertas, observabilidade. |
 
 Regra: **não puxar escopo de uma fase futura** sem necessidade. Cada fase entrega algo utilizável.

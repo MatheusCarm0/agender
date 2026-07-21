@@ -4,23 +4,34 @@ import {
   ConflictException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { Resend } from 'resend';
+import { emailLayout, emailButton, emailInfoBox, emailText, emailMutedText } from '../notification/email-template';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 
+const FROM_EMAIL = 'Agender <onboarding@resend.dev>';
+
 @Injectable()
 export class StaffService {
+  private readonly logger = new Logger(StaffService.name);
+  private readonly resend: Resend | null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
-  ) {}
+  ) {
+    const apiKey = this.config.get<string>('RESEND_API_KEY');
+    this.resend = apiKey ? new Resend(apiKey) : null;
+  }
 
   async listStaff(businessId: string) {
     const users = await this.prisma.raw.user.findMany({
@@ -103,7 +114,56 @@ export class StaffService {
       },
     });
 
+    const business = await this.prisma.raw.business.findUnique({
+      where: { id: businessId },
+      select: { name: true },
+    });
+
+    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3001');
+    const inviteUrl = `${appUrl}/convite/${token}`;
+    const roleName =
+      dto.role === 'admin' ? 'Administrador' :
+      dto.role === 'professional' ? 'Profissional' : 'Recepção';
+
+    await this.sendInviteEmail(
+      dto.email,
+      business?.name ?? 'Agender',
+      roleName,
+      inviteUrl,
+    );
+
     return { id: invite.id, token };
+  }
+
+  private async sendInviteEmail(
+    to: string,
+    businessName: string,
+    roleName: string,
+    inviteUrl: string,
+  ) {
+    const subject = `Convite para ${businessName}`;
+    const html = buildInviteHtml(businessName, roleName, inviteUrl);
+
+    if (!this.resend) {
+      this.logger.log(`[SIMULATED EMAIL] To: ${to} | Subject: ${subject}`);
+      return;
+    }
+
+    try {
+      const { error } = await this.resend.emails.send({
+        from: FROM_EMAIL,
+        to,
+        subject,
+        html,
+      });
+      if (error) {
+        this.logger.error(`Failed to send invite email: ${JSON.stringify(error)}`);
+      } else {
+        this.logger.log(`Invite email sent to ${to}`);
+      }
+    } catch (err: any) {
+      this.logger.error(`Invite email exception: ${err.message}`);
+    }
   }
 
   async listInvites(businessId: string) {
@@ -271,4 +331,21 @@ export class StaffService {
 
     return { accessToken, refreshToken };
   }
+}
+
+function buildInviteHtml(businessName: string, roleName: string, inviteUrl: string): string {
+  const body = [
+    emailInfoBox([
+      { label: 'Negócio', value: businessName },
+      { label: 'Cargo', value: roleName },
+    ]),
+    emailText('Clique no botão abaixo para aceitar o convite e criar sua conta. O link é válido por <strong>48 horas</strong>.'),
+    emailButton(inviteUrl, 'Aceitar convite'),
+    emailMutedText('Ou copie e cole este link no navegador:'),
+    emailMutedText(`<span style="color:#78716C;word-break:break-all;">${inviteUrl}</span>`),
+  ].join('');
+
+  return emailLayout('Você foi convidado(a)', body,
+    `Este e-mail foi enviado pelo Agender a pedido de <strong style="color:#78716C;">${businessName}</strong>.<br>Se você não esperava este convite, pode ignorá-lo com segurança.`,
+  );
 }

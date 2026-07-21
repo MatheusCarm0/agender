@@ -8,16 +8,28 @@ interface Customization {
     palette: string;
     colors: { background: string; surface: string; primary: string; text: string };
     font: string;
-    background: { type: string; value: string };
+    background: { type: string; value: string; gradient?: { from: string; to: string; direction: string } };
     logoUrl?: string;
     coverUrl?: string;
     buttonStyle: string;
     layout: string;
+    overlayOpacity?: number;
   };
   links: { label: string; url: string; icon?: string }[];
   socials: { instagram?: string; whatsapp?: string; facebook?: string; tiktok?: string };
   headline: string | null;
   about: string | null;
+  welcomeMsg?: string | null;
+  address?: { street?: string; city?: string; state?: string; zip?: string } | null;
+  gallery?: string[];
+  showHours?: boolean;
+  faviconUrl?: string | null;
+}
+
+interface WorkingHour {
+  weekday: number;
+  startTime: string;
+  endTime: string;
 }
 
 interface Business {
@@ -28,6 +40,7 @@ interface Business {
   logoUrl?: string;
   coverUrl?: string;
   customization: Customization | null;
+  workingHours: WorkingHour[];
   professionals: {
     id: string;
     name: string;
@@ -48,6 +61,35 @@ const DEFAULT_COLORS = {
   primary: '#0D9488',
   text: '#1C1917',
 };
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  try {
+    const res = await fetch(`${API_URL}/public/v1/${slug}`, { cache: 'no-store' });
+    if (!res.ok) return {};
+    const business: Business = await res.json();
+    const title = business.customization?.headline || business.name;
+    const description = business.customization?.about
+      ? business.customization.about.slice(0, 160)
+      : `Agende online com ${business.name}`;
+    const icons = business.customization?.faviconUrl
+      ? [{ url: business.customization.faviconUrl }]
+      : undefined;
+    const logoUrl = business.customization?.theme?.logoUrl || business.logoUrl;
+    return {
+      title,
+      description,
+      icons,
+      openGraph: {
+        title,
+        description,
+        ...(logoUrl ? { images: [{ url: logoUrl }] } : {}),
+      },
+    };
+  } catch {
+    return {};
+  }
+}
 
 export default async function PublicBookingPage({
   params,
@@ -84,6 +126,7 @@ export default async function PublicBookingPage({
       <BookingClient
         business={business}
         customization={business.customization}
+        workingHours={business.workingHours}
       />
     </div>
   );

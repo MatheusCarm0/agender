@@ -45,6 +45,14 @@ export class NotificationService {
     );
   }
 
+  async enqueueTrialWarning(businessId: string, daysLeft: number) {
+    await this.queue.add(
+      'trial_warning',
+      { businessId, daysLeft },
+      { jobId: `trial-warn-${businessId}-d${daysLeft}` },
+    );
+  }
+
   async findLogs(businessId: string) {
     return this.prisma.raw.notificationLog.findMany({
       where: { businessId },

@@ -27,6 +27,8 @@ import { CouponModule } from './coupon/coupon.module';
 import { MembershipModule } from './membership/membership.module';
 import { StaffModule } from './staff/staff.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { PlanModule } from './plan/plan.module';
+import { CampaignModule } from './campaign/campaign.module';
 
 @Module({
   imports: [
@@ -56,6 +58,8 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     MembershipModule,
     StaffModule,
     OnboardingModule,
+    PlanModule,
+    CampaignModule,
   ],
   providers: [
     {

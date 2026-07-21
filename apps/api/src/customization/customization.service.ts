@@ -50,36 +50,34 @@ export class CustomizationService {
   async upsert(dto: UpsertCustomizationDto) {
     const businessId = this.getBusinessId();
 
-    if (dto.theme.palette === 'custom') {
-      const ratio = contrastRatio(
-        dto.theme.colors.text,
-        dto.theme.colors.background,
+    const ratio = contrastRatio(
+      dto.theme.colors.text,
+      dto.theme.colors.background,
+    );
+    if (ratio < 4.5) {
+      throw new BadRequestException(
+        `Contraste insuficiente entre texto e fundo (${ratio.toFixed(1)}:1). Mínimo: 4.5:1`,
       );
-      if (ratio < 4.5) {
-        throw new BadRequestException(
-          'Insufficient contrast between text and background',
-        );
-      }
     }
+
+    const data = {
+      theme: dto.theme as any,
+      links: (dto.links as any) ?? [],
+      socials: (dto.socials as any) ?? {},
+      headline: dto.headline ?? null,
+      about: dto.about ?? null,
+      welcomeMsg: dto.welcomeMsg ?? null,
+      address: (dto.address as any) ?? null,
+      gallery: (dto.gallery as any) ?? [],
+      showHours: dto.showHours ?? false,
+      faviconUrl: dto.faviconUrl ?? null,
+    };
 
     const [result] = await this.prisma.raw.$transaction([
       this.prisma.raw.pageCustomization.upsert({
         where: { businessId },
-        create: {
-          businessId,
-          theme: dto.theme as any,
-          links: (dto.links as any) ?? [],
-          socials: (dto.socials as any) ?? {},
-          headline: dto.headline ?? null,
-          about: dto.about ?? null,
-        },
-        update: {
-          theme: dto.theme as any,
-          links: (dto.links as any) ?? [],
-          socials: (dto.socials as any) ?? {},
-          headline: dto.headline ?? null,
-          about: dto.about ?? null,
-        },
+        create: { businessId, ...data },
+        update: data,
       }),
       this.prisma.raw.business.update({
         where: { id: businessId },

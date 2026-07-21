@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional } from 'class-validator';
+import { IsString, IsDateString, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreatePublicAppointmentDto {
   @IsString()
@@ -23,4 +23,8 @@ export class CreatePublicAppointmentDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  marketingOptIn?: boolean;
 }

@@ -20,6 +20,9 @@ interface User {
     slug: string;
     name: string;
     timezone: string;
+    plan?: string;
+    planStatus?: string;
+    trialEndsAt?: string;
     onboardingStep?: number;
     onboardingCompletedAt?: string | null;
   };

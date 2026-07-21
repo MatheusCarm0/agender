@@ -11,6 +11,19 @@ Antes de qualquer tarefa, leia `docs/00-contexto-geral.md`. É a fonte de verdad
 a stack, o glossário de domínio, as decisões técnicas firmes e as armadilhas. Nada do que você
 fizer pode contradizer esse arquivo.
 
+**Se a tarefa envolver login, convite ou permissão de um membro da equipe (dono, admin, profissional,
+recepção), leia também `docs/acessos-equipe.md`.** É uma extensão de `01-fundacao.md`, válida
+independentemente da fase de produto em andamento.
+
+**Se a tarefa envolver o cadastro inicial, o primeiro acesso ou o wizard de primeiro uso, leia
+também `docs/onboarding.md`.** Ele orquestra passos já especificados em outros documentos
+(cadastro, logo, serviço, horários, equipe) numa sequência guiada — não redefine nenhum endpoint.
+
+**Se a tarefa envolver envio de e-mail ou WhatsApp, leia também `docs/notificacoes.md`.** Detalha os
+provedores concretos (Resend e Meta Cloud API), variáveis de ambiente esperadas e a categorização
+correta de mensagem no WhatsApp — a interface `NotificationProvider` já foi definida em
+`04-retencao.md`, este documento só preenche a implementação real.
+
 ---
 
 ## Passo 2 — Descubra em que ponto o sistema está
@@ -24,9 +37,8 @@ fizer pode contradizer esse arquivo.
 ### Estado atual
 
 ```
-Fase atual: Retenção — EM ANDAMENTO (falta apenas proxy wildcard para subdomínio, item de infra)
-Extras concluídos fora de fase: upload de avatar de profissional (admin + página pública)
-Próximo documento: docs/04-retencao.md
+Fase atual: monetizacao — NÃO INICIADA
+Próximo documento: docs/05-monetizacao.md
 ```
 
 > Ao concluir uma fase (todos os critérios de aceite marcados), atualize estas duas linhas para a
@@ -40,7 +52,7 @@ Próximo documento: docs/04-retencao.md
 | Fundação pronta; construindo o núcleo de agendamento | `docs/02-mvp.md` |
 | MVP pronto; personalização + financeiro | `docs/03-diferenciacao.md` *(a criar)* |
 | Diferenciação pronta; notificações, subdomínios, cupons, fidelidade e identidade do cliente (OTP) | `docs/04-retencao.md` |
-| Retenção pronta; pagamentos + domínio próprio | `docs/05-monetizacao.md` *(a criar)* |
+| Retenção pronta; construindo modelo de planos (teste 7 dias → Básico/Profissional/Pro) e campanhas de disparo (PIX/domínio/multi-unidade ainda não especificados) | `docs/05-monetizacao.md` |
 | Produto validado; escala + observabilidade | `docs/06-hardening.md` *(a criar)* |
 
 Regra de escopo: **não puxe trabalho de uma fase futura** sem instrução explícita. Cada fase entrega

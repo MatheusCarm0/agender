@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Inter, Poppins, Playfair_Display, DM_Sans } from 'next/font/google';
+import { Geist, Geist_Mono, Inter, Poppins, Playfair_Display, DM_Sans, Montserrat, Raleway, Lora, Nunito, Space_Grotesk, Cormorant_Garamond } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth-context';
 import './globals.css';
 
@@ -34,6 +34,37 @@ const dmSans = DM_Sans({
   subsets: ['latin'],
 });
 
+const montserrat = Montserrat({
+  variable: '--font-montserrat',
+  subsets: ['latin'],
+});
+
+const raleway = Raleway({
+  variable: '--font-raleway',
+  subsets: ['latin'],
+});
+
+const lora = Lora({
+  variable: '--font-lora',
+  subsets: ['latin'],
+});
+
+const nunito = Nunito({
+  variable: '--font-nunito',
+  subsets: ['latin'],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: '--font-space-grotesk',
+  subsets: ['latin'],
+});
+
+const cormorantGaramond = Cormorant_Garamond({
+  variable: '--font-cormorant',
+  weight: ['400', '500', '600'],
+  subsets: ['latin'],
+});
+
 export const metadata: Metadata = {
   title: 'Agenda',
   description: 'Plataforma de agendamento online',
@@ -46,7 +77,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} ${playfairDisplay.variable} ${dmSans.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} ${playfairDisplay.variable} ${dmSans.variable} ${montserrat.variable} ${raleway.variable} ${lora.variable} ${nunito.variable} ${spaceGrotesk.variable} ${cormorantGaramond.variable}`}>
         <AuthProvider>
           {children}
         </AuthProvider>

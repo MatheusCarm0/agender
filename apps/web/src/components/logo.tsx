@@ -5,7 +5,7 @@ export function AgenderLogo({ size = 'md', className = '' }: { size?: 'sm' | 'md
     <svg
       viewBox="0 0 500 88"
       height={h}
-      style={{ width: 'auto' }}
+      style={{ width: 'auto', paddingLeft: '5rem' }}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="Agender"
@@ -21,9 +21,9 @@ export function AgenderLogo({ size = 'md', className = '' }: { size?: 'sm' | 'md
           <stop offset="100%" stopColor="#EF6C00" />
         </linearGradient>
         <linearGradient id="agdr-txt" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#15803D" />
-          <stop offset="60%" stopColor="#1E6B4A" />
-          <stop offset="100%" stopColor="#1a1a1a" />
+          <stop offset="0%" stopColor="var(--color-primary-default, #16A34A)" />
+          <stop offset="60%" stopColor="#16A341" />
+          <stop offset="100%" stopColor="#1E6B42" />
         </linearGradient>
       </defs>
 

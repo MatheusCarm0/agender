@@ -32,10 +32,15 @@ export class AuthService {
 
     const passwordHash = await argon2.hash(dto.password);
 
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
     const business = await this.prisma.raw.business.create({
       data: {
         name: dto.businessName,
         slug,
+        plan: 'basico',
+        planStatus: 'trialing',
+        trialEndsAt,
         professionals: {
           create: {
             name: dto.ownerName,
@@ -79,6 +84,9 @@ export class AuthService {
         id: business.id,
         slug: business.slug,
         name: business.name,
+        plan: business.plan,
+        planStatus: business.planStatus,
+        trialEndsAt: business.trialEndsAt,
         onboardingStep: 2,
         onboardingCompletedAt: null,
       },
@@ -119,6 +127,9 @@ export class AuthService {
         id: user.business.id,
         slug: user.business.slug,
         name: user.business.name,
+        plan: user.business.plan,
+        planStatus: user.business.planStatus,
+        trialEndsAt: user.business.trialEndsAt,
         onboardingStep: user.business.onboardingStep,
         onboardingCompletedAt: user.business.onboardingCompletedAt,
       },
@@ -175,6 +186,9 @@ export class AuthService {
         slug: user.business.slug,
         name: user.business.name,
         timezone: user.business.timezone,
+        plan: user.business.plan,
+        planStatus: user.business.planStatus,
+        trialEndsAt: user.business.trialEndsAt,
         onboardingStep: user.business.onboardingStep,
         onboardingCompletedAt: user.business.onboardingCompletedAt,
       },
