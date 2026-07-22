@@ -7,6 +7,7 @@ import { CouponModule } from '../coupon/coupon.module';
 import { MembershipModule } from '../membership/membership.module';
 import { NotificationModule } from '../notification/notification.module';
 import { BookingPaymentModule } from '../booking-payment/booking-payment.module';
+import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 
 @Module({
   imports: [
@@ -19,5 +20,6 @@ import { BookingPaymentModule } from '../booking-payment/booking-payment.module'
     BookingPaymentModule,
   ],
   controllers: [PublicV1Controller],
+  providers: [RateLimitGuard],
 })
 export class PublicV1Module {}

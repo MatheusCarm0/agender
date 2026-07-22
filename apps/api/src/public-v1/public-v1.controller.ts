@@ -25,6 +25,8 @@ import { StartOtpDto } from '../client-auth/dto/start-otp.dto';
 import { VerifyOtpDto } from '../client-auth/dto/verify-otp.dto';
 import { BookingPaymentService } from '../booking-payment/booking-payment.service';
 import { CreateBookingPaymentDto } from '../booking-payment/dto/create-booking-payment.dto';
+import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('public/v1')
 export class PublicV1Controller {
@@ -130,7 +132,11 @@ export class PublicV1Controller {
   }
 
   @Post(':slug/appointments')
-  @UseGuards(OptionalClientAuthGuard)
+  // Rate limit contra flood de agendamento: 5/min por IP e teto de 40/min por
+  // negócio (protege a agenda de um tenant de um flood distribuído). Ver
+  // RateLimitGuard. OptionalClientAuthGuard segue populando req.clientUser.
+  @RateLimit({ limit: 5, windowSec: 60, perBusinessLimit: 40, key: 'public-appointment-create' })
+  @UseGuards(RateLimitGuard, OptionalClientAuthGuard)
   async createAppointment(
     @Param('slug') slug: string,
     @Body() dto: CreatePublicAppointmentDto & { couponCode?: string },
@@ -212,6 +218,9 @@ export class PublicV1Controller {
   }
 
   @Post(':slug/appointments/:id/pay')
+  // Cada chamada aciona o gateway (cria/consulta cobrança). Limita por IP.
+  @RateLimit({ limit: 10, windowSec: 60, key: 'public-appointment-pay' })
+  @UseGuards(RateLimitGuard)
   async payAppointment(
     @Param('slug') slug: string,
     @Param('id') appointmentId: string,
