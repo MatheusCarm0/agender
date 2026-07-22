@@ -8,3 +8,5 @@ coverage/
 *.tsbuildinfo
 apps/api/uploads/
 /prisma/
+backups/
+*.sql.gz
