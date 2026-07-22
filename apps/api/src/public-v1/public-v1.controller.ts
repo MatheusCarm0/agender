@@ -139,7 +139,9 @@ export class PublicV1Controller {
   @UseGuards(RateLimitGuard, OptionalClientAuthGuard)
   async createAppointment(
     @Param('slug') slug: string,
-    @Body() dto: CreatePublicAppointmentDto & { couponCode?: string },
+    // Tipo é a CLASSE (não interseção): interseção emite `Object` como metatype
+    // e o ValidationPipe pula a validação inteira. `couponCode` agora é campo do DTO.
+    @Body() dto: CreatePublicAppointmentDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Req() req: any,
   ) {

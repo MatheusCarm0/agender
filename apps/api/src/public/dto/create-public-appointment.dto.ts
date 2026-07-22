@@ -27,4 +27,8 @@ export class CreatePublicAppointmentDto {
   @IsOptional()
   @IsBoolean()
   marketingOptIn?: boolean;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }
