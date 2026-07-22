@@ -149,6 +149,9 @@ export default function RegisterPage() {
             Entrar
           </Link>
         </p>
+        <p className="mt-2 text-xs text-text-subtle text-center">
+          <Link href="/faq" className="hover:text-text-muted">Perguntas frequentes</Link>
+        </p>
       </div>
     </div>
   );
