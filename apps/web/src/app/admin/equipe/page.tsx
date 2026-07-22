@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
 import { ConfirmModal } from '@/components/confirm-modal';
 
@@ -93,7 +94,9 @@ export default function EquipePage() {
 
   useEffect(() => {
     if (!token) return;
-    loadData();
+    const cached = getCached<{ users: StaffUser[]; pendingInvites: PendingInvite[] }>('/staff');
+    if (cached) { setUsers(cached.users); setInvites(cached.pendingInvites); setLoading(false); }
+    loadData(!!cached);
     loadProfessionals();
   }, [token]);
 

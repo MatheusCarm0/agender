@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { ConfirmModal } from '@/components/confirm-modal';
 import { useToast } from '@/components/toast';
 import Link from 'next/link';
@@ -34,11 +35,13 @@ export default function ScheduleBlocksPage() {
 
   useEffect(() => {
     if (!token) return;
-    loadData();
+    const cached = getCached<ScheduleBlock[]>('/schedule-blocks');
+    if (cached) { setBlocks(cached); setLoading(false); }
+    loadData(!!cached);
   }, [token]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData(silent = false) {
+    if (!silent) setLoading(true);
     try {
       const [b, p] = await Promise.all([
         api<ScheduleBlock[]>('/schedule-blocks', { token: token! }),

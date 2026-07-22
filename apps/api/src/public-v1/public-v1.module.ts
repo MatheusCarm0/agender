@@ -6,6 +6,7 @@ import { ClientAuthModule } from '../client-auth/client-auth.module';
 import { CouponModule } from '../coupon/coupon.module';
 import { MembershipModule } from '../membership/membership.module';
 import { NotificationModule } from '../notification/notification.module';
+import { BookingPaymentModule } from '../booking-payment/booking-payment.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { NotificationModule } from '../notification/notification.module';
     CouponModule,
     MembershipModule,
     NotificationModule,
+    BookingPaymentModule,
   ],
   controllers: [PublicV1Controller],
 })

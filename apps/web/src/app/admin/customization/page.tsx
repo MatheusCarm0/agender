@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
 
 interface Theme {
@@ -265,7 +266,12 @@ export default function CustomizationPage() {
     markDirty();
   }
 
-  useEffect(() => { if (token) loadCustomization(); }, [token]);
+  useEffect(() => {
+    if (!token) return;
+    const cached = getCached<Customization>('/customization');
+    if (cached) { setData({ ...defaultCustomization(), ...cached }); setLoading(false); }
+    loadCustomization();
+  }, [token]);
 
   async function loadCustomization() {
     setLoading(true);

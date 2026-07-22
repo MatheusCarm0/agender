@@ -48,19 +48,19 @@ export function invalidateCache(path: string): void {
   cache.delete(path);
 }
 
-const ROUTE_API_MAP: Record<string, string> = {
-  '/admin': '/appointments',
-  '/admin/clientes': '/clients',
-  '/admin/professionals': '/professionals',
-  '/admin/services': '/services',
-  '/admin/working-hours': '/working-hours',
-  '/admin/schedule-blocks': '/schedule-blocks',
-  '/admin/equipe': '/staff',
-  '/admin/financeiro': '/appointments',
-  '/admin/customization': '/customization',
+const ROUTE_API_MAP: Record<string, string[]> = {
+  '/admin': ['/appointments'],
+  '/admin/clientes': ['/clients'],
+  '/admin/professionals': ['/professionals'],
+  '/admin/services': ['/services', '/professionals'],
+  '/admin/working-hours': ['/professionals'],
+  '/admin/schedule-blocks': ['/schedule-blocks'],
+  '/admin/equipe': ['/staff'],
+  '/admin/financeiro': ['/appointments'],
+  '/admin/customization': ['/customization'],
 };
 
 export function prefetchForRoute(route: string, token: string): void {
-  const apiPath = ROUTE_API_MAP[route];
-  if (apiPath) prefetchApi(apiPath, token);
+  const apiPaths = ROUTE_API_MAP[route];
+  if (apiPaths) apiPaths.forEach((p) => prefetchApi(p, token));
 }

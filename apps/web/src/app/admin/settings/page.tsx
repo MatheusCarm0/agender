@@ -13,17 +13,34 @@ export default function SettingsPage() {
 
   const [profileForm, setProfileForm] = useState({ name: '', email: '' });
   const [businessForm, setBusinessForm] = useState({ name: '', logoUrl: '', subdomain: '' });
+  const [paymentForm, setPaymentForm] = useState<{
+    bookingPaymentPolicy: 'none' | 'deposit' | 'full';
+    depositPercent: number;
+  }>({ bookingPaymentPolicy: 'none', depositPercent: 50 });
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingSubdomain, setSavingSubdomain] = useState(false);
+  const [savingPayment, setSavingPayment] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     if (!user || !token) return;
     setProfileForm({ name: user.name, email: user.email });
-    api<{ name: string; logoUrl?: string; subdomain?: string }>('/business', { token })
-      .then((b) => setBusinessForm({ name: b.name, logoUrl: b.logoUrl || '', subdomain: b.subdomain || '' }))
+    api<{
+      name: string;
+      logoUrl?: string;
+      subdomain?: string;
+      bookingPaymentPolicy?: 'none' | 'deposit' | 'full';
+      depositPercent?: number | null;
+    }>('/business', { token })
+      .then((b) => {
+        setBusinessForm({ name: b.name, logoUrl: b.logoUrl || '', subdomain: b.subdomain || '' });
+        setPaymentForm({
+          bookingPaymentPolicy: b.bookingPaymentPolicy || 'none',
+          depositPercent: b.depositPercent ?? 50,
+        });
+      })
       .catch(() => setBusinessForm({ name: user.business.name, logoUrl: '', subdomain: '' }));
   }, [user, token]);
 
@@ -135,6 +152,28 @@ export default function SettingsPage() {
       toast(err instanceof Error ? err.message : 'Erro ao salvar subdomínio', 'error');
     }
     setSavingSubdomain(false);
+  }
+
+  async function handleSavePayment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    setSavingPayment(true);
+    try {
+      await api('/business', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({
+          bookingPaymentPolicy: paymentForm.bookingPaymentPolicy,
+          ...(paymentForm.bookingPaymentPolicy === 'deposit'
+            ? { depositPercent: paymentForm.depositPercent }
+            : {}),
+        }),
+      });
+      toast('Cobrança no agendamento salva');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao salvar cobrança', 'error');
+    }
+    setSavingPayment(false);
   }
 
   const isOwner = user?.role === 'owner' || user?.role === 'admin';
@@ -260,6 +299,81 @@ export default function SettingsPage() {
                 </div>
               </form>
             </div>
+          </section>
+        )}
+
+        {isOwner && (
+          <section className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 shadow-[var(--shadow-elevation-1)]">
+            <h2 className="text-base font-semibold text-text-strong mb-1">Cobrança no agendamento</h2>
+            <p className="text-sm text-text-muted mb-4">
+              Escolha se o cliente paga ao agendar. O horário só é confirmado após o pagamento.
+            </p>
+            <form onSubmit={handleSavePayment} className="space-y-3">
+              {([
+                { value: 'none', title: 'Não cobrar', desc: 'O cliente agenda sem pagar antes.' },
+                { value: 'deposit', title: 'Cobrar um sinal', desc: 'Uma parte do valor é paga na hora de agendar.' },
+                { value: 'full', title: 'Cobrar o valor cheio', desc: 'O cliente paga o serviço completo ao agendar.' },
+              ] as const).map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-[var(--radius-sm)] border cursor-pointer transition-colors ${
+                    paymentForm.bookingPaymentPolicy === opt.value
+                      ? 'border-primary-default bg-primary-tint-bg'
+                      : 'border-border-default hover:bg-surface-subtle'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="bookingPaymentPolicy"
+                    value={opt.value}
+                    checked={paymentForm.bookingPaymentPolicy === opt.value}
+                    onChange={() => setPaymentForm((f) => ({ ...f, bookingPaymentPolicy: opt.value }))}
+                    className="mt-1 accent-[var(--color-primary-default)]"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-text-strong">{opt.title}</p>
+                    <p className="text-xs text-text-muted mt-0.5">{opt.desc}</p>
+                  </div>
+                </label>
+              ))}
+
+              {paymentForm.bookingPaymentPolicy === 'deposit' && (
+                <div className="pl-3">
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Percentual do sinal
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={paymentForm.depositPercent}
+                      onChange={(e) =>
+                        setPaymentForm((f) => ({
+                          ...f,
+                          depositPercent: Math.min(100, Math.max(1, Number(e.target.value) || 0)),
+                        }))
+                      }
+                      className="w-24 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-mono tabular-nums focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
+                    />
+                    <span className="text-sm text-text-muted">% do valor do serviço</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-1">
+                <button
+                  type="submit"
+                  disabled={savingPayment}
+                  className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
+                >
+                  {savingPayment ? 'Salvando...' : 'Salvar cobrança'}
+                </button>
+              </div>
+            </form>
+            <p className="mt-3 text-xs text-text-subtle">
+              Para receber pagamentos, configure seus dados em <strong>Recebimento</strong>.
+            </p>
           </section>
         )}
 

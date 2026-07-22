@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -32,14 +33,16 @@ export default function ProfessionalsPage() {
 
   useEffect(() => {
     if (!token) return;
-    loadData();
+    const cached = getCached<Professional[]>('/professionals');
+    if (cached) { setProfessionals(cached); setLoading(false); }
+    loadData(!!cached);
   }, [token]);
 
   async function loadData(silent = false) {
     if (!silent) setLoading(true);
     const data = await api<Professional[]>('/professionals', { token: token! });
     setProfessionals(data);
-    if (!silent) setLoading(false);
+    setLoading(false);
   }
 
   function openCreate() {

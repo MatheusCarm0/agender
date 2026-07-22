@@ -23,6 +23,8 @@ import { OptionalClientAuthGuard } from '../client-auth/guards/optional-client-a
 import { CreatePublicAppointmentDto } from '../public/dto/create-public-appointment.dto';
 import { StartOtpDto } from '../client-auth/dto/start-otp.dto';
 import { VerifyOtpDto } from '../client-auth/dto/verify-otp.dto';
+import { BookingPaymentService } from '../booking-payment/booking-payment.service';
+import { CreateBookingPaymentDto } from '../booking-payment/dto/create-booking-payment.dto';
 
 @Controller('public/v1')
 export class PublicV1Controller {
@@ -34,6 +36,7 @@ export class PublicV1Controller {
     private readonly couponService: CouponService,
     private readonly membershipService: MembershipService,
     private readonly notificationService: NotificationService,
+    private readonly bookingPaymentService: BookingPaymentService,
   ) {}
 
   @Get(':slug')
@@ -68,6 +71,8 @@ export class PublicV1Controller {
       logoUrl: business.logoUrl,
       coverUrl: business.coverUrl,
       acceptingBookings,
+      bookingPaymentPolicy: business.bookingPaymentPolicy,
+      depositPercent: business.depositPercent,
       professionals: business.professionals.map((p) => ({
         id: p.id,
         name: p.name,
@@ -160,6 +165,19 @@ export class PublicV1Controller {
       dto.professionalId,
     );
 
+    // Quando o negócio exige pagamento no agendamento, o slot fica RESERVADO
+    // mas a confirmação (e o lembrete) só são disparados após o pagamento —
+    // isso acontece em BookingPaymentService.applyConfirmation. Sem pagamento
+    // no prazo, o cron de expiração cancela e libera o slot.
+    const paymentContext = await this.bookingPaymentService.getContext(
+      business.id,
+      appointment.id,
+    );
+
+    if (paymentContext.required) {
+      return { ...appointment, paymentRequired: true, payment: paymentContext };
+    }
+
     await this.notificationService.enqueueBookingConfirmation(
       appointment.id,
       business.id,
@@ -176,7 +194,46 @@ export class PublicV1Controller {
       );
     }
 
-    return appointment;
+    return { ...appointment, paymentRequired: false };
+  }
+
+  // --- Pagamento do agendamento ---
+
+  @Get(':slug/appointments/:id/payment')
+  async getAppointmentPayment(
+    @Param('slug') slug: string,
+    @Param('id') appointmentId: string,
+  ) {
+    const business = await this.prisma.raw.business.findUnique({
+      where: { slug },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    return this.bookingPaymentService.getContext(business.id, appointmentId);
+  }
+
+  @Post(':slug/appointments/:id/pay')
+  async payAppointment(
+    @Param('slug') slug: string,
+    @Param('id') appointmentId: string,
+    @Body() dto: CreateBookingPaymentDto,
+  ) {
+    const business = await this.prisma.raw.business.findUnique({
+      where: { slug },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    return this.bookingPaymentService.initiate(business.id, appointmentId, dto);
+  }
+
+  @Get(':slug/appointments/:id/pay/status')
+  async getAppointmentPaymentStatus(
+    @Param('slug') slug: string,
+    @Param('id') appointmentId: string,
+  ) {
+    const business = await this.prisma.raw.business.findUnique({
+      where: { slug },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    return this.bookingPaymentService.getStatus(business.id, appointmentId);
   }
 
   // --- OTP Auth ---

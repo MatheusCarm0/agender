@@ -18,7 +18,7 @@ interface Customization {
 interface WorkingHour { weekday: number; startTime: string; endTime: string }
 interface Slot { startAt: string; endAt: string }
 
-type Step = 'home' | 'select' | 'slots' | 'form' | 'done';
+type Step = 'home' | 'select' | 'slots' | 'form' | 'payment' | 'done';
 
 function fontFamily(font: string): string {
   const map: Record<string, string> = {
@@ -62,7 +62,7 @@ function bgStyle(bg: Customization['theme']['background'], overlayOpacity?: numb
 }
 
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const STEP_ORDER: Step[] = ['home', 'select', 'slots', 'form', 'done'];
+const STEP_ORDER: Step[] = ['home', 'select', 'slots', 'form', 'payment', 'done'];
 
 function getOpenStatus(workingHours: WorkingHour[], timezone: string): { isOpen: boolean; label: string } {
   try {
@@ -160,6 +160,73 @@ export default function BookingClient({ business, customization, workingHours }:
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Pagamento no agendamento (quando o negócio exige)
+  const [appointmentId, setAppointmentId] = useState<string | null>(null);
+  const [payDue, setPayDue] = useState(0);
+  const [payInfo, setPayInfo] = useState<{ status: string; pixQrCode?: string | null; pixQrCodeBase64?: string | null; amount: number } | null>(null);
+  const [payLoading, setPayLoading] = useState(false);
+  const [payError, setPayError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  function stopPolling() {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }
+
+  async function startPixPayment() {
+    if (!appointmentId) return;
+    setPayLoading(true); setPayError('');
+    try {
+      const res = await fetch(`${API_URL}/public/v1/${business.slug}/appointments/${appointmentId}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'pix' }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Erro ao gerar o pagamento');
+      }
+      const data = await res.json();
+      if (data.alreadyPaid) { stopPolling(); navigate('done'); return; }
+      setPayInfo(data.payment);
+      startStatusPolling();
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Erro ao gerar o pagamento');
+    }
+    setPayLoading(false);
+  }
+
+  function startStatusPolling() {
+    stopPolling();
+    pollRef.current = setInterval(checkPaymentStatus, 4000);
+  }
+
+  async function checkPaymentStatus() {
+    if (!appointmentId) return;
+    try {
+      const res = await fetch(`${API_URL}/public/v1/${business.slug}/appointments/${appointmentId}/pay/status`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPayInfo((prev) => (prev ? { ...prev, status: data.status } : data));
+      if (data.status === 'confirmed') { stopPolling(); navigate('done'); }
+      if (data.status === 'expired' || data.status === 'failed') { stopPolling(); }
+    } catch {
+      // silencioso; próxima iteração tenta de novo
+    }
+  }
+
+  function copyPixCode() {
+    if (!payInfo?.pixQrCode) return;
+    navigator.clipboard?.writeText(payInfo.pixQrCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  }
+
   const c = customization?.theme?.colors;
   const bg = c?.background || '#f9fafb';
   const text = c?.text || '#1c1917';
@@ -256,7 +323,15 @@ export default function BookingClient({ business, customization, workingHours }:
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || 'Erro ao agendar');
       }
-      navigate('done');
+      const created = await res.json();
+      if (created.paymentRequired && created.payment) {
+        setAppointmentId(created.id);
+        setPayDue(created.payment.amount);
+        setPayInfo(null);
+        navigate('payment');
+      } else {
+        navigate('done');
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao agendar');
     }
@@ -264,10 +339,12 @@ export default function BookingClient({ business, customization, workingHours }:
   }
 
   function goHome() {
+    stopPolling();
     navigate('home');
     setSelectedProf(null); setSelectedService(null); setSelectedSlot(null);
     setClientForm({ name: '', phone: '', email: '', marketingOptIn: false }); setError('');
     setCouponCode(''); setCouponStatus(null);
+    setAppointmentId(null); setPayInfo(null); setPayDue(0); setPayError('');
   }
 
   function generateDates(): { date: string; label: string; dayName: string; isToday: boolean }[] {
@@ -812,6 +889,99 @@ export default function BookingClient({ business, customization, workingHours }:
                   {booking ? 'Agendando...' : 'Confirmar agendamento'}
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* PAYMENT */}
+        {step === 'payment' && (
+          <div className="w-full max-w-md space-y-4 step-animate">
+            <div className="border p-6" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
+              <div className="text-center mb-5">
+                <p className="text-xs font-medium" style={{ color: primary }}>Falta pouco</p>
+                <h2 className="text-lg font-bold mt-1">Pague para confirmar</h2>
+                <p className="text-sm mt-1" style={{ opacity: 0.6 }}>
+                  Seu horário fica reservado até o pagamento. Valor a pagar:
+                </p>
+                <p className="text-2xl font-bold mt-1 tabular-nums" style={{ color: primary, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCurrency(payDue)}
+                </p>
+              </div>
+
+              {!payInfo && (
+                <button
+                  type="button"
+                  onClick={startPixPayment}
+                  disabled={payLoading}
+                  className="w-full h-12 font-semibold text-sm text-white disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ backgroundColor: primary, borderRadius: radius }}
+                >
+                  {payLoading ? 'Gerando PIX...' : 'Pagar com PIX'}
+                </button>
+              )}
+
+              {payInfo && (payInfo.status === 'pending') && (
+                <div className="space-y-4">
+                  {payInfo.pixQrCodeBase64 && (
+                    <div className="flex justify-center">
+                      <img
+                        src={`data:image/png;base64,${payInfo.pixQrCodeBase64}`}
+                        alt="QR Code PIX"
+                        className="w-52 h-52 rounded-lg border"
+                        style={{ borderColor: `${text}12` }}
+                      />
+                    </div>
+                  )}
+                  {payInfo.pixQrCode && (
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>PIX copia e cola</label>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={payInfo.pixQrCode}
+                          className="flex-1 h-10 px-3 text-xs border truncate"
+                          style={{ backgroundColor: `${text}04`, borderColor: `${text}15`, color: text, borderRadius: radius, fontFamily: 'monospace' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={copyPixCode}
+                          className="h-10 px-4 text-sm font-medium border shrink-0"
+                          style={{ borderColor: `${text}20`, color: text, borderRadius: radius }}
+                        >
+                          {copied ? 'Copiado!' : 'Copiar'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-center gap-2 text-sm" style={{ opacity: 0.6 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin"><path d="M21 12a9 9 0 11-6.219-8.56" /></svg>
+                    Aguardando confirmação do pagamento...
+                  </div>
+                  <button
+                    type="button"
+                    onClick={checkPaymentStatus}
+                    className="w-full py-2.5 text-sm font-medium border transition-all hover:scale-[1.01]"
+                    style={{ borderColor: `${text}15`, color: text, borderRadius: radius }}
+                  >
+                    Já paguei, verificar
+                  </button>
+                </div>
+              )}
+
+              {payInfo && (payInfo.status === 'expired' || payInfo.status === 'failed') && (
+                <div className="text-center space-y-3">
+                  <p className="text-sm px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>
+                    O pagamento não foi concluído a tempo e a reserva foi liberada.
+                  </p>
+                  <button onClick={goHome} className="w-full py-3 text-sm font-medium" style={{ color: primary }}>
+                    Tentar de novo
+                  </button>
+                </div>
+              )}
+
+              {payError && (
+                <p className="text-xs mt-3 px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{payError}</p>
+              )}
             </div>
           </div>
         )}

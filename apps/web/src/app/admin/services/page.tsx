@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
 
 interface Service {
@@ -33,11 +34,13 @@ export default function ServicesPage() {
 
   useEffect(() => {
     if (!token) return;
-    loadData();
+    const cached = getCached<Service[]>('/services');
+    if (cached) { setServices(cached); setLoading(false); }
+    loadData(!!cached);
   }, [token]);
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData(silent = false) {
+    if (!silent) setLoading(true);
     try {
       const [s, p] = await Promise.all([
         api<Service[]>('/services', { token: token! }),

@@ -110,39 +110,44 @@ enum PaymentStatusEnum {
 }
 
 model Business {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  timezone  String   @default("America/Sao_Paulo")
-  plan          PlanTier   @default(basico)
-  planStatus    PlanStatus @default(trialing) @map("plan_status")
-  trialEndsAt   DateTime   @default(now()) @map("trial_ends_at")
-  planUpdatedAt DateTime?  @map("plan_updated_at")
-  subdomain String?  @unique
-  logoUrl   String?  @map("logo_url")
-  coverUrl  String?  @map("cover_url")
-  onboardingStep        Int       @default(1) @map("onboarding_step")
-  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
-  onboardingSkipped     Json      @default("[]") @map("onboarding_skipped")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                    String     @id @default(cuid())
+  slug                  String     @unique
+  name                  String
+  timezone              String     @default("America/Sao_Paulo")
+  plan                  PlanTier   @default(basico)
+  planStatus            PlanStatus @default(trialing) @map("plan_status")
+  trialEndsAt           DateTime   @default(now()) @map("trial_ends_at")
+  planUpdatedAt         DateTime?  @map("plan_updated_at")
+  bookingPaymentPolicy  String     @default("none") @map("booking_payment_policy") // none | deposit | full
+  depositPercent        Int?       @map("deposit_percent")
+  subdomain             String?    @unique
+  logoUrl               String?    @map("logo_url")
+  coverUrl              String?    @map("cover_url")
+  onboardingStep        Int        @default(1) @map("onboarding_step")
+  onboardingCompletedAt DateTime?  @map("onboarding_completed_at")
+  onboardingSkipped     Json       @default("[]") @map("onboarding_skipped")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
 
-  users              User[]
-  professionals      Professional[]
-  services           Service[]
-  workingHours       WorkingHours[]
-  scheduleBlocks     ScheduleBlock[]
-  clients            Client[]
-  appointments       Appointment[]
-  pageCustomization  PageCustomization?
-  recurringBlocks    RecurringBlock[]
-  notificationLogs   NotificationLog[]
-  coupons            Coupon[]
-  membershipPlans    MembershipPlan[]
-  clientMemberships  ClientMembership[]
-  staffInvites       StaffInvite[]
-  campaigns          Campaign[]
-  planUsages         PlanUsage[]
+  users             User[]
+  professionals     Professional[]
+  services          Service[]
+  workingHours      WorkingHours[]
+  scheduleBlocks    ScheduleBlock[]
+  clients           Client[]
+  appointments      Appointment[]
+  pageCustomization PageCustomization?
+  recurringBlocks   RecurringBlock[]
+  notificationLogs  NotificationLog[]
+  coupons           Coupon[]
+  membershipPlans   MembershipPlan[]
+  clientMemberships ClientMembership[]
+  staffInvites      StaffInvite[]
+  campaigns         Campaign[]
+  planUsages        PlanUsage[]
+  paymentAccount    PaymentAccount?
+  bookingPayments   BookingPayment[]
+  planSubscription  PlanSubscription?
 
   @@map("businesses")
 }
@@ -161,8 +166,8 @@ model User {
   tokenVersion   Int           @default(0) @map("token_version")
   createdAt      DateTime      @default(now()) @map("created_at")
 
-  staffInvites     StaffInvite[]
-  passwordResets   PasswordResetToken[]
+  staffInvites   StaffInvite[]
+  passwordResets PasswordResetToken[]
 
   @@unique([businessId, email])
   @@index([businessId])
@@ -170,16 +175,16 @@ model User {
 }
 
 model Professional {
-  id         String   @id @default(cuid())
-  businessId String   @map("business_id")
-  business   Business @relation(fields: [businessId], references: [id])
-  user       User?
-  name       String
-  bio        String?  @db.Text
-  avatarUrl  String?  @map("avatar_url")
+  id              String         @id @default(cuid())
+  businessId      String         @map("business_id")
+  business        Business       @relation(fields: [businessId], references: [id])
+  user            User?
+  name            String
+  bio             String?        @db.Text
+  avatarUrl       String?        @map("avatar_url")
   active          Boolean        @default(true)
   commissionType  CommissionType @default(none) @map("commission_type")
-  commissionValue Decimal        @default(0) @db.Decimal(10, 2) @map("commission_value")
+  commissionValue Decimal        @default(0) @map("commission_value") @db.Decimal(10, 2)
   createdAt       DateTime       @default(now()) @map("created_at")
 
   services        ProfessionalService[]
@@ -212,12 +217,12 @@ model Service {
 }
 
 model ProfessionalService {
-  professionalId   String   @map("professional_id")
+  professionalId   String       @map("professional_id")
   professional     Professional @relation(fields: [professionalId], references: [id])
-  serviceId        String   @map("service_id")
-  service          Service  @relation(fields: [serviceId], references: [id])
-  priceOverride    Decimal? @map("price_override") @db.Decimal(10, 2)
-  durationOverride Int?     @map("duration_override")
+  serviceId        String       @map("service_id")
+  service          Service      @relation(fields: [serviceId], references: [id])
+  priceOverride    Decimal?     @map("price_override") @db.Decimal(10, 2)
+  durationOverride Int?         @map("duration_override")
 
   @@id([professionalId, serviceId])
   @@index([serviceId])
@@ -255,23 +260,23 @@ model ScheduleBlock {
 }
 
 model Client {
-  id         String   @id @default(cuid())
-  businessId String   @map("business_id")
-  business   Business @relation(fields: [businessId], references: [id])
-  name       String
-  phone      String
-  email      String?
-  notes           String?   @db.Text
-  phoneVerifiedAt DateTime? @map("phone_verified_at")
+  id               String    @id @default(cuid())
+  businessId       String    @map("business_id")
+  business         Business  @relation(fields: [businessId], references: [id])
+  name             String
+  phone            String
+  email            String?
+  notes            String?   @db.Text
+  phoneVerifiedAt  DateTime? @map("phone_verified_at")
   marketingOptIn   Boolean   @default(false) @map("marketing_opt_in")
   marketingOptInAt DateTime? @map("marketing_opt_in_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
-  appointments      Appointment[]
-  otps              ClientOtp[]
-  notificationLogs  NotificationLog[]
-  couponRedemptions CouponRedemption[]
-  memberships       ClientMembership[]
+  appointments       Appointment[]
+  otps               ClientOtp[]
+  notificationLogs   NotificationLog[]
+  couponRedemptions  CouponRedemption[]
+  memberships        ClientMembership[]
   campaignRecipients CampaignRecipient[]
 
   @@unique([businessId, phone])
@@ -296,35 +301,36 @@ model Appointment {
   paymentStatus  String            @default("unpaid") @map("payment_status")
   paymentMethod  String?           @map("payment_method")
   paidAt         DateTime?         @map("paid_at")
-  couponId        String?  @map("coupon_id")
-  membershipId    String?  @map("membership_id")
-  discountAmount  Decimal  @default(0) @db.Decimal(10, 2) @map("discount_amount")
-  notes           String?  @db.Text
-  idempotencyKey  String?  @map("idempotency_key")
-  createdAt       DateTime @default(now()) @map("created_at")
+  couponId       String?           @map("coupon_id")
+  membershipId   String?           @map("membership_id")
+  discountAmount Decimal           @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  notes          String?           @db.Text
+  idempotencyKey String?           @map("idempotency_key")
+  createdAt      DateTime          @default(now()) @map("created_at")
 
   couponRedemption CouponRedemption?
+  bookingPayment   BookingPayment?
 
+  @@unique([businessId, idempotencyKey])
   @@index([businessId])
   @@index([professionalId, startAt])
-  @@unique([businessId, idempotencyKey])
   @@map("appointments")
 }
 
 model PageCustomization {
-  businessId   String   @id @map("business_id")
-  business     Business @relation(fields: [businessId], references: [id])
-  theme        Json
-  links        Json     @default("[]")
-  socials      Json     @default("{}")
-  headline     String?
-  about        String?  @db.Text
-  welcomeMsg   String?  @map("welcome_msg")
-  address      Json?
-  gallery      Json     @default("[]")
-  showHours    Boolean  @default(false) @map("show_hours")
-  faviconUrl   String?  @map("favicon_url")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  businessId String   @id @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id])
+  theme      Json
+  links      Json     @default("[]")
+  socials    Json     @default("{}")
+  headline   String?
+  about      String?  @db.Text
+  welcomeMsg String?  @map("welcome_msg")
+  address    Json?
+  gallery    Json     @default("[]")
+  showHours  Boolean  @default(false) @map("show_hours")
+  faviconUrl String?  @map("favicon_url")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("page_customizations")
 }
@@ -362,19 +368,19 @@ model ClientOtp {
 }
 
 model NotificationLog {
-  id         String              @id @default(cuid())
-  businessId String              @map("business_id")
-  business   Business            @relation(fields: [businessId], references: [id])
-  clientId   String?             @map("client_id")
-  client     Client?             @relation(fields: [clientId], references: [id])
-  channel    NotificationChannel
-  type       NotificationType
-  status     NotificationStatus  @default(pending)
-  payload    Json
-  sentAt     DateTime?           @map("sent_at")
-  error      String?
-  referenceId String?            @map("reference_id")
-  createdAt  DateTime            @default(now()) @map("created_at")
+  id          String              @id @default(cuid())
+  businessId  String              @map("business_id")
+  business    Business            @relation(fields: [businessId], references: [id])
+  clientId    String?             @map("client_id")
+  client      Client?             @relation(fields: [clientId], references: [id])
+  channel     NotificationChannel
+  type        NotificationType
+  status      NotificationStatus  @default(pending)
+  payload     Json
+  sentAt      DateTime?           @map("sent_at")
+  error       String?
+  referenceId String?             @map("reference_id")
+  createdAt   DateTime            @default(now()) @map("created_at")
 
   @@unique([referenceId, type])
   @@index([businessId])
@@ -388,7 +394,7 @@ model Coupon {
   business       Business           @relation(fields: [businessId], references: [id])
   code           String
   discountType   CouponDiscountType @map("discount_type")
-  discountValue  Decimal            @db.Decimal(10, 2) @map("discount_value")
+  discountValue  Decimal            @map("discount_value") @db.Decimal(10, 2)
   scope          CouponScope        @default(all)
   serviceId      String?            @map("service_id")
   maxUses        Int?               @map("max_uses")
@@ -407,15 +413,15 @@ model Coupon {
 }
 
 model CouponRedemption {
-  id              String   @id @default(cuid())
-  couponId        String   @map("coupon_id")
-  coupon          Coupon   @relation(fields: [couponId], references: [id])
-  appointmentId   String   @unique @map("appointment_id")
+  id              String      @id @default(cuid())
+  couponId        String      @map("coupon_id")
+  coupon          Coupon      @relation(fields: [couponId], references: [id])
+  appointmentId   String      @unique @map("appointment_id")
   appointment     Appointment @relation(fields: [appointmentId], references: [id])
-  clientId        String   @map("client_id")
-  client          Client   @relation(fields: [clientId], references: [id])
-  discountApplied Decimal  @db.Decimal(10, 2) @map("discount_applied")
-  createdAt       DateTime @default(now()) @map("created_at")
+  clientId        String      @map("client_id")
+  client          Client      @relation(fields: [clientId], references: [id])
+  discountApplied Decimal     @map("discount_applied") @db.Decimal(10, 2)
+  createdAt       DateTime    @default(now()) @map("created_at")
 
   @@index([couponId])
   @@index([clientId])
@@ -442,19 +448,19 @@ model MembershipPlan {
 }
 
 model ClientMembership {
-  id            String           @id @default(cuid())
-  businessId    String           @map("business_id")
-  business      Business         @relation(fields: [businessId], references: [id])
-  clientId      String           @map("client_id")
-  client        Client           @relation(fields: [clientId], references: [id])
-  planId        String           @map("plan_id")
-  plan          MembershipPlan   @relation(fields: [planId], references: [id])
-  status        MembershipStatus @default(pending)
-  cycleStart    DateTime         @map("cycle_start")
-  cycleEnd      DateTime         @map("cycle_end")
-  usageInCycle  Int              @default(0) @map("usage_in_cycle")
+  id            String            @id @default(cuid())
+  businessId    String            @map("business_id")
+  business      Business          @relation(fields: [businessId], references: [id])
+  clientId      String            @map("client_id")
+  client        Client            @relation(fields: [clientId], references: [id])
+  planId        String            @map("plan_id")
+  plan          MembershipPlan    @relation(fields: [planId], references: [id])
+  status        MembershipStatus  @default(pending)
+  cycleStart    DateTime          @map("cycle_start")
+  cycleEnd      DateTime          @map("cycle_end")
+  usageInCycle  Int               @default(0) @map("usage_in_cycle")
   paymentStatus PaymentStatusEnum @default(unpaid) @map("payment_status_enum")
-  createdAt     DateTime         @default(now()) @map("created_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
 
   @@index([businessId])
   @@index([clientId])
@@ -499,7 +505,7 @@ model Campaign {
   business        Business        @relation(fields: [businessId], references: [id])
   name            String
   channel         CampaignChannel
-  messageText     String          @db.Text @map("message_text")
+  messageText     String          @map("message_text") @db.Text
   emailSubject    String?         @map("email_subject")
   audienceFilter  Json            @default("{}") @map("audience_filter")
   scheduledFor    DateTime?       @map("scheduled_for")
@@ -507,8 +513,8 @@ model Campaign {
   totalRecipients Int             @default(0) @map("total_recipients")
   totalSent       Int             @default(0) @map("total_sent")
   totalFailed     Int             @default(0) @map("total_failed")
-  costEstimate    Decimal         @default(0) @db.Decimal(10, 2) @map("cost_estimate")
-  costActual      Decimal         @default(0) @db.Decimal(10, 2) @map("cost_actual")
+  costEstimate    Decimal         @default(0) @map("cost_estimate") @db.Decimal(10, 2)
+  costActual      Decimal         @default(0) @map("cost_actual") @db.Decimal(10, 2)
   createdAt       DateTime        @default(now()) @map("created_at")
 
   recipients CampaignRecipient[]
@@ -533,18 +539,142 @@ model CampaignRecipient {
 }
 
 model PlanUsage {
-  id                     String   @id @default(cuid())
-  businessId             String   @map("business_id")
-  business               Business @relation(fields: [businessId], references: [id])
-  periodStart            DateTime @map("period_start")
-  periodEnd              DateTime @map("period_end")
-  planAtSnapshot         PlanTier @map("plan_at_snapshot")
-  campaignSendsIncluded  Int      @default(0) @map("campaign_sends_included")
-  campaignSendsUsed      Int      @default(0) @map("campaign_sends_used")
-  overageSends           Int      @default(0) @map("overage_sends")
-  overageCost            Decimal  @default(0) @db.Decimal(10, 2) @map("overage_cost")
+  id                    String   @id @default(cuid())
+  businessId            String   @map("business_id")
+  business              Business @relation(fields: [businessId], references: [id])
+  periodStart           DateTime @map("period_start")
+  periodEnd             DateTime @map("period_end")
+  planAtSnapshot        PlanTier @map("plan_at_snapshot")
+  campaignSendsIncluded Int      @default(0) @map("campaign_sends_included")
+  campaignSendsUsed     Int      @default(0) @map("campaign_sends_used")
+  overageSends          Int      @default(0) @map("overage_sends")
+  overageCost           Decimal  @default(0) @map("overage_cost") @db.Decimal(10, 2)
 
   @@unique([businessId, periodStart])
   @@index([businessId])
   @@map("plan_usages")
+}
+
+// ---------------------------------------------------------------------------
+// Pagamentos (ver docs/pagamentos.md)
+// Modelo transversal de split/assinatura/saque. Provider abstraído
+// (PaymentProvider). Primeira implementação concreta: Mercado Pago.
+// Fase de testes usa conta única (collector da plataforma); o split real
+// (marketplace/subconta) é plugado depois — ver `externalAccountId`.
+// ---------------------------------------------------------------------------
+
+enum PaymentAccountStatus {
+  pending_verification
+  active
+  restricted
+}
+
+model PaymentAccount {
+  id                String               @id @default(cuid())
+  businessId        String               @unique @map("business_id")
+  business          Business             @relation(fields: [businessId], references: [id])
+  provider          String               @default("mercadopago")
+  externalAccountId String?              @map("external_account_id") // id da subconta/seller no gateway (marketplace); null no modo conta única
+  status            PaymentAccountStatus @default(pending_verification)
+  pixKey            String?              @map("pix_key")
+  bankAccount       Json?                @map("bank_account") // espelho informativo; fonte da verdade é o gateway
+  documentType      String?              @map("document_type") // CPF | CNPJ
+  documentNumber    String?              @map("document_number")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  withdrawals Withdrawal[]
+
+  @@index([businessId])
+  @@map("payment_accounts")
+}
+
+enum WithdrawalStatus {
+  pending
+  confirmed
+  failed
+}
+
+model Withdrawal {
+  id                String           @id @default(cuid())
+  businessId        String           @map("business_id")
+  paymentAccountId  String           @map("payment_account_id")
+  paymentAccount    PaymentAccount   @relation(fields: [paymentAccountId], references: [id])
+  amount            Decimal          @db.Decimal(10, 2)
+  status            WithdrawalStatus @default(pending)
+  gatewayTransferId String?          @map("gateway_transfer_id")
+  destination       String? // descrição do destino (PIX/conta) para histórico
+  confirmedAt       DateTime?        @map("confirmed_at")
+  error             String?
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([paymentAccountId])
+  @@map("withdrawals")
+}
+
+enum BookingPaymentStatus {
+  pending
+  confirmed
+  failed
+  refunded
+  expired
+}
+
+model BookingPayment {
+  id              String               @id @default(cuid())
+  appointmentId   String               @unique @map("appointment_id")
+  appointment     Appointment          @relation(fields: [appointmentId], references: [id])
+  businessId      String               @map("business_id")
+  business        Business             @relation(fields: [businessId], references: [id])
+  provider        String               @default("mercadopago")
+  amount          Decimal              @db.Decimal(10, 2)
+  method          String // pix | credit_card
+  status          BookingPaymentStatus @default(pending)
+  gatewayChargeId String               @map("gateway_charge_id")
+  pixQrCode       String?              @map("pix_qr_code") @db.Text // copia-e-cola
+  pixQrCodeBase64 String?              @map("pix_qr_code_base64") @db.Text // imagem base64
+  checkoutUrl     String?              @map("checkout_url")
+  idempotencyKey  String?              @map("idempotency_key") // chave X-Idempotency-Key da tentativa atual
+  expiresAt       DateTime?            @map("expires_at")
+  paidAt          DateTime?            @map("paid_at")
+  lastSyncedAt    DateTime?            @map("last_synced_at") // throttle do reconcile com o gateway (poll público)
+  createdAt       DateTime             @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([gatewayChargeId])
+  @@map("booking_payments")
+}
+
+model PlanSubscription {
+  id                    String    @id @default(cuid())
+  businessId            String    @unique @map("business_id")
+  business              Business  @relation(fields: [businessId], references: [id])
+  provider              String    @default("mercadopago")
+  gatewaySubscriptionId String    @map("gateway_subscription_id") // id do preapproval no MP
+  planTier              PlanTier  @map("plan_tier")
+  status                String    @default("pending") // pending | active | overdue | cancelled — espelha o gateway
+  amount                Decimal   @db.Decimal(10, 2)
+  checkoutUrl           String?   @map("checkout_url")
+  nextDueDate           DateTime? @map("next_due_date")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@index([gatewaySubscriptionId])
+  @@map("plan_subscriptions")
+}
+
+// Idempotência de webhook: grava o evento antes de aplicar o efeito, para
+// reentrega do gateway não duplicar confirmação de pagamento nem repetir split.
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String   @default("mercadopago")
+  eventId     String   @map("event_id") // id do evento/notification do gateway
+  type        String
+  payload     Json
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@unique([provider, eventId])
+  @@map("webhook_events")
 }

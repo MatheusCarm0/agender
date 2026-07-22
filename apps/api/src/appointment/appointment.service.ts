@@ -4,21 +4,30 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
+  Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../prisma/tenant-context';
 import { AvailabilityService } from '../availability/availability.service';
+import {
+  PAYMENT_PROVIDER,
+  PaymentProvider,
+} from '../payment/payment-provider.interface';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 
 @Injectable()
 export class AppointmentService {
+  private readonly logger = new Logger(AppointmentService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContext,
     private readonly availabilityService: AvailabilityService,
+    @Inject(PAYMENT_PROVIDER) private readonly paymentProvider: PaymentProvider,
   ) {}
 
   private getBusinessId(): string {
@@ -412,9 +421,39 @@ export class AppointmentService {
         businessId,
         appointment.professionalId,
       );
+      await this.refundIfPaid(id, businessId);
     }
 
     return updated;
+  }
+
+  /**
+   * Estorna best-effort um agendamento pago que está sendo cancelado. Falha no
+   * estorno não impede o cancelamento (é logada) — mas o dinheiro não pode
+   * ficar retido silenciosamente num horário que não vai acontecer.
+   */
+  private async refundIfPaid(appointmentId: string, businessId: string) {
+    const payment = await this.prisma.raw.bookingPayment.findFirst({
+      where: { appointmentId, businessId, status: 'confirmed' },
+    });
+    if (!payment) return;
+
+    try {
+      await this.paymentProvider.refundPayment(payment.gatewayChargeId);
+      await this.prisma.raw.bookingPayment.update({
+        where: { id: payment.id },
+        data: { status: 'refunded' },
+      });
+      await this.prisma.raw.appointment.update({
+        where: { id: appointmentId },
+        data: { paymentStatus: 'refunded' },
+      });
+      this.logger.log(`Estorno do agendamento ${appointmentId} solicitado.`);
+    } catch (e: any) {
+      this.logger.error(
+        `Falha ao estornar o agendamento ${appointmentId}: ${e.message}`,
+      );
+    }
   }
 
   async updatePayment(id: string, dto: UpdatePaymentDto) {

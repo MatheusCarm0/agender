@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { ConfirmModal } from '@/components/confirm-modal';
 import { useToast } from '@/components/toast';
 
@@ -35,10 +36,16 @@ export default function WorkingHoursPage() {
 
   useEffect(() => {
     if (!token) return;
+    const cached = getCached<Professional[]>('/professionals');
+    if (cached) {
+      setProfessionals(cached);
+      if (cached.length > 0) setSelectedProfId(cached[0].id);
+      setLoading(false);
+    }
     api<Professional[]>('/professionals', { token })
       .then((data) => {
         setProfessionals(data);
-        if (data.length > 0) setSelectedProfId(data[0].id);
+        if (!cached && data.length > 0) setSelectedProfId(data[0].id);
       })
       .catch(() => toast('Não foi possível carregar os profissionais', 'error'))
       .finally(() => setLoading(false));

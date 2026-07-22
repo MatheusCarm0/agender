@@ -181,6 +181,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/admin/equipe', label: 'Equipe', icon: IconUserCog, roles: ['owner', 'admin'] },
       { href: '/admin/financeiro', label: 'Financeiro', icon: IconWallet, roles: ['owner', 'admin'] },
+      { href: '/admin/recebimento', label: 'Recebimento', icon: IconWallet, roles: ['owner'] },
+      { href: '/admin/plano', label: 'Plano', icon: IconStar, roles: ['owner', 'admin'] },
       { href: '/admin/notificacoes', label: 'Notificações', icon: IconBell, roles: ['owner', 'admin', 'receptionist'] },
       { href: '/admin/customization', label: 'Personalização', icon: IconPalette, roles: ['owner', 'admin', 'receptionist'] },
     ],
@@ -203,6 +205,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/notificacoes': 'Notificações',
   '/admin/customization': 'Personalização',
   '/admin/plano': 'Plano',
+  '/admin/recebimento': 'Recebimento',
   '/admin/settings': 'Configurações',
 };
 
@@ -266,6 +269,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [businessLogoUrl, setBusinessLogoUrl] = useState('');
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  const prevPathname = useRef(pathname);
+
+  useEffect(() => {
+    if (pathname !== prevPathname.current) {
+      setNavigatingTo(null);
+      prevPathname.current = pathname;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -365,19 +377,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       <Link
                         key={item.href}
                         href={item.href}
-                        onClick={() => setSidebarOpen(false)}
+                        onClick={() => {
+                          setSidebarOpen(false);
+                          if (!active) setNavigatingTo(item.href);
+                        }}
                         onMouseEnter={() => token && prefetchForRoute(item.href, token)}
                         className={`relative flex items-center gap-3 px-3 py-2 text-sm rounded-[var(--radius-sm)] transition-colors ${
                           active
                             ? 'bg-primary-tint-bg text-primary-tint-text'
-                            : 'text-text-default hover:bg-surface-subtle'
+                            : navigatingTo === item.href
+                              ? 'bg-surface-subtle text-primary-default'
+                              : 'text-text-default hover:bg-surface-subtle'
                         }`}
                       >
                         {active && (
                           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-default rounded-r" />
                         )}
-                        <span className={active ? 'text-primary-tint-text' : 'text-text-muted'}>
-                          <Icon />
+                        <span className={active ? 'text-primary-tint-text' : navigatingTo === item.href ? 'text-primary-default' : 'text-text-muted'}>
+                          {navigatingTo === item.href ? (
+                            <svg width="18" height="18" viewBox="0 0 18 18" className="animate-spin" aria-hidden="true">
+                              <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+                              <path d="M9 2a7 7 0 016.93 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <Icon />
+                          )}
                         </span>
                         {item.label}
                       </Link>
@@ -391,14 +415,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-3 border-t border-border-default">
           <Link
             href="/admin/settings"
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => {
+              setSidebarOpen(false);
+              if (pathname !== '/admin/settings') setNavigatingTo('/admin/settings');
+            }}
             className={`flex items-center gap-2 px-3 py-2 text-sm rounded-[var(--radius-sm)] transition-colors ${
               pathname === '/admin/settings'
                 ? 'bg-primary-tint-bg text-primary-tint-text'
-                : 'text-text-muted hover:text-text-strong hover:bg-surface-subtle'
+                : navigatingTo === '/admin/settings'
+                  ? 'bg-surface-subtle text-primary-default'
+                  : 'text-text-muted hover:text-text-strong hover:bg-surface-subtle'
             }`}
           >
-            <IconSettings />
+            <span className={pathname === '/admin/settings' ? 'text-primary-tint-text' : navigatingTo === '/admin/settings' ? 'text-primary-default' : ''}>
+              {navigatingTo === '/admin/settings' ? (
+                <svg width="18" height="18" viewBox="0 0 18 18" className="animate-spin" aria-hidden="true">
+                  <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+                  <path d="M9 2a7 7 0 016.93 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <IconSettings />
+              )}
+            </span>
             Configurações
           </Link>
         </div>
@@ -481,21 +519,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </div>
         </header>
+        {navigatingTo && (
+          <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-primary-default/10">
+            <div className="h-full bg-primary-default admin-nav-progress" />
+          </div>
+        )}
         <main id="main-content" className="flex-1 p-6">
           <Breadcrumb pathname={pathname} />
-          <div key={pathname} className="admin-page-enter">
-            {children}
-          </div>
+          {children}
           <style>{`
-            @keyframes adminPageEnter {
-              from { opacity: 0; }
-              to { opacity: 1; }
+            @keyframes adminNavProgress {
+              0% { width: 0; }
+              20% { width: 30%; }
+              50% { width: 60%; }
+              80% { width: 85%; }
+              100% { width: 95%; }
             }
-            .admin-page-enter {
-              animation: adminPageEnter 0.15s ease-out both;
+            .admin-nav-progress {
+              animation: adminNavProgress 2s ease-out forwards;
             }
             @media (prefers-reduced-motion: reduce) {
-              .admin-page-enter { animation: none; }
+              .admin-nav-progress { animation: none; width: 95%; }
             }
           `}</style>
         </main>

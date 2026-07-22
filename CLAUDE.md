@@ -24,6 +24,10 @@ provedores concretos (Resend e Meta Cloud API), variáveis de ambiente esperadas
 correta de mensagem no WhatsApp — a interface `NotificationProvider` já foi definida em
 `04-retencao.md`, este documento só preenche a implementação real.
 
+**Se a tarefa envolver pagamento (assinatura de plano, cobrança no agendamento, saque, fidelidade
+paga), leia também `docs/pagamentos.md`.** Ele substitui a ativação manual descrita em
+`05-monetizacao.md` e `04-retencao.md` por um fluxo real de split via Asaas.
+
 ---
 
 ## Passo 2 — Descubra em que ponto o sistema está
@@ -37,8 +41,12 @@ correta de mensagem no WhatsApp — a interface `NotificationProvider` já foi d
 ### Estado atual
 
 ```
-Fase atual: monetizacao — NÃO INICIADA
-Próximo documento: docs/05-monetizacao.md
+Fase atual: Monetização (Fase 5) + Pagamentos — em andamento
+Concluído no código: Fundação, MVP, Diferenciação, Retenção, campanhas; e docs/pagamentos.md
+  (Mercado Pago) implementado em modo CONTA ÚNICA de testes — assinatura de plano self-service,
+  cobrança PIX/cartão no agendamento, saldo/saque e webhook idempotente. Split/marketplace (subconta
+  ou OAuth do dono) e payout real ainda NÃO plugados — checkpoint obrigatório antes de produção.
+Próximo documento: docs/pagamentos.md (checkpoint de produção) / restante da Fase 5 / docs/06-hardening.md
 ```
 
 > Ao concluir uma fase (todos os critérios de aceite marcados), atualize estas duas linhas para a

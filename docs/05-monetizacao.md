@@ -204,10 +204,10 @@ Nova guard, seguindo o padrão de `RolesGuard`/`TenantGuard` já existentes na F
 - `planStatus = expired` bloqueia **tudo**, independente de `plan` (ver seção "Fim do teste" acima)
   — não é um gate exclusivo de campanha, é o guard mais amplo do painel inteiro.
 
-Ativação/mudança de plano nesta fase (Básico → Profissional/Pro) é **manual**: você, como operador
-da plataforma, confirma o pagamento e atualiza `plan`/`planStatus`. Mesmo padrão já usado para o
-clube de fidelidade em `04-retencao.md`. Automação de cobrança recorrente é escopo futuro do
-restante da Fase 5.
+Ativação/mudança de plano nesta fase (Básico → Profissional/Pro) é **manual por padrão**: você,
+como operador da plataforma, confirma o pagamento e atualiza `plan`/`planStatus`. Mesmo padrão já
+usado para o clube de fidelidade em `04-retencao.md`. **Automatizado em `pagamentos.md`** (assinatura
+via Asaas, webhook atualiza o status sozinho) — use a versão manual só como fallback/plano B.
 
 ---
 

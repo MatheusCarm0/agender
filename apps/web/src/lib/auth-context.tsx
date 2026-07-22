@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from './api';
+import { setAuthCookie, removeAuthCookie } from './auth-cookie';
 
 interface User {
   id: string;
@@ -62,10 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       localStorage.setItem('auth_token', res.accessToken);
       localStorage.setItem('refresh_token', res.refreshToken);
+      setAuthCookie(res.accessToken);
       return res.accessToken;
     } catch {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('refresh_token');
+      removeAuthCookie();
       return null;
     }
   }, []);
@@ -74,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('auth_token');
     if (saved) {
       setToken(saved);
+      setAuthCookie(saved);
       api<User>('/auth/me', { token: saved })
         .then(setUser)
         .catch(async () => {
@@ -86,13 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setToken(null);
                 localStorage.removeItem('auth_token');
                 localStorage.removeItem('refresh_token');
+                removeAuthCookie();
               });
           } else {
             setToken(null);
+            removeAuthCookie();
           }
         })
         .finally(() => setLoading(false));
     } else {
+      removeAuthCookie();
       setLoading(false);
     }
   }, [refreshAccessToken]);
@@ -109,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     localStorage.setItem('auth_token', res.accessToken);
     localStorage.setItem('refresh_token', res.refreshToken);
+    setAuthCookie(res.accessToken);
     setToken(res.accessToken);
     setUser({ ...res.user, business: res.business });
   }, []);
@@ -125,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     localStorage.setItem('auth_token', res.accessToken);
     localStorage.setItem('refresh_token', res.refreshToken);
+    setAuthCookie(res.accessToken);
     setToken(res.accessToken);
     setUser({ ...res.user, business: res.business });
   }, []);
@@ -143,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');
+    removeAuthCookie();
     setToken(null);
     setUser(null);
   }, []);

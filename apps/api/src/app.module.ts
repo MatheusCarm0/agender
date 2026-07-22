@@ -29,10 +29,17 @@ import { StaffModule } from './staff/staff.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PlanModule } from './plan/plan.module';
 import { CampaignModule } from './campaign/campaign.module';
+import { PaymentModule } from './payment/payment.module';
+import { PaymentAccountModule } from './payment-account/payment-account.module';
+import { PlanSubscriptionModule } from './plan-subscription/plan-subscription.module';
+import { BookingPaymentModule } from './booking-payment/booking-payment.module';
+import { WebhookModule } from './webhook/webhook.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // envFilePath explícito para não depender do cwd: carrega o .env do app
+    // (apps/api/.env) e cai para o .env da raiz do monorepo como fallback.
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'] }),
     PrismaModule,
     RedisModule,
     QueueModule,
@@ -60,6 +67,11 @@ import { CampaignModule } from './campaign/campaign.module';
     OnboardingModule,
     PlanModule,
     CampaignModule,
+    PaymentModule,
+    PaymentAccountModule,
+    PlanSubscriptionModule,
+    BookingPaymentModule,
+    WebhookModule,
   ],
   providers: [
     {

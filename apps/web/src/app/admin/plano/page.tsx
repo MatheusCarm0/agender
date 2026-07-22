@@ -2,13 +2,30 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/components/toast';
 import { api } from '@/lib/api';
 
-interface PlanInfo {
+type PlanTier = 'basico' | 'profissional' | 'pro';
+
+interface CatalogItem {
+  tier: PlanTier;
+  label: string;
+  monthlyPrice: number;
+}
+
+interface SubscriptionInfo {
   plan: string;
   planStatus: string;
-  trialEndsAt: string;
   planUpdatedAt: string | null;
+  subscription: {
+    id: string;
+    planTier: PlanTier;
+    status: string;
+    amount: number;
+    checkoutUrl: string | null;
+    nextDueDate: string | null;
+  } | null;
+  catalog: CatalogItem[];
 }
 
 interface PlanUsage {
@@ -17,13 +34,7 @@ interface PlanUsage {
   overageSends: number;
 }
 
-const PLAN_LABELS: Record<string, string> = {
-  basico: 'Básico',
-  profissional: 'Profissional',
-  pro: 'Pro',
-};
-
-const PLAN_FEATURES: Record<string, string[]> = {
+const PLAN_FEATURES: Record<PlanTier, string[]> = {
   basico: [
     'Agendamento online ilimitado',
     'Página pública personalizada',
@@ -44,52 +55,94 @@ const PLAN_FEATURES: Record<string, string[]> = {
   ],
 };
 
+const SUBSCRIPTION_STATUS_LABEL: Record<string, string> = {
+  pending: 'Aguardando pagamento',
+  active: 'Ativa',
+  overdue: 'Pagamento atrasado',
+  cancelled: 'Cancelada',
+};
+
+function formatBRL(value: number): string {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+}
+
 export default function PlanPage() {
   const { token, user, refreshUser } = useAuth();
-  const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
+  const { toast } = useToast();
+  const [info, setInfo] = useState<SubscriptionInfo | null>(null);
   const [usage, setUsage] = useState<PlanUsage | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activating, setActivating] = useState('');
+  const [working, setWorking] = useState('');
 
   useEffect(() => {
     if (!token) return;
-    loadData();
+    // Retorno do checkout do gateway: reconcilia o status antes de exibir.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('subscription') === 'return') {
+      syncOnReturn();
+    } else {
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   async function loadData() {
     try {
-      const [plan, usageData] = await Promise.all([
-        api<PlanInfo>('/plan', { token: token! }),
-        api<PlanUsage>('/plan/usage', { token: token! }),
+      const [sub, usageData] = await Promise.all([
+        api<SubscriptionInfo>('/plan-subscription', { token: token! }),
+        api<PlanUsage>('/plan/usage', { token: token! }).catch(() => null),
       ]);
-      setPlanInfo(plan);
-      setUsage(usageData);
+      setInfo(sub);
+      if (usageData) setUsage(usageData);
     } catch {
-      // handle error
+      toast('Não foi possível carregar seu plano.', 'error');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleActivate(plan: string) {
-    setActivating(plan);
+  async function syncOnReturn() {
     try {
-      await api('/plan/activate', {
+      await api('/plan-subscription/sync', { token: token!, method: 'POST' });
+      await refreshUser();
+    } catch {
+      // segue para o load normal mesmo se o sync falhar
+    } finally {
+      window.history.replaceState(null, '', '/admin/plano');
+      loadData();
+    }
+  }
+
+  async function handleSubscribe(plan: PlanTier) {
+    setWorking(plan);
+    try {
+      const res = await api<{ checkoutUrl: string | null }>('/plan-subscription', {
         token: token!,
         method: 'POST',
         body: JSON.stringify({ plan }),
       });
+      if (res.checkoutUrl) {
+        // Redireciona para o checkout do gateway; o plano vira ativo no retorno
+        // (via webhook em produção, ou pelo sync do retorno em dev).
+        window.location.href = res.checkoutUrl;
+        return;
+      }
       await refreshUser();
       await loadData();
-    } catch {
-      // handle error
+      toast('Assinatura criada.');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Não foi possível assinar.', 'error');
     } finally {
-      setActivating('');
+      setWorking('');
     }
   }
 
   const isExpired = user?.business.planStatus === 'expired';
-  const isTrialing = user?.business.planStatus === 'trialing';
+  const isTrialing = info?.planStatus === 'trialing';
+  const trialEndsAt = user?.business.trialEndsAt;
 
   if (loading) {
     return (
@@ -97,12 +150,15 @@ export default function PlanPage() {
         <div className="h-7 w-48 bg-surface-subtle rounded animate-pulse" />
         <div className="grid md:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-64 bg-surface-subtle rounded-[var(--radius-md)] animate-pulse" />
+            <div key={i} className="h-72 bg-surface-subtle rounded-[var(--radius-md)] animate-pulse" />
           ))}
         </div>
       </div>
     );
   }
+
+  const catalog = info?.catalog ?? [];
+  const activeSub = info?.subscription;
 
   return (
     <div className="space-y-6">
@@ -112,12 +168,12 @@ export default function PlanPage() {
             Seu período de teste expirou
           </h2>
           <p className="text-sm text-danger-text/80 mt-1">
-            Escolha um plano para continuar usando a plataforma. Seus dados estão seguros e seus agendamentos existentes continuam visíveis.
+            Assine um plano para continuar usando a plataforma. Seus dados estão seguros e seus agendamentos existentes continuam visíveis.
           </p>
         </div>
       )}
 
-      {isTrialing && planInfo && (
+      {isTrialing && trialEndsAt && (
         <div className="bg-info-bg border border-info-fg/20 rounded-[var(--radius-md)] p-4">
           <h2 className="text-base font-semibold text-info-text">
             Período de teste ativo
@@ -125,52 +181,91 @@ export default function PlanPage() {
           <p className="text-sm text-info-text/80 mt-1">
             Seu teste termina em{' '}
             <strong>
-              {new Date(planInfo.trialEndsAt).toLocaleDateString('pt-BR', {
+              {new Date(trialEndsAt).toLocaleDateString('pt-BR', {
                 day: '2-digit',
                 month: 'long',
                 year: 'numeric',
               })}
             </strong>
-            . Escolha um plano a qualquer momento para garantir acesso contínuo.
+            . Assine um plano a qualquer momento para garantir acesso contínuo.
           </p>
+        </div>
+      )}
+
+      {activeSub && activeSub.status === 'pending' && activeSub.checkoutUrl && (
+        <div className="bg-warning-bg border border-warning-fg/20 rounded-[var(--radius-md)] p-4 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-warning-text">
+              Pagamento pendente
+            </h2>
+            <p className="text-sm text-warning-text/80 mt-1">
+              Sua assinatura do plano {catalog.find((c) => c.tier === activeSub.planTier)?.label} aguarda a confirmação do pagamento.
+            </p>
+          </div>
+          <a
+            href={activeSub.checkoutUrl}
+            className="shrink-0 h-9 px-4 flex items-center bg-warning-fg text-white text-sm font-medium rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity"
+          >
+            Concluir pagamento
+          </a>
         </div>
       )}
 
       <div>
         <h1 className="text-2xl font-semibold text-text-strong leading-tight">
-          {isExpired ? 'Escolha um plano para continuar' : 'Seu plano'}
+          {isExpired ? 'Assine um plano para continuar' : 'Seu plano'}
         </h1>
-        {!isExpired && planInfo && (
+        {!isExpired && info && (
           <p className="text-sm text-text-muted mt-1">
-            Plano atual: <strong>{PLAN_LABELS[planInfo.plan] ?? planInfo.plan}</strong>
+            Plano atual:{' '}
+            <strong>{catalog.find((c) => c.tier === info.plan)?.label ?? info.plan}</strong>
             {' · '}
-            Status: {planInfo.planStatus === 'active' ? 'Ativo' : planInfo.planStatus === 'trialing' ? 'Em teste' : planInfo.planStatus}
+            Status: {activeSub ? (SUBSCRIPTION_STATUS_LABEL[activeSub.status] ?? activeSub.status) : (info.planStatus === 'active' ? 'Ativo' : info.planStatus === 'trialing' ? 'Em teste' : info.planStatus)}
+            {activeSub?.status === 'active' && activeSub.nextDueDate && (
+              <>
+                {' · '}
+                Próxima cobrança em{' '}
+                <span className="font-mono tabular-nums">
+                  {new Date(activeSub.nextDueDate).toLocaleDateString('pt-BR')}
+                </span>
+              </>
+            )}
           </p>
         )}
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        {(['basico', 'profissional', 'pro'] as const).map((plan) => {
-          const isCurrent = planInfo?.plan === plan && planInfo?.planStatus === 'active';
+        {catalog.map((item) => {
+          const isCurrent =
+            info?.plan === item.tier &&
+            info?.planStatus === 'active' &&
+            activeSub?.status === 'active';
+          const highlight = item.tier === 'profissional';
           return (
             <div
-              key={plan}
+              key={item.tier}
               className={`bg-surface-card border rounded-[var(--radius-md)] p-5 flex flex-col ${
-                plan === 'profissional'
+                highlight
                   ? 'border-primary-default ring-1 ring-primary-default'
                   : 'border-border-default'
               }`}
             >
-              {plan === 'profissional' && (
+              {highlight && (
                 <span className="text-xs font-medium text-primary-default mb-2">
                   Mais popular
                 </span>
               )}
               <h3 className="text-lg font-semibold text-text-strong">
-                {PLAN_LABELS[plan]}
+                {item.label}
               </h3>
+              <p className="mt-1">
+                <span className="text-2xl font-semibold text-text-strong font-mono tabular-nums">
+                  {formatBRL(item.monthlyPrice)}
+                </span>
+                <span className="text-sm text-text-muted">/mês</span>
+              </p>
               <ul className="mt-4 space-y-2 flex-1">
-                {PLAN_FEATURES[plan].map((feature) => (
+                {PLAN_FEATURES[item.tier].map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-sm text-text-default">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-success-fg mt-0.5 shrink-0" aria-hidden="true">
                       <polyline points="20 6 9 17 4 12" />
@@ -186,15 +281,15 @@ export default function PlanPage() {
                   </span>
                 ) : (
                   <button
-                    onClick={() => handleActivate(plan)}
-                    disabled={activating !== ''}
+                    onClick={() => handleSubscribe(item.tier)}
+                    disabled={working !== ''}
                     className={`w-full py-2 text-sm font-medium rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 ${
-                      plan === 'profissional'
+                      highlight
                         ? 'bg-primary-default text-primary-fg hover:bg-primary-hover'
                         : 'bg-surface-subtle text-text-strong border border-border-strong hover:bg-surface-card'
                     }`}
                   >
-                    {activating === plan ? 'Ativando...' : isCurrent ? 'Plano atual' : 'Escolher plano'}
+                    {working === item.tier ? 'Redirecionando...' : 'Assinar'}
                   </button>
                 )}
               </div>
@@ -203,7 +298,7 @@ export default function PlanPage() {
         })}
       </div>
 
-      {usage && planInfo?.planStatus === 'active' && (
+      {usage && info?.planStatus === 'active' && (
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-5">
           <h3 className="text-base font-semibold text-text-strong mb-3">
             Uso do ciclo atual
@@ -237,7 +332,7 @@ export default function PlanPage() {
       )}
 
       <p className="text-xs text-text-subtle">
-        A ativação de plano nesta fase é feita manualmente. Entre em contato para confirmar pagamento e ativar seu plano.
+        A cobrança da assinatura é recorrente e processada com segurança pelo Mercado Pago. Você pode trocar de plano a qualquer momento.
       </p>
     </div>
   );
