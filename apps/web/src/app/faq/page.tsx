@@ -91,8 +91,15 @@ const SECTIONS: Section[] = [
             Os dados dos seus clientes ficam isolados no seu negócio — nenhum outro negócio os
             acessa. Sobre esses dados, <strong>você é o Controlador</strong> e a plataforma é a{' '}
             <strong>Operadora</strong> (tratamos os dados a seu pedido). Isso significa que você
-            deve ter base legal para usá-los e informar seus clientes. Os detalhes estão nos
-            Termos de Uso e na Política de Privacidade.
+            deve ter base legal para usá-los e informar seus clientes. Os detalhes estão nos{' '}
+            <Link href="/termos" className="text-primary-default hover:text-primary-hover font-medium">
+              Termos de Uso
+            </Link>{' '}
+            e na{' '}
+            <Link href="/privacidade" className="text-primary-default hover:text-primary-hover font-medium">
+              Política de Privacidade
+            </Link>
+            .
           </>
         ),
       },
@@ -198,8 +205,10 @@ export default function FaqPage() {
           ))}
         </div>
 
-        <footer className="mt-12 pt-6 border-t border-border-default text-xs text-text-subtle">
-          © {new Date().getFullYear()} Agender · Plataforma de agendamento online.
+        <footer className="mt-12 pt-6 border-t border-border-default flex flex-wrap gap-x-6 gap-y-2 text-xs text-text-subtle">
+          <Link href="/termos" className="hover:text-text-muted">Termos de Uso</Link>
+          <Link href="/privacidade" className="hover:text-text-muted">Política de Privacidade</Link>
+          <span className="ml-auto">© {new Date().getFullYear()} Agender · Plataforma de agendamento online.</span>
         </footer>
       </main>
     </div>
