@@ -49,6 +49,12 @@ export class PlanGuard implements CanActivate {
       });
     }
 
+    // Trial = experiência completa (Pro): o teste serve para conhecer tudo
+    // antes de escolher o plano (ver plan-limits.ts).
+    if (business.planStatus === 'trialing') {
+      return true;
+    }
+
     if (!requiredPlans.includes(business.plan)) {
       throw new ForbiddenException({
         code: 'PLAN_UPGRADE_REQUIRED',

@@ -16,6 +16,7 @@ import {
   PaymentProvider,
 } from '../payment/payment-provider.interface';
 import { estimateFee, estimateNet } from '../payment/fees';
+import { capabilitiesFor } from '../plan/plan-limits';
 import { NotificationService } from '../notification/notification.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { CreateBookingPaymentDto } from './dto/create-booking-payment.dto';
@@ -83,8 +84,12 @@ export class BookingPaymentService {
       appointment.discountAmount,
     );
 
+    // Plano sem pagamento online (ex.: downgrade com a política ainda setada)
+    // ⇒ nunca exigir pagamento (plan/plan-limits.ts).
+    const paymentsAllowed = capabilitiesFor(b.plan, b.planStatus).onlinePayments;
+
     return {
-      required: b.bookingPaymentPolicy !== 'none' && amount > 0,
+      required: paymentsAllowed && b.bookingPaymentPolicy !== 'none' && amount > 0,
       policy: b.bookingPaymentPolicy,
       amount,
       currency: 'BRL',
@@ -124,7 +129,11 @@ export class BookingPaymentService {
       appointment.discountAmount,
     );
 
-    if (b.bookingPaymentPolicy === 'none' || amount <= 0) {
+    if (
+      !capabilitiesFor(b.plan, b.planStatus).onlinePayments ||
+      b.bookingPaymentPolicy === 'none' ||
+      amount <= 0
+    ) {
       throw new BadRequestException('Este agendamento não exige pagamento.');
     }
 

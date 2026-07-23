@@ -1,5 +1,11 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { capabilitiesFor } from '../plan/plan-limits';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 
 @Injectable()
@@ -35,6 +41,19 @@ export class BusinessService {
       if (existing) {
         throw new ConflictException('Subdomain already taken');
       }
+    }
+
+    // Cobrança no agendamento é Profissional/Pro (plan/plan-limits.ts).
+    if (
+      dto.bookingPaymentPolicy &&
+      dto.bookingPaymentPolicy !== 'none' &&
+      !capabilitiesFor(business.plan, business.planStatus).onlinePayments
+    ) {
+      throw new ForbiddenException({
+        code: 'PLAN_UPGRADE_REQUIRED',
+        message:
+          'Cobrança no agendamento está disponível nos planos Profissional e Pro.',
+      });
     }
 
     return this.prisma.raw.business.update({

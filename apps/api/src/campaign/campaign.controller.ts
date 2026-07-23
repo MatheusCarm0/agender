@@ -13,13 +13,15 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { PlanGuard } from '../auth/guards/plan.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RequiresPlan } from '../auth/decorators/requires-plan.decorator';
+import { PLANS_WITH } from '../plan/plan-limits';
 import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 
+// Campanhas são exclusivas do Pro (matriz em plan/plan-limits.ts).
 @Controller('campaigns')
 @UseGuards(JwtAuthGuard, RolesGuard, PlanGuard)
 @Roles('owner', 'admin')
-@RequiresPlan('profissional', 'pro')
+@RequiresPlan(...PLANS_WITH.campaigns)
 export class CampaignController {
   constructor(private readonly campaignService: CampaignService) {}
 

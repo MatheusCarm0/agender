@@ -145,6 +145,26 @@ interface NavItem {
   label: string;
   icon: React.ComponentType;
   roles: string[];
+  /** Capacidade de plano exigida (espelho de api/src/plan/plan-limits.ts). */
+  feature?: 'campaigns' | 'coupons' | 'memberships' | 'onlinePayments';
+}
+
+// Espelho da matriz comercial do backend (plan/plan-limits.ts) — trial vê tudo.
+const PLAN_FEATURE_MATRIX: Record<string, string[]> = {
+  campaigns: ['pro'],
+  coupons: ['profissional', 'pro'],
+  memberships: ['pro'],
+  onlinePayments: ['profissional', 'pro'],
+};
+
+function planHasFeature(
+  feature: NavItem['feature'],
+  plan?: string,
+  planStatus?: string,
+): boolean {
+  if (!feature) return true;
+  if (planStatus === 'trialing') return true;
+  return (PLAN_FEATURE_MATRIX[feature] ?? []).includes(plan ?? '');
 }
 
 interface NavGroup {
@@ -172,9 +192,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Marketing',
     items: [
-      { href: '/admin/campanhas', label: 'Campanhas', icon: IconBell, roles: ['owner', 'admin'] },
-      { href: '/admin/cupons', label: 'Cupons', icon: IconTag, roles: ['owner', 'admin', 'receptionist'] },
-      { href: '/admin/fidelidade', label: 'Fidelidade', icon: IconStar, roles: ['owner', 'admin', 'receptionist'] },
+      { href: '/admin/campanhas', label: 'Campanhas', icon: IconBell, roles: ['owner', 'admin'], feature: 'campaigns' },
+      { href: '/admin/cupons', label: 'Cupons', icon: IconTag, roles: ['owner', 'admin', 'receptionist'], feature: 'coupons' },
+      { href: '/admin/fidelidade', label: 'Fidelidade', icon: IconStar, roles: ['owner', 'admin', 'receptionist'], feature: 'memberships' },
     ],
   },
   {
@@ -182,7 +202,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/admin/equipe', label: 'Equipe', icon: IconUserCog, roles: ['owner', 'admin'] },
       { href: '/admin/financeiro', label: 'Financeiro', icon: IconWallet, roles: ['owner', 'admin'] },
-      { href: '/admin/recebimento', label: 'Recebimento', icon: IconWallet, roles: ['owner'] },
+      { href: '/admin/recebimento', label: 'Recebimento', icon: IconWallet, roles: ['owner'], feature: 'onlinePayments' },
       { href: '/admin/plano', label: 'Plano', icon: IconStar, roles: ['owner', 'admin'] },
       { href: '/admin/notificacoes', label: 'Notificações', icon: IconBell, roles: ['owner', 'admin', 'receptionist'] },
       { href: '/admin/customization', label: 'Personalização', icon: IconPalette, roles: ['owner', 'admin', 'receptionist'] },
@@ -363,7 +383,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <nav className="flex-1 py-3 px-2 overflow-y-auto" aria-label="Menu principal">
           {NAV_GROUPS.map((group) => {
-            const visibleItems = group.items.filter((item) => item.roles.includes(user.role));
+            const visibleItems = group.items.filter(
+              (item) =>
+                item.roles.includes(user.role) &&
+                planHasFeature(item.feature, user.business.plan, user.business.planStatus),
+            );
             if (visibleItems.length === 0) return null;
             return (
               <div key={group.label} className="mb-4">

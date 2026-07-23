@@ -34,24 +34,27 @@ interface PlanUsage {
   overageSends: number;
 }
 
+// Espelho da matriz comercial em apps/api/src/plan/plan-limits.ts —
+// mantenha os dois em sincronia ao mudar a diferenciação.
 const PLAN_FEATURES: Record<PlanTier, string[]> = {
   basico: [
     'Agendamento online ilimitado',
     'Página pública personalizada',
-    'Gestão de equipe',
+    'Até 3 profissionais ativos',
+    'Lembretes de agendamento',
     'Relatório financeiro',
   ],
   profissional: [
     'Tudo do Básico',
-    'Campanhas de disparo (300/mês)',
-    'Cupons e fidelidade',
-    'Notificações WhatsApp',
+    'Até 10 profissionais ativos',
+    'Cobrança no agendamento (PIX)',
+    'Cupons de desconto',
   ],
   pro: [
     'Tudo do Profissional',
-    'Campanhas de disparo (1.000/mês)',
-    'Suporte prioritário',
-    'Relatórios avançados',
+    'Profissionais ilimitados',
+    'Campanhas de disparo',
+    'Clube fidelidade',
   ],
 };
 
