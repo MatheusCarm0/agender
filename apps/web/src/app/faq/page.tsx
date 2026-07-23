@@ -127,14 +127,22 @@ export default function FaqPage() {
       <header className="border-b border-border-default bg-surface-card">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" aria-label="Agender">
-            <AgenderLogo size="md" />
+            <AgenderLogo />
           </Link>
-          <Link
-            href="/login"
-            className="text-sm text-primary-default hover:text-primary-hover font-medium"
-          >
-            Entrar
-          </Link>
+          <div className='flex items-center gap-6'>
+            <Link
+              href="/login"
+              className="text-sm text-primary-default hover:text-primary-hover font-medium"
+            >
+              Entrar
+            </Link>
+            <Link
+              href="/register"
+              className="text-sm text-white hover:bg-primary-active font-medium bg-primary-default p-2 rounded-2xl"
+            >
+              Registrar-se
+            </Link>
+          </div>
         </div>
       </header>
 
