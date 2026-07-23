@@ -68,6 +68,7 @@ export default function RecebimentoPage() {
 
   const [form, setForm] = useState({ documentType: 'CPF', documentNumber: '', pixKey: '' });
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [policy, setPolicy] = useState<{ bookingPaymentPolicy: 'none' | 'deposit' | 'full'; depositPercent: number | null } | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -77,12 +78,14 @@ export default function RecebimentoPage() {
 
   async function loadAll() {
     try {
-      const [acc, wd] = await Promise.all([
+      const [acc, wd, biz] = await Promise.all([
         api<AccountResponse>('/payment-account', { token: token! }),
         api<Withdrawal[]>('/payment-account/withdrawals', { token: token! }).catch(() => []),
+        api<{ bookingPaymentPolicy?: 'none' | 'deposit' | 'full'; depositPercent?: number | null }>('/business', { token: token! }).catch(() => null),
       ]);
       setData(acc);
       setWithdrawals(wd);
+      if (biz) setPolicy({ bookingPaymentPolicy: biz.bookingPaymentPolicy || 'none', depositPercent: biz.depositPercent ?? null });
     } catch {
       toast('Não foi possível carregar seus dados de recebimento.', 'error');
     } finally {
@@ -220,6 +223,28 @@ export default function RecebimentoPage() {
           A taxa é cobrada pelo Mercado Pago sobre cada pagamento. Os valores acima são uma estimativa; a taxa final é definida na liquidação.
         </p>
       </section>
+
+      {/* Política de cobrança (configurada em Configurações) */}
+      {policy && (
+        <section className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 shadow-[var(--shadow-elevation-1)]">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-text-strong mb-1">Cobrança no agendamento</h2>
+              <p className="text-sm text-text-default">
+                {policy.bookingPaymentPolicy === 'none' && 'Você não está cobrando no agendamento — os clientes agendam sem pagar antes.'}
+                {policy.bookingPaymentPolicy === 'deposit' && `Cobrando um sinal de ${policy.depositPercent ?? 0}% do valor do serviço ao agendar.`}
+                {policy.bookingPaymentPolicy === 'full' && 'Cobrando o valor cheio do serviço ao agendar.'}
+              </p>
+            </div>
+            <a
+              href="/admin/settings"
+              className="shrink-0 h-8 px-3 text-xs font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle flex items-center"
+            >
+              Alterar em Configurações
+            </a>
+          </div>
+        </section>
+      )}
 
       {/* Onboarding / dados de recebimento */}
       <section className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 shadow-[var(--shadow-elevation-1)]">

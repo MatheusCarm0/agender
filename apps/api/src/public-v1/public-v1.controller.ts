@@ -21,6 +21,8 @@ import { NotificationService } from '../notification/notification.service';
 import { ClientAuthGuard } from '../client-auth/guards/client-auth.guard';
 import { OptionalClientAuthGuard } from '../client-auth/guards/optional-client-auth.guard';
 import { CreatePublicAppointmentDto } from '../public/dto/create-public-appointment.dto';
+import { PreviewCouponDto } from '../public/dto/preview-coupon.dto';
+import { capabilitiesFor } from '../plan/plan-limits';
 import { StartOtpDto } from '../client-auth/dto/start-otp.dto';
 import { VerifyOtpDto } from '../client-auth/dto/verify-otp.dto';
 import { BookingPaymentService } from '../booking-payment/booking-payment.service';
@@ -65,6 +67,17 @@ export class PublicV1Controller {
 
     const acceptingBookings = business.planStatus !== 'expired';
 
+    // A política de cobrança só vale se o plano permite pagamento online —
+    // expor 'none' quando não permite evita a página pública anunciar um
+    // pagamento que o backend nunca vai exigir (ex.: downgrade de plano).
+    const paymentsAllowed = capabilitiesFor(
+      business.plan,
+      business.planStatus,
+    ).onlinePayments;
+    const effectivePolicy = paymentsAllowed
+      ? business.bookingPaymentPolicy
+      : 'none';
+
     return {
       id: business.id,
       slug: business.slug,
@@ -73,7 +86,7 @@ export class PublicV1Controller {
       logoUrl: business.logoUrl,
       coverUrl: business.coverUrl,
       acceptingBookings,
-      bookingPaymentPolicy: business.bookingPaymentPolicy,
+      bookingPaymentPolicy: effectivePolicy,
       depositPercent: business.depositPercent,
       professionals: business.professionals.map((p) => ({
         id: p.id,
@@ -203,6 +216,58 @@ export class PublicV1Controller {
     }
 
     return { ...appointment, paymentRequired: false };
+  }
+
+  // --- Cupom (preview sem efeito colateral) ---
+
+  @Post(':slug/coupons/preview')
+  // Valida um cupom ANTES do agendamento, sem consumir uso. O consumo real
+  // (com limite por cliente) acontece na transação de criação do agendamento.
+  @RateLimit({ limit: 10, windowSec: 60, key: 'public-coupon-preview' })
+  @UseGuards(RateLimitGuard)
+  async previewCoupon(
+    @Param('slug') slug: string,
+    @Body() dto: PreviewCouponDto,
+  ) {
+    const business = await this.prisma.raw.business.findUnique({
+      where: { slug },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+
+    if (!capabilitiesFor(business.plan, business.planStatus).coupons) {
+      throw new NotFoundException('Cupom inválido ou inativo.');
+    }
+
+    // Preço efetivo do serviço para este profissional (override do vínculo).
+    const link = await this.prisma.raw.professionalService.findUnique({
+      where: {
+        professionalId_serviceId: {
+          professionalId: dto.professionalId,
+          serviceId: dto.serviceId,
+        },
+      },
+      include: { service: true, professional: true },
+    });
+    if (!link || link.professional.businessId !== business.id) {
+      throw new NotFoundException('Serviço não encontrado.');
+    }
+
+    const price = link.priceOverride ?? link.service.price;
+    const { discountAmount } = await this.couponService.preview(
+      business.id,
+      dto.code,
+      dto.serviceId,
+      price,
+    );
+
+    const discount = Number(discountAmount);
+    const total = Math.max(0, Number(price) - discount);
+    return {
+      valid: true,
+      code: dto.code.toUpperCase().trim(),
+      discountAmount: Math.round(discount * 100) / 100,
+      total: Math.round(total * 100) / 100,
+    };
   }
 
   // --- Pagamento do agendamento ---

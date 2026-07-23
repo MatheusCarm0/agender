@@ -198,6 +198,7 @@ export default function CustomizationPage() {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [businessLogoUrl, setBusinessLogoUrl] = useState('');
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('appearance');
@@ -228,14 +229,38 @@ export default function CustomizationPage() {
     return `${API_URL}${url}`;
   }
 
+  // Capa (faixa no topo) e imagem de fundo são coisas distintas: enviar a capa
+  // não deve sequestrar o fundo da página (e vice-versa).
   async function handleCoverUpload(file: File) {
     if (!token) return;
     setUploadingCover(true);
     try {
       const fullUrl = await uploadFile(file);
-      updateTheme({ coverUrl: fullUrl, background: { type: 'image', value: fullUrl } });
+      updateTheme({ coverUrl: fullUrl });
     } catch { toast('Erro ao enviar imagem de capa', 'error'); }
     setUploadingCover(false);
+  }
+
+  async function handleBackgroundImageUpload(file: File) {
+    if (!token) return;
+    setUploadingCover(true);
+    try {
+      const fullUrl = await uploadFile(file);
+      updateTheme({ background: { type: 'image', value: fullUrl } });
+    } catch { toast('Erro ao enviar imagem de fundo', 'error'); }
+    setUploadingCover(false);
+  }
+
+  async function handleLogoUpload(file: File) {
+    if (!token) return;
+    setUploadingLogo(true);
+    try {
+      const fullUrl = await uploadFile(file);
+      await api('/business', { method: 'PATCH', token, body: JSON.stringify({ logoUrl: fullUrl }) });
+      setBusinessLogoUrl(fullUrl);
+      toast('Logo atualizada');
+    } catch { toast('Erro ao enviar a logo', 'error'); }
+    setUploadingLogo(false);
   }
 
   async function handleGalleryUpload(file: File) {
@@ -654,11 +679,11 @@ export default function CustomizationPage() {
 
                   {theme.background.type === 'image' && (
                     <div className="space-y-3">
-                      {theme.coverUrl ? (
+                      {theme.background.value ? (
                         <>
                           <div className="relative">
-                            <img src={theme.coverUrl} alt="Fundo" className="w-full h-32 object-cover rounded-[var(--radius-sm)] border border-border-default" />
-                            {canEdit && <button type="button" onClick={() => updateTheme({ coverUrl: undefined, background: { type: 'solid', value: theme.colors.background } })} className="absolute top-2 right-2 h-7 px-2 text-xs bg-surface-card/90 border border-border-default rounded-[var(--radius-sm)] text-danger-fg hover:bg-surface-card">Remover</button>}
+                            <img src={theme.background.value} alt="Fundo" className="w-full h-32 object-cover rounded-[var(--radius-sm)] border border-border-default" />
+                            {canEdit && <button type="button" onClick={() => updateTheme({ background: { type: 'solid', value: theme.colors.background } })} className="absolute top-2 right-2 h-7 px-2 text-xs bg-surface-card/90 border border-border-default rounded-[var(--radius-sm)] text-danger-fg hover:bg-surface-card">Remover</button>}
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-text-muted mb-1">Escurecimento do overlay ({Math.round((theme.overlayOpacity ?? 0) * 100)}%)</label>
@@ -668,7 +693,7 @@ export default function CustomizationPage() {
                       ) : (
                         <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border-strong rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-subtle transition-colors">
                           <span className="text-xs text-text-muted">{uploadingCover ? 'Enviando...' : 'Clique para enviar uma imagem de fundo'}</span>
-                          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f); }} />
+                          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBackgroundImageUpload(f); }} />
                         </label>
                       )}
                     </div>
@@ -768,6 +793,25 @@ export default function CustomizationPage() {
               <SectionCard title="Identidade">
                 <div className="space-y-4">
                   <div>
+                    <label className="block text-xs font-medium text-text-muted mb-2">Logo do negócio</label>
+                    <div className="flex items-center gap-4">
+                      {businessLogoUrl ? (
+                        <img src={businessLogoUrl} alt="Logo" className="w-14 h-14 rounded-full object-cover border border-border-default" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-surface-subtle border border-border-default flex items-center justify-center text-text-subtle text-lg font-medium">
+                          {(data.headline || businessName || 'N')[0].toUpperCase()}
+                        </div>
+                      )}
+                      {canEdit && (
+                        <label className="h-8 px-3 text-xs font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle flex items-center cursor-pointer">
+                          {uploadingLogo ? 'Enviando...' : businessLogoUrl ? 'Trocar logo' : 'Enviar logo'}
+                          <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); }} />
+                        </label>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-text-subtle mt-1.5">Aparece na página de agendamento e no painel. Salva na hora.</p>
+                  </div>
+                  <div>
                     <label htmlFor="cust-headline" className="block text-xs font-medium text-text-muted mb-1">Título da página</label>
                     <input id="cust-headline" value={data.headline ?? ''} onChange={(e) => { setData((prev) => ({ ...prev, headline: e.target.value })); markDirty(); }} placeholder="Ex.: Barbearia do Juninho" className={inputClass} />
                   </div>
@@ -784,10 +828,11 @@ export default function CustomizationPage() {
               </SectionCard>
 
               <SectionCard title="Imagem de capa">
+                <p className="text-xs text-text-muted mb-3">Faixa no topo da página, atrás da logo. Não é usada quando o fundo da página é uma imagem.</p>
                 {theme.coverUrl ? (
                   <div className="relative">
                     <img src={theme.coverUrl} alt="Capa" className="w-full h-32 object-cover rounded-[var(--radius-sm)] border border-border-default" />
-                    {canEdit && <button type="button" onClick={() => updateTheme({ coverUrl: undefined, background: { type: 'solid', value: theme.colors.background } })} className="absolute top-2 right-2 h-7 px-2 text-xs bg-surface-card/90 border border-border-default rounded-[var(--radius-sm)] text-danger-fg hover:bg-surface-card">Remover</button>}
+                    {canEdit && <button type="button" onClick={() => updateTheme({ coverUrl: undefined })} className="absolute top-2 right-2 h-7 px-2 text-xs bg-surface-card/90 border border-border-default rounded-[var(--radius-sm)] text-danger-fg hover:bg-surface-card">Remover</button>}
                   </div>
                 ) : (
                   <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border-strong rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-subtle transition-colors">
@@ -1020,17 +1065,36 @@ export default function CustomizationPage() {
               </div>
               {/* Screen content */}
               <div
-                className="flex-1 overflow-y-auto overflow-x-hidden"
+                className={`flex-1 overflow-y-auto overflow-x-hidden ${theme.backgroundEffect === 'animated-gradient' && theme.background.type === 'gradient' ? 'pv-fx-animated-gradient' : ''}`}
                 style={{
                   ...bgStyle(theme.background, theme.overlayOpacity),
                   color: theme.colors.text,
                   fontFamily: fontFamily(theme.font),
                 }}
               >
+                {/* Efeitos e container — espelham as classes da página pública */}
+                <style>{`
+                  .pv-fx-dots { background-image: radial-gradient(circle, ${theme.colors.primary}18 1px, transparent 1px); background-size: 24px 24px; }
+                  .pv-fx-grid { background-image: linear-gradient(${theme.colors.text}08 1px, transparent 1px), linear-gradient(90deg, ${theme.colors.text}08 1px, transparent 1px); background-size: 40px 40px; }
+                  .pv-fx-noise { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); background-size: 256px 256px; }
+                  @keyframes pvMesh { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+                  .pv-fx-animated-gradient { background-size: 400% 400% !important; animation: pvMesh 12s ease infinite; }
+                  .pv-container-glass { background: ${theme.colors.surface}cc; backdrop-filter: blur(20px) saturate(1.4); border: 1px solid ${theme.colors.surface}40; border-radius: 16px; margin: 0 10px; }
+                  .pv-container-frosted { background: ${theme.colors.surface}99; backdrop-filter: blur(40px) saturate(1.6); border: 1px solid ${theme.colors.surface}30; border-radius: 20px; margin: 0 10px; }
+                  @media (prefers-reduced-motion: reduce) { .pv-fx-animated-gradient { animation: none; } }
+                `}</style>
+                <div className={`min-h-full flex flex-col ${
+                  theme.backgroundEffect === 'dots' ? 'pv-fx-dots'
+                  : theme.backgroundEffect === 'grid' ? 'pv-fx-grid'
+                  : theme.backgroundEffect === 'noise' ? 'pv-fx-noise'
+                  : ''
+                }`}>
                 {theme.coverUrl && theme.background.type !== 'image' && (
-                  <div className="w-full h-24 bg-cover bg-center" style={{ backgroundImage: `url(${theme.coverUrl})` }} />
+                  <div className="w-full h-24 bg-cover bg-center shrink-0" style={{ backgroundImage: `url(${theme.coverUrl})` }} />
                 )}
-                <div className={`px-5 py-6 flex flex-col items-center text-center ${theme.coverUrl && theme.background.type !== 'image' ? '-mt-8' : ''}`}>
+                <div className={`px-5 py-6 flex flex-col items-center text-center ${theme.coverUrl && theme.background.type !== 'image' ? '-mt-8' : ''} ${
+                  theme.containerStyle === 'glass' ? 'pv-container-glass' : theme.containerStyle === 'frosted' ? 'pv-container-frosted' : ''
+                }`}>
                   {businessLogoUrl ? (
                     <img src={businessLogoUrl} alt="Logo" className="w-14 h-14 rounded-full mb-3 object-cover border-2" style={{ borderColor: theme.colors.surface }} />
                   ) : (
@@ -1108,7 +1172,8 @@ export default function CustomizationPage() {
 
                 {/* Preview footer */}
                 <div className="mt-auto py-3 text-center" style={{ borderTop: `1px solid ${theme.colors.text}08` }}>
-                  <p className="text-[9px]" style={{ opacity: 0.3 }}>Powered by Agenda</p>
+                  <p className="text-[9px]" style={{ opacity: 0.3 }}>Crie sua página com Agender</p>
+                </div>
                 </div>
               </div>
               {/* Home indicator */}

@@ -205,12 +205,24 @@ export default function PlanPage() {
               Sua assinatura do plano {catalog.find((c) => c.tier === activeSub.planTier)?.label} aguarda a confirmação do pagamento.
             </p>
           </div>
-          <a
-            href={activeSub.checkoutUrl}
-            className="shrink-0 h-9 px-4 flex items-center bg-warning-fg text-white text-sm font-medium rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity"
-          >
-            Concluir pagamento
-          </a>
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                setLoading(true);
+                await syncOnReturn();
+              }}
+              className="h-9 px-4 text-sm font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle"
+            >
+              Já paguei, verificar
+            </button>
+            <a
+              href={activeSub.checkoutUrl}
+              className="h-9 px-4 flex items-center bg-warning-fg text-white text-sm font-medium rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity"
+            >
+              Concluir pagamento
+            </a>
+          </div>
         </div>
       )}
 

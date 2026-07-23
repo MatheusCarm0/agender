@@ -84,6 +84,9 @@ export class PlanSubscriptionService {
     }
 
     const amount = getPlanPrice(planTier);
+    // O MP exige back_url https e rejeita notification_url http/localhost.
+    // Em dev usamos um back_url https neutro (o retorno real é reconciliado
+    // pelo sync/“Já paguei, verificar” na tela de Plano) e omitimos o webhook.
     const webUrl = this.config.get<string>('WEB_URL', 'http://localhost:3000');
     const apiUrl = this.config.get<string>('APP_URL', 'http://localhost:3001');
 
@@ -92,8 +95,12 @@ export class PlanSubscriptionService {
       reason: `Assinatura Agender — plano ${PLAN_PRICING[planTier].label}`,
       payer: { email: owner.email },
       externalReference: businessId,
-      backUrl: `${webUrl}/admin/plano?subscription=return`,
-      notificationUrl: `${apiUrl}/webhooks/mercadopago`,
+      backUrl: webUrl.startsWith('https://')
+        ? `${webUrl}/admin/plano?subscription=return`
+        : 'https://www.mercadopago.com.br',
+      notificationUrl: apiUrl.startsWith('https://')
+        ? `${apiUrl}/webhooks/mercadopago`
+        : undefined,
     });
 
     const subscription = await this.prisma.raw.planSubscription.upsert({

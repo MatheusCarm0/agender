@@ -155,7 +155,7 @@ function StepService({ token, onComplete, onSkip }: { token: string; onComplete:
     setLoading(true);
     setError('');
     try {
-      await api('/services', {
+      const created = await api<{ id: string }>('/services', {
         method: 'POST',
         token,
         body: JSON.stringify({
@@ -164,6 +164,23 @@ function StepService({ token, onComplete, onSkip }: { token: string; onComplete:
           price: Number(form.price),
         }),
       });
+      // Vincula o serviço aos profissionais existentes (no onboarding, o
+      // profissional do dono). Sem o vínculo a página pública nasce sem
+      // nenhum serviço agendável.
+      try {
+        const professionals = await api<{ id: string }[]>('/professionals', { token });
+        await Promise.all(
+          professionals.map((p) =>
+            api(`/services/${created.id}/professionals`, {
+              method: 'POST',
+              token,
+              body: JSON.stringify({ professionalId: p.id }),
+            }),
+          ),
+        );
+      } catch {
+        // Vínculo é recuperável depois na tela de Serviços; não trava o wizard.
+      }
       onComplete();
     } catch {
       setError('Erro ao criar o serviço.');

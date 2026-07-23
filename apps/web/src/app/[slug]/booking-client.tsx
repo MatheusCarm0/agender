@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface Service { id: string; name: string; durationMin: number; price: number }
 interface Professional { id: string; name: string; bio: string | null; avatarUrl: string | null; services: Service[] }
-interface Business { id: string; slug: string; name: string; timezone: string; logoUrl?: string; coverUrl?: string; acceptingBookings?: boolean; professionals: Professional[] }
+interface Business { id: string; slug: string; name: string; timezone: string; logoUrl?: string; coverUrl?: string; acceptingBookings?: boolean; bookingPaymentPolicy?: 'none' | 'deposit' | 'full'; depositPercent?: number | null; professionals: Professional[] }
 interface Customization {
   theme: { palette: string; colors: { background: string; surface: string; primary: string; text: string }; font: string; background: { type: string; value: string; gradient?: { from: string; to: string; direction: string } }; logoUrl?: string; coverUrl?: string; buttonStyle: string; layout: string; overlayOpacity?: number; backgroundEffect?: string; containerStyle?: string };
   links: { label: string; url: string; icon?: string; thumbnailUrl?: string; style?: string; type?: 'link' | 'heading' | 'divider' | 'text' | 'spacer' }[];
@@ -152,7 +152,7 @@ export default function BookingClient({ business, customization, workingHours }:
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [clientForm, setClientForm] = useState({ name: '', phone: '', email: '', marketingOptIn: false });
   const [couponCode, setCouponCode] = useState('');
-  const [couponStatus, setCouponStatus] = useState<{ valid: boolean; discount?: string; message: string } | null>(null);
+  const [couponStatus, setCouponStatus] = useState<{ valid: boolean; discountAmount?: number; total?: number; message: string } | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState('');
@@ -163,15 +163,33 @@ export default function BookingClient({ business, customization, workingHours }:
   // Pagamento no agendamento (quando o negócio exige)
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [payDue, setPayDue] = useState(0);
-  const [payInfo, setPayInfo] = useState<{ status: string; pixQrCode?: string | null; pixQrCodeBase64?: string | null; amount: number } | null>(null);
+  const [payInfo, setPayInfo] = useState<{ status: string; pixQrCode?: string | null; pixQrCodeBase64?: string | null; amount: number; expiresAt?: string | null } | null>(null);
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
+
+  // Relógio do countdown do PIX — só roda enquanto há cobrança pendente com prazo.
+  useEffect(() => {
+    if (!payInfo?.expiresAt || payInfo.status !== 'pending') return;
+    const t = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [payInfo?.expiresAt, payInfo?.status]);
+
+  const payRemainingSec = payInfo?.expiresAt
+    ? Math.max(0, Math.floor((new Date(payInfo.expiresAt).getTime() - nowTs) / 1000))
+    : null;
+
+  function formatCountdown(totalSec: number): string {
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
 
   function stopPolling() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -253,6 +271,17 @@ export default function BookingClient({ business, customization, workingHours }:
   const backgroundEffect = customization?.theme?.backgroundEffect || 'none';
   const containerStyle = customization?.theme?.containerStyle || 'solid';
 
+  // Totais do agendamento (cupom aplicado) e cobrança online esperada.
+  const appliedDiscount = couponStatus?.valid ? couponStatus.discountAmount ?? 0 : 0;
+  const bookingTotal = selectedService ? Math.max(0, selectedService.price - appliedDiscount) : 0;
+  const paymentPolicy = business.bookingPaymentPolicy || 'none';
+  const expectedCharge =
+    paymentPolicy === 'full'
+      ? bookingTotal
+      : paymentPolicy === 'deposit'
+      ? Math.round(bookingTotal * ((business.depositPercent ?? 0) / 100) * 100) / 100
+      : 0;
+
   function navigate(to: Step) {
     setPrevStep(step);
     setStep(to);
@@ -263,8 +292,12 @@ export default function BookingClient({ business, customization, workingHours }:
 
   function selectService(s: Service) {
     setSelectedService(s);
+    // Desconto validado vale para um serviço específico — revalidar ao trocar.
+    setCouponStatus(null);
     navigate('slots');
-    const today = new Date().toISOString().split('T')[0];
+    const d = new Date();
+    // Data local, não UTC — ver generateDates.
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     setSelectedDate(today);
     loadSlots(today, selectedProf!.id, s.id);
   }
@@ -286,15 +319,31 @@ export default function BookingClient({ business, customization, workingHours }:
   function pickSlot(slot: Slot) { setSelectedSlot(slot); navigate('form'); }
 
   async function validateCoupon() {
-    if (!couponCode.trim()) return;
+    if (!couponCode.trim() || !selectedProf || !selectedService) return;
     setValidatingCoupon(true);
     try {
-      const res = await fetch(`${API_URL}/public/v1/${business.slug}/appointments`, {
-        method: 'OPTIONS',
+      const res = await fetch(`${API_URL}/public/v1/${business.slug}/coupons/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponCode.trim(),
+          professionalId: selectedProf.id,
+          serviceId: selectedService.id,
+        }),
       });
-      setCouponStatus({ valid: true, discount: '10%', message: `Cupom ${couponCode} aplicado` });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCouponStatus({ valid: false, message: body.message || 'Cupom inválido ou expirado' });
+      } else {
+        setCouponStatus({
+          valid: true,
+          discountAmount: body.discountAmount,
+          total: body.total,
+          message: `Cupom ${body.code} aplicado: −${formatCurrency(body.discountAmount)}`,
+        });
+      }
     } catch {
-      setCouponStatus({ valid: false, message: 'Cupom inválido ou expirado' });
+      setCouponStatus({ valid: false, message: 'Não foi possível validar o cupom. Tente de novo.' });
     }
     setValidatingCoupon(false);
   }
@@ -350,11 +399,15 @@ export default function BookingClient({ business, customization, workingHours }:
   function generateDates(): { date: string; label: string; dayName: string; isToday: boolean }[] {
     const dates: { date: string; label: string; dayName: string; isToday: boolean }[] = [];
     const today = new Date();
+    // Data LOCAL (não toISOString/UTC): à noite o dia UTC já virou e a data
+    // enviada à API ficaria um dia à frente do rótulo mostrado.
+    const localDateStr = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     for (let i = 0; i < 14; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       dates.push({
-        date: d.toISOString().split('T')[0],
+        date: localDateStr(d),
         label: d.getDate().toString(),
         dayName: DAY_NAMES[d.getDay()],
         isToday: i === 0,
@@ -699,25 +752,31 @@ export default function BookingClient({ business, customization, workingHours }:
                 <div>
                   <h2 className="text-sm font-medium mb-3" style={{ opacity: 0.7 }}>Escolha o profissional</h2>
                   <div className="space-y-2">
-                    {business.professionals.map((p) => (
-                      <button key={p.id} onClick={() => selectProfessional(p)} className="w-full text-left p-4 border transition-all hover:scale-[1.01]"
-                        style={{ backgroundColor: surface, borderColor: selectedProf?.id === p.id ? primary : `${text}12`, borderRadius: radius, ...(selectedProf?.id === p.id ? { boxShadow: `0 0 0 1px ${primary}` } : {}) }}>
-                        <div className="flex items-center gap-3">
-                          {p.avatarUrl ? (
-                            <img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: primary }}>{p.name[0]?.toUpperCase()}</div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{p.name}</p>
-                            {p.bio && <p className="text-xs mt-0.5 truncate" style={{ opacity: 0.5 }}>{p.bio}</p>}
-                            <p className="text-[11px] mt-0.5" style={{ opacity: 0.4 }}>
-                              {p.services.length} {p.services.length === 1 ? 'serviço' : 'serviços'} · a partir de {formatCurrency(Math.min(...p.services.map((s) => s.price)))}
-                            </p>
+                    {business.professionals.map((p) => {
+                      const hasServices = p.services.length > 0;
+                      return (
+                        <button key={p.id} onClick={() => hasServices && selectProfessional(p)} disabled={!hasServices}
+                          className={`w-full text-left p-4 border transition-all ${hasServices ? 'hover:scale-[1.01]' : 'cursor-not-allowed'}`}
+                          style={{ backgroundColor: surface, borderColor: selectedProf?.id === p.id ? primary : `${text}12`, borderRadius: radius, opacity: hasServices ? 1 : 0.55, ...(selectedProf?.id === p.id ? { boxShadow: `0 0 0 1px ${primary}` } : {}) }}>
+                          <div className="flex items-center gap-3">
+                            {p.avatarUrl ? (
+                              <img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: primary }}>{p.name[0]?.toUpperCase()}</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm">{p.name}</p>
+                              {p.bio && <p className="text-xs mt-0.5 truncate" style={{ opacity: 0.5 }}>{p.bio}</p>}
+                              <p className="text-[11px] mt-0.5" style={{ opacity: 0.4 }}>
+                                {hasServices
+                                  ? `${p.services.length} ${p.services.length === 1 ? 'serviço' : 'serviços'} · a partir de ${formatCurrency(Math.min(...p.services.map((s) => s.price)))}`
+                                  : 'Sem serviços disponíveis no momento'}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -830,11 +889,27 @@ export default function BookingClient({ business, customization, workingHours }:
                     {selectedSlot && new Date(selectedSlot.startAt).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
+                {appliedDiscount > 0 && (
+                  <div className="flex justify-between">
+                    <span style={{ opacity: 0.7 }}>Desconto ({couponStatus?.valid ? couponCode.toUpperCase() : ''})</span>
+                    <span className="font-medium" style={{ color: '#16a34a' }}>−{formatCurrency(appliedDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-1 mt-1" style={{ borderTop: `1px solid ${primary}15` }}>
                   <span className="font-semibold">Total</span>
-                  <span className="font-semibold" style={{ color: primary }}>{selectedService ? formatCurrency(selectedService.price) : ''}</span>
+                  <span className="font-semibold" style={{ color: primary }}>{formatCurrency(bookingTotal)}</span>
                 </div>
               </div>
+              {paymentPolicy !== 'none' && expectedCharge > 0 && (
+                <p className="text-xs mt-3 px-3 py-2 rounded-lg flex items-start gap-1.5" style={{ backgroundColor: `${primary}12`, color: primary }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5"><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>
+                  <span>
+                    {paymentPolicy === 'full'
+                      ? `Para confirmar, você paga ${formatCurrency(expectedCharge)} por PIX na próxima etapa.`
+                      : `Para confirmar, você paga um sinal de ${formatCurrency(expectedCharge)} por PIX na próxima etapa. O restante é pago no local.`}
+                  </span>
+                </p>
+              )}
             </div>
 
             <div className="border p-5" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
@@ -899,13 +974,20 @@ export default function BookingClient({ business, customization, workingHours }:
             <div className="border p-6" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
               <div className="text-center mb-5">
                 <p className="text-xs font-medium" style={{ color: primary }}>Falta pouco</p>
-                <h2 className="text-lg font-bold mt-1">Pague para confirmar</h2>
+                <h2 className="text-lg font-bold mt-1">
+                  {paymentPolicy === 'deposit' ? 'Pague o sinal para confirmar' : 'Pague para confirmar'}
+                </h2>
                 <p className="text-sm mt-1" style={{ opacity: 0.6 }}>
-                  Seu horário fica reservado até o pagamento. Valor a pagar:
+                  Seu horário fica reservado enquanto o pagamento não expira.
                 </p>
                 <p className="text-2xl font-bold mt-1 tabular-nums" style={{ color: primary, fontVariantNumeric: 'tabular-nums' }}>
                   {formatCurrency(payDue)}
                 </p>
+                {paymentPolicy === 'deposit' && bookingTotal > payDue && (
+                  <p className="text-xs mt-1" style={{ opacity: 0.55 }}>
+                    O restante ({formatCurrency(bookingTotal - payDue)}) você paga no local.
+                  </p>
+                )}
               </div>
 
               {!payInfo && (
@@ -957,6 +1039,11 @@ export default function BookingClient({ business, customization, workingHours }:
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin"><path d="M21 12a9 9 0 11-6.219-8.56" /></svg>
                     Aguardando confirmação do pagamento...
                   </div>
+                  {payRemainingSec !== null && payRemainingSec > 0 && (
+                    <p className="text-xs text-center tabular-nums" style={{ opacity: 0.5, fontVariantNumeric: 'tabular-nums' }}>
+                      Este código PIX expira em {formatCountdown(payRemainingSec)}
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={checkPaymentStatus}
@@ -982,6 +1069,17 @@ export default function BookingClient({ business, customization, workingHours }:
               {payError && (
                 <p className="text-xs mt-3 px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{payError}</p>
               )}
+
+              {(!payInfo || payInfo.status === 'pending') && (
+                <div className="text-center mt-4 pt-4" style={{ borderTop: `1px solid ${text}10` }}>
+                  <button onClick={goHome} className="text-xs transition-opacity hover:opacity-80" style={{ opacity: 0.5, color: text }}>
+                    Desistir e voltar ao início
+                  </button>
+                  <p className="text-[10px] mt-1" style={{ opacity: 0.35 }}>
+                    Reservas não pagas são liberadas automaticamente.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -999,7 +1097,14 @@ export default function BookingClient({ business, customization, workingHours }:
                 <p className="font-medium">{selectedService?.name}</p>
                 <p>com {selectedProf?.name} · {selectedService?.durationMin} min</p>
                 <p>{selectedSlot && new Date(selectedSlot.startAt).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
-                <p className="font-semibold text-base mt-2" style={{ color: primary }}>{selectedService ? formatCurrency(selectedService.price) : ''}</p>
+                <p className="font-semibold text-base mt-2" style={{ color: primary }}>{formatCurrency(bookingTotal)}</p>
+                {payDue > 0 && (
+                  <p className="text-xs" style={{ opacity: 0.6 }}>
+                    {payDue >= bookingTotal
+                      ? `Pagamento de ${formatCurrency(payDue)} confirmado.`
+                      : `Sinal de ${formatCurrency(payDue)} pago · restante no local.`}
+                  </p>
+                )}
               </div>
 
               {hasAddress && (

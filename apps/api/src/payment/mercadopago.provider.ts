@@ -151,7 +151,10 @@ export class MercadoPagoProvider implements PaymentProvider {
         description: params.description,
         payment_method_id: 'pix',
         external_reference: params.externalReference,
-        notification_url: params.notificationUrl,
+        // O MP rejeita notification_url http/localhost — só envia se existir.
+        ...(params.notificationUrl
+          ? { notification_url: params.notificationUrl }
+          : {}),
         date_of_expiration: dateOfExpiration,
         payer: {
           email: params.payer.email,
@@ -185,7 +188,9 @@ export class MercadoPagoProvider implements PaymentProvider {
         installments: params.installments,
         payment_method_id: params.paymentMethodId,
         external_reference: params.externalReference,
-        notification_url: params.notificationUrl,
+        ...(params.notificationUrl
+          ? { notification_url: params.notificationUrl }
+          : {}),
         payer: {
           email: params.payer.email,
           ...(params.payer.document
@@ -229,7 +234,7 @@ export class MercadoPagoProvider implements PaymentProvider {
       body: JSON.stringify({
         reason: params.reason,
         external_reference: params.externalReference,
-        back_url: params.backUrl,
+        ...(params.backUrl ? { back_url: params.backUrl } : {}),
         payer_email: params.payer.email,
         status: 'pending',
         auto_recurring: {

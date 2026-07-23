@@ -71,7 +71,8 @@ export interface CreateSubscriptionParams {
   reason: string;
   payer: PayerInfo;
   externalReference: string; // businessId
-  backUrl: string;
+  /** Omitido quando a URL pública não é https (o MP rejeita http/localhost). */
+  backUrl?: string;
   notificationUrl?: string;
 }
 

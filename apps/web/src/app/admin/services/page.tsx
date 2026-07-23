@@ -12,6 +12,11 @@ interface Service {
   durationMin: number;
   price: string;
   active: boolean;
+  professionals: { professionalId: string; professional: { id: string; name: string } }[];
+}
+
+function formatBRL(value: number): string {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 interface Professional {
@@ -68,7 +73,7 @@ export default function ServicesPage() {
       durationMin: String(s.durationMin),
       price: String(Number(s.price)),
     });
-    setSelectedProfessionals([]);
+    setSelectedProfessionals((s.professionals || []).map((ps) => ps.professional.id));
     setShowForm(true);
   }
 
@@ -84,6 +89,27 @@ export default function ServicesPage() {
     try {
       if (editingId) {
         await api(`/services/${editingId}`, { method: 'PATCH', token: token!, body });
+        // Sincroniza os vínculos profissional ↔ serviço com a seleção atual.
+        const current = services.find((s) => s.id === editingId);
+        const before = new Set((current?.professionals || []).map((ps) => ps.professional.id));
+        const after = new Set(selectedProfessionals);
+        const toLink = selectedProfessionals.filter((id) => !before.has(id));
+        const toUnlink = [...before].filter((id) => !after.has(id));
+        await Promise.all([
+          ...toLink.map((profId) =>
+            api(`/services/${editingId}/professionals`, {
+              method: 'POST',
+              token: token!,
+              body: JSON.stringify({ professionalId: profId }),
+            }),
+          ),
+          ...toUnlink.map((profId) =>
+            api(`/services/${editingId}/professionals/${profId}`, {
+              method: 'DELETE',
+              token: token!,
+            }),
+          ),
+        ]);
         toast('Serviço atualizado');
       } else {
         const created = await api<Service>('/services', { method: 'POST', token: token!, body });
@@ -183,9 +209,10 @@ export default function ServicesPage() {
                 />
               </div>
             </div>
-            {!editingId && professionals.length > 0 && (
+            {professionals.length > 0 && (
               <div>
                 <label className="block text-xs font-medium text-text-muted mb-2">Profissionais que realizam</label>
+                <p className="text-xs text-text-subtle mb-2">O serviço só aparece na página de agendamento para os profissionais selecionados.</p>
                 <div className="flex flex-wrap gap-2">
                   {professionals.map((p) => {
                     const selected = selectedProfessionals.includes(p.id);
@@ -266,6 +293,7 @@ export default function ServicesPage() {
             <thead>
               <tr className="bg-surface-subtle border-b border-border-default">
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Nome</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Profissionais</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Duração</th>
                 <th className="text-right px-4 py-3 text-xs font-medium text-text-muted">Preço</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-text-muted">Status</th>
@@ -276,11 +304,23 @@ export default function ServicesPage() {
               {filteredServices.map((s) => (
                 <tr key={s.id} className="border-b border-border-default hover:bg-surface-subtle">
                   <td className="px-4 py-3 font-medium text-text-strong">{s.name}</td>
+                  <td className="px-4 py-3">
+                    {(s.professionals || []).length > 0 ? (
+                      <span className="text-text-default">
+                        {s.professionals.map((ps) => ps.professional.name).join(', ')}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full bg-warning-bg text-warning-text">
+                        <span className="w-1.5 h-1.5 rounded-full bg-warning-fg" />
+                        Sem profissional
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">
                     {s.durationMin} min
                   </td>
                   <td className="px-4 py-3 text-right font-[family-name:var(--font-geist-mono)] tabular-nums">
-                    R$ {Number(s.price).toFixed(2)}
+                    {formatBRL(Number(s.price))}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${

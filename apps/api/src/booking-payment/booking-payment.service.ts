@@ -150,8 +150,12 @@ export class BookingPaymentService {
       }
     }
 
+    // O MP só aceita notification_url https públicas — em dev (localhost/http)
+    // omitimos e a confirmação chega pela reconciliação do poll de status.
     const apiUrl = this.config.get<string>('APP_URL', 'http://localhost:3001');
-    const notificationUrl = `${apiUrl}/webhooks/mercadopago`;
+    const notificationUrl = apiUrl.startsWith('https://')
+      ? `${apiUrl}/webhooks/mercadopago`
+      : undefined;
     // Fallback de e-mail com TLD válido (o MP rejeita domínios inválidos).
     const payerEmail =
       appointment.client.email || `cliente-${appointment.client.phone}@no-reply.agender.app`;

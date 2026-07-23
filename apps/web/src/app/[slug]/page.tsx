@@ -39,6 +39,9 @@ interface Business {
   timezone: string;
   logoUrl?: string;
   coverUrl?: string;
+  acceptingBookings?: boolean;
+  bookingPaymentPolicy?: 'none' | 'deposit' | 'full';
+  depositPercent?: number | null;
   customization: Customization | null;
   workingHours: WorkingHour[];
   professionals: {

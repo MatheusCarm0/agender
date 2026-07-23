@@ -83,6 +83,69 @@ export class CouponService {
     return { deleted: true };
   }
 
+  /**
+   * Validações comuns de um cupom (existência, vigência, escopo, limite global).
+   * Mensagens em PT-BR — chegam direto ao cliente final na página pública.
+   * Lança BadRequestException quando o cupom não pode ser usado; devolve o
+   * próprio cupom (não-nulo) quando pode.
+   */
+  private ensureCouponUsable<
+    T extends {
+      active: boolean;
+      validFrom: Date;
+      validUntil: Date | null;
+      scope: string;
+      serviceId: string | null;
+      maxUses: number | null;
+      usedCount: number;
+    },
+  >(coupon: T | null, serviceId: string): T {
+    if (!coupon || !coupon.active) {
+      throw new BadRequestException('Cupom inválido ou inativo.');
+    }
+    if (new Date() < coupon.validFrom) {
+      throw new BadRequestException('Este cupom ainda não está valendo.');
+    }
+    if (coupon.validUntil && new Date() > coupon.validUntil) {
+      throw new BadRequestException('Cupom expirado.');
+    }
+    if (coupon.scope === 'service' && coupon.serviceId !== serviceId) {
+      throw new BadRequestException('Este cupom não vale para o serviço escolhido.');
+    }
+    if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
+      throw new BadRequestException('Este cupom atingiu o limite de usos.');
+    }
+    return coupon;
+  }
+
+  private computeDiscount(
+    coupon: { discountType: string; discountValue: Prisma.Decimal },
+    price: Prisma.Decimal,
+  ): Prisma.Decimal {
+    if (coupon.discountType === 'percent') {
+      return price.mul(coupon.discountValue).div(100);
+    }
+    return Prisma.Decimal.min(coupon.discountValue, price);
+  }
+
+  /**
+   * Pré-validação SEM efeito colateral (não incrementa uso, não checa limite
+   * por cliente — esse é garantido na transação do agendamento). Usada pelo
+   * endpoint público de preview do cupom na página de agendamento.
+   */
+  async preview(
+    businessId: string,
+    couponCode: string,
+    serviceId: string,
+    price: Prisma.Decimal,
+  ): Promise<{ discountAmount: Prisma.Decimal }> {
+    const found = await this.prisma.raw.coupon.findUnique({
+      where: { businessId_code: { businessId, code: couponCode.toUpperCase().trim() } },
+    });
+    const coupon = this.ensureCouponUsable(found, serviceId);
+    return { discountAmount: this.computeDiscount(coupon, price) };
+  }
+
   async validateAndApply(
     tx: Prisma.TransactionClient,
     businessId: string,
@@ -91,44 +154,24 @@ export class CouponService {
     clientId: string,
     price: Prisma.Decimal,
   ): Promise<{ couponId: string; discountAmount: Prisma.Decimal }> {
-    const coupon = await tx.coupon.findUnique({
+    const found = await tx.coupon.findUnique({
       where: { businessId_code: { businessId, code: couponCode.toUpperCase().trim() } },
     });
 
-    if (!coupon || !coupon.active) {
-      throw new BadRequestException('Invalid or inactive coupon');
-    }
-
-    if (new Date() < coupon.validFrom) {
-      throw new BadRequestException('Coupon not yet valid');
-    }
-    if (coupon.validUntil && new Date() > coupon.validUntil) {
-      throw new BadRequestException('Coupon expired');
-    }
-
-    if (coupon.scope === 'service' && coupon.serviceId !== serviceId) {
-      throw new BadRequestException('Coupon does not apply to this service');
-    }
-
-    if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
-      throw new BadRequestException('Coupon usage limit reached');
-    }
+    const coupon = this.ensureCouponUsable(found, serviceId);
 
     if (coupon.perClientLimit !== null) {
       const clientRedemptions = await tx.couponRedemption.count({
         where: { couponId: coupon.id, clientId },
       });
       if (clientRedemptions >= coupon.perClientLimit) {
-        throw new BadRequestException('You have already used this coupon the maximum number of times');
+        throw new BadRequestException(
+          'Você já usou este cupom o número máximo de vezes.',
+        );
       }
     }
 
-    let discountAmount: Prisma.Decimal;
-    if (coupon.discountType === 'percent') {
-      discountAmount = price.mul(coupon.discountValue).div(100);
-    } else {
-      discountAmount = Prisma.Decimal.min(coupon.discountValue, price);
-    }
+    const discountAmount = this.computeDiscount(coupon, price);
 
     await tx.coupon.update({
       where: { id: coupon.id },
