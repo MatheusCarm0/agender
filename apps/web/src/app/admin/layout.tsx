@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ToastProvider } from '@/components/toast';
 import { api } from '@/lib/api';
 import { AgenderLogo } from '@/components/logo';
+import { FeedbackWidget } from '@/components/feedback-widget';
 import { prefetchForRoute } from '@/lib/prefetch-cache';
 
 function IconCalendar() {
@@ -358,7 +359,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }`}
       >
         <div className="h-14 flex items-center gap-3 px-5 border-b border-border-default">
-          <AgenderLogo size="sm" />
+          <AgenderLogo />
         </div>
         <nav className="flex-1 py-3 px-2 overflow-y-auto" aria-label="Menu principal">
           {NAV_GROUPS.map((group) => {
@@ -412,7 +413,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
         </nav>
-        <div className="p-3 border-t border-border-default">
+        <div className="p-3 border-t border-border-default space-y-0.5">
+          <FeedbackWidget />
           <Link
             href="/admin/settings"
             onClick={() => {

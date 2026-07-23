@@ -9,6 +9,14 @@ import { emailLayout, emailButton, emailInfoBox, emailText } from './email-templ
 
 const FROM_EMAIL = 'Agender <onboarding@resend.dev>';
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 @Processor(NOTIFICATION_QUEUE)
 export class NotificationProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationProcessor.name);
@@ -40,6 +48,10 @@ export class NotificationProcessor extends WorkerHost {
 
     if (type === 'trial_warning') {
       return this.processTrialWarning(job);
+    }
+
+    if (type === 'feedback_report') {
+      return this.processFeedbackReport(job);
     }
 
     const referenceId = appointmentId || membershipId;
@@ -244,6 +256,47 @@ export class NotificationProcessor extends WorkerHost {
     ].join(''));
 
     await this.sendEmail(owner.email, subject, html);
+  }
+
+  /**
+   * Feedback de beta tester → e-mail para o time (FEEDBACK_EMAIL). A mensagem
+   * é input livre do usuário: escapar antes de interpolar no HTML.
+   */
+  private async processFeedbackReport(job: Job) {
+    const {
+      message,
+      kind,
+      url,
+      businessId,
+      businessName,
+      businessSlug,
+      userName,
+      userEmail,
+      role,
+    } = job.data;
+
+    const to =
+      this.config.get<string>('FEEDBACK_EMAIL') || 'suporte@agender.app';
+    const kindLabel =
+      kind === 'bug' ? 'Problema' : kind === 'idea' ? 'Ideia' : 'Outro';
+    const subject = `[Feedback] ${kindLabel} — ${businessName ?? businessId}`;
+
+    const html = emailLayout(
+      `Novo feedback: ${kindLabel}`,
+      [
+        emailText(
+          `<strong>${escapeHtml(userName ?? 'Usuário')}</strong> (${escapeHtml(userEmail ?? 'sem e-mail')}, ${escapeHtml(role ?? '—')}) enviou um feedback.`,
+        ),
+        emailInfoBox([
+          { label: 'Negócio', value: `${businessName ?? '—'} (${businessSlug ?? businessId})` },
+          { label: 'Tipo', value: kindLabel },
+          ...(url ? [{ label: 'Página', value: url }] : []),
+        ]),
+        emailText(escapeHtml(message).replace(/\n/g, '<br />')),
+      ].join(''),
+    );
+
+    await this.sendEmail(to, subject, html);
   }
 
   private async processCampaignSend(job: Job) {

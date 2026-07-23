@@ -34,6 +34,7 @@ import { PaymentAccountModule } from './payment-account/payment-account.module';
 import { PlanSubscriptionModule } from './plan-subscription/plan-subscription.module';
 import { BookingPaymentModule } from './booking-payment/booking-payment.module';
 import { WebhookModule } from './webhook/webhook.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { WebhookModule } from './webhook/webhook.module';
     PlanSubscriptionModule,
     BookingPaymentModule,
     WebhookModule,
+    FeedbackModule,
   ],
   providers: [
     {
