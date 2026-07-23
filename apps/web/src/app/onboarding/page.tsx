@@ -561,7 +561,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen flex items-center justify-center bg-surface-app px-4 py-8">
       <div className="w-full max-w-lg">
         <div className="flex justify-center mb-6">
-          <AgenderLogo size="lg" />
+          <AgenderLogo />
         </div>
 
         <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-8 shadow-[var(--shadow-elevation-1)]">

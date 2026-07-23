@@ -33,7 +33,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-surface-app px-4">
       <div className="w-full max-w-sm bg-surface-card border border-border-default rounded-[var(--radius-md)] p-8 shadow-[var(--shadow-elevation-1)]">
         <div className="flex justify-center pb-8">
-          <AgenderLogo size="lg" />
+          <AgenderLogo />
         </div>
         <h1 className="text-2xl font-semibold text-text-strong mb-1">Faça Login</h1>
         <p className="text-xs text-text-muted mb-6">Acesse seu painel de agendamento.</p>

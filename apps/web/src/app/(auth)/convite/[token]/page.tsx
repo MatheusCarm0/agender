@@ -45,7 +45,7 @@ export default function AcceptInvitePage() {
       <div className="min-h-screen flex items-center justify-center bg-surface-app px-4">
         <div className="w-full max-w-sm bg-surface-card border border-border-default rounded-[var(--radius-md)] p-8 shadow-[var(--shadow-elevation-1)] text-center">
           <div className="flex justify-center pb-6">
-            <AgenderLogo size="lg" />
+            <AgenderLogo />
           </div>
           <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[#F0FDF4] flex items-center justify-center">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -63,7 +63,7 @@ export default function AcceptInvitePage() {
     <div className="min-h-screen flex items-center justify-center bg-surface-app px-4">
       <div className="w-full max-w-sm bg-surface-card border border-border-default rounded-[var(--radius-md)] p-8 shadow-[var(--shadow-elevation-1)]">
         <div className="flex justify-center pb-8">
-          <AgenderLogo size="lg" />
+          <AgenderLogo />
         </div>
         <h1 className="text-2xl font-semibold text-text-strong mb-1">Aceitar convite</h1>
         <p className="text-xs text-text-muted mb-6">Defina seu nome e senha para acessar o painel.</p>

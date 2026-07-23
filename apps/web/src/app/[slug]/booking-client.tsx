@@ -117,7 +117,7 @@ function StepIndicator({ current, primary }: { current: 'select' | 'slots' | 'fo
         const isActive = i === currentIdx;
         return (
           <div key={s.key} className="flex items-center flex-1">
-            <div className="flex flex-col items-center flex-1">
+            <div className="flex flex-col items-center ">
               <div className="flex items-center w-full">
                 {i > 0 && <div className="flex-1 h-0.5 transition-colors" style={{ backgroundColor: isDone || isActive ? primary : `${primary}25` }} />}
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-all"
