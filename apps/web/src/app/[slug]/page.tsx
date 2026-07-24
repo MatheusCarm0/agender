@@ -42,6 +42,7 @@ interface Business {
   acceptingBookings?: boolean;
   bookingPaymentPolicy?: 'none' | 'deposit' | 'full';
   depositPercent?: number | null;
+  mpPublicKey?: string | null;
   customization: Customization | null;
   workingHours: WorkingHour[];
   professionals: {

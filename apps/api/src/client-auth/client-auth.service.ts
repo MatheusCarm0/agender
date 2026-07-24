@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   BadRequestException,
   UnauthorizedException,
   HttpException,
@@ -20,6 +21,8 @@ const RATE_LIMIT_MAX = 3;
 
 @Injectable()
 export class ClientAuthService {
+  private readonly logger = new Logger(ClientAuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -42,7 +45,9 @@ export class ClientAuthService {
     });
 
     if (!client) {
-      throw new BadRequestException('No account found with this phone number. Book an appointment first.');
+      throw new BadRequestException(
+        'Nenhuma conta encontrada com este telefone. Faça um agendamento primeiro.',
+      );
     }
 
     const code = this.generateCode();
@@ -57,10 +62,18 @@ export class ClientAuthService {
       },
     });
 
-    // TODO: Send OTP via WhatsApp/SMS worker (for now, log it)
-    console.log(`[OTP] Business: ${businessId}, Phone: ${phone}, Code: ${code}`);
+    // TODO(produção): enviar o código por WhatsApp/SMS via worker de notificação
+    // (novo tipo de job + template + categoria WhatsApp — ver docs/notificacoes.md).
+    // Enquanto isso não existe, logamos e — apenas fora de produção — devolvemos
+    // o código na resposta para permitir o fluxo de ponta a ponta em dev/testes.
+    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    this.logger.log(`[OTP] business=${businessId} phone=${phone} code=${code}`);
 
-    return { message: 'OTP sent', expiresInSeconds: OTP_EXPIRY_MINUTES * 60 };
+    return {
+      message: 'Código enviado',
+      expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+      ...(isProd ? {} : { devCode: code }),
+    };
   }
 
   async verifyOtp(businessId: string, phone: string, code: string) {
@@ -69,7 +82,7 @@ export class ClientAuthService {
     });
 
     if (!client) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Telefone ou código inválido.');
     }
 
     const otp = await this.prisma.raw.clientOtp.findFirst({
@@ -83,11 +96,14 @@ export class ClientAuthService {
     });
 
     if (!otp) {
-      throw new UnauthorizedException('No valid OTP found. Request a new one.');
+      throw new UnauthorizedException('Nenhum código válido. Peça um novo código.');
     }
 
     if (otp.attempts >= MAX_ATTEMPTS) {
-      throw new HttpException('Too many attempts. Request a new code.', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Muitas tentativas. Peça um novo código.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     await this.prisma.raw.clientOtp.update({
@@ -97,7 +113,7 @@ export class ClientAuthService {
 
     const hashedInput = this.hashCode(code);
     if (hashedInput !== otp.code) {
-      throw new UnauthorizedException('Invalid code');
+      throw new UnauthorizedException('Código incorreto.');
     }
 
     await this.prisma.raw.clientOtp.update({
@@ -126,11 +142,26 @@ export class ClientAuthService {
   }
 
   async getClientAppointments(clientId: string, businessId: string) {
-    return this.prisma.raw.appointment.findMany({
+    const appointments = await this.prisma.raw.appointment.findMany({
       where: { clientId, businessId },
       include: { professional: true, service: true },
       orderBy: { startAt: 'desc' },
     });
+
+    // Endpoint público do cliente — devolve só o necessário, sem vazar campos
+    // internos do agendamento/profissional.
+    return appointments.map((a) => ({
+      id: a.id,
+      status: a.status,
+      startAt: a.startAt,
+      endAt: a.endAt,
+      price: Number(a.price),
+      discountAmount: Number(a.discountAmount),
+      paymentStatus: a.paymentStatus,
+      serviceName: a.service.name,
+      durationMin: a.service.durationMin,
+      professionalName: a.professional.name,
+    }));
   }
 
   private async generateClientTokens(clientId: string, businessId: string) {

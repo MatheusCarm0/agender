@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import CardPaymentForm from './card-payment-form';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface Service { id: string; name: string; durationMin: number; price: number }
 interface Professional { id: string; name: string; bio: string | null; avatarUrl: string | null; services: Service[] }
-interface Business { id: string; slug: string; name: string; timezone: string; logoUrl?: string; coverUrl?: string; acceptingBookings?: boolean; bookingPaymentPolicy?: 'none' | 'deposit' | 'full'; depositPercent?: number | null; professionals: Professional[] }
+interface Business { id: string; slug: string; name: string; timezone: string; logoUrl?: string; coverUrl?: string; acceptingBookings?: boolean; bookingPaymentPolicy?: 'none' | 'deposit' | 'full'; depositPercent?: number | null; mpPublicKey?: string | null; professionals: Professional[] }
 interface Customization {
   theme: { palette: string; colors: { background: string; surface: string; primary: string; text: string }; font: string; background: { type: string; value: string; gradient?: { from: string; to: string; direction: string } }; logoUrl?: string; coverUrl?: string; buttonStyle: string; layout: string; overlayOpacity?: number; backgroundEffect?: string; containerStyle?: string };
   links: { label: string; url: string; icon?: string; thumbnailUrl?: string; style?: string; type?: 'link' | 'heading' | 'divider' | 'text' | 'spacer' }[];
@@ -166,6 +167,7 @@ export default function BookingClient({ business, customization, workingHours }:
   const [payInfo, setPayInfo] = useState<{ status: string; pixQrCode?: string | null; pixQrCodeBase64?: string | null; amount: number; expiresAt?: string | null } | null>(null);
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState('');
+  const [payMethod, setPayMethod] = useState<'pix' | 'card'>('pix');
   const [copied, setCopied] = useState(false);
   const [nowTs, setNowTs] = useState(() => Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -393,7 +395,7 @@ export default function BookingClient({ business, customization, workingHours }:
     setSelectedProf(null); setSelectedService(null); setSelectedSlot(null);
     setClientForm({ name: '', phone: '', email: '', marketingOptIn: false }); setError('');
     setCouponCode(''); setCouponStatus(null);
-    setAppointmentId(null); setPayInfo(null); setPayDue(0); setPayError('');
+    setAppointmentId(null); setPayInfo(null); setPayDue(0); setPayError(''); setPayMethod('pix');
   }
 
   function generateDates(): { date: string; label: string; dayName: string; isToday: boolean }[] {
@@ -673,6 +675,13 @@ export default function BookingClient({ business, customization, workingHours }:
                 Agendar horário
               </button>
             )}
+
+            <a href={`/${business.slug}/conta`}
+              className="flex items-center justify-center gap-1.5 w-full py-2.5 text-xs font-medium transition-opacity hover:opacity-80 stagger-item"
+              style={{ color: text, opacity: 0.6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+              Já tem agendamento? Ver meus agendamentos
+            </a>
 
             {hasLinks && links!.filter((l) => l.label || l.type === 'divider' || l.type === 'spacer').map((link, i) => {
               const blockType = link.type || 'link';
@@ -991,15 +1000,48 @@ export default function BookingClient({ business, customization, workingHours }:
               </div>
 
               {!payInfo && (
-                <button
-                  type="button"
-                  onClick={startPixPayment}
-                  disabled={payLoading}
-                  className="w-full h-12 font-semibold text-sm text-white disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ backgroundColor: primary, borderRadius: radius }}
-                >
-                  {payLoading ? 'Gerando PIX...' : 'Pagar com PIX'}
-                </button>
+                <div className="space-y-4">
+                  {business.mpPublicKey && (
+                    <div className="flex gap-2 p-1 rounded-lg" style={{ backgroundColor: `${text}08` }}>
+                      {([['pix', 'PIX'], ['card', 'Cartão']] as const).map(([m, label]) => (
+                        <button key={m} type="button" onClick={() => { setPayMethod(m); setPayError(''); }}
+                          className="flex-1 py-2 text-sm font-medium transition-all"
+                          style={{
+                            backgroundColor: payMethod === m ? surface : 'transparent',
+                            color: payMethod === m ? primary : text,
+                            opacity: payMethod === m ? 1 : 0.55,
+                            borderRadius: radius,
+                            boxShadow: payMethod === m ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                          }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {payMethod === 'pix' ? (
+                    <button
+                      type="button"
+                      onClick={startPixPayment}
+                      disabled={payLoading}
+                      className="w-full h-12 font-semibold text-sm text-white disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                      style={{ backgroundColor: primary, borderRadius: radius }}
+                    >
+                      {payLoading ? 'Gerando PIX...' : 'Pagar com PIX'}
+                    </button>
+                  ) : (
+                    appointmentId && business.mpPublicKey && (
+                      <CardPaymentForm
+                        slug={business.slug}
+                        appointmentId={appointmentId}
+                        publicKey={business.mpPublicKey}
+                        theme={{ primary, text, surface, radius }}
+                        onConfirmed={() => { stopPolling(); navigate('done'); }}
+                        onPending={() => { setPayError('Pagamento em análise. Você receberá a confirmação em instantes.'); }}
+                      />
+                    )
+                  )}
+                </div>
               )}
 
               {payInfo && (payInfo.status === 'pending') && (

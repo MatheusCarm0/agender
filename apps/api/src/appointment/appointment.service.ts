@@ -49,7 +49,7 @@ export class AppointmentService {
       include: { service: true },
     });
     if (!profService) {
-      throw new NotFoundException('Professional does not offer this service');
+      throw new NotFoundException('Este profissional não realiza o serviço escolhido.');
     }
 
     const durationMin = profService.durationOverride ?? profService.service.durationMin;
@@ -85,7 +85,7 @@ export class AppointmentService {
       `;
 
       if (conflicts.length > 0) {
-        throw new ConflictException('Time slot is already booked');
+        throw new ConflictException('Este horário já foi reservado. Escolha outro.');
       }
 
       const client = await tx.client.upsert({
@@ -140,7 +140,7 @@ export class AppointmentService {
       include: { service: true },
     });
     if (!profService) {
-      throw new NotFoundException('Professional does not offer this service');
+      throw new NotFoundException('Este profissional não realiza o serviço escolhido.');
     }
 
     const durationMin = profService.durationOverride ?? profService.service.durationMin;
@@ -176,7 +176,7 @@ export class AppointmentService {
       `;
 
       if (conflicts.length > 0) {
-        throw new ConflictException('Time slot is already booked');
+        throw new ConflictException('Este horário já foi reservado. Escolha outro.');
       }
 
       const optInData = dto.marketingOptIn
@@ -281,19 +281,19 @@ export class AppointmentService {
     });
 
     if (!coupon || !coupon.active) {
-      throw new BadRequestException('Invalid or inactive coupon');
+      throw new BadRequestException('Cupom inválido ou inativo.');
     }
     if (new Date() < coupon.validFrom) {
-      throw new BadRequestException('Coupon not yet valid');
+      throw new BadRequestException('Este cupom ainda não está valendo.');
     }
     if (coupon.validUntil && new Date() > coupon.validUntil) {
-      throw new BadRequestException('Coupon expired');
+      throw new BadRequestException('Cupom expirado.');
     }
     if (coupon.scope === 'service' && coupon.serviceId !== serviceId) {
-      throw new BadRequestException('Coupon does not apply to this service');
+      throw new BadRequestException('Este cupom não vale para o serviço escolhido.');
     }
     if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
-      throw new BadRequestException('Coupon usage limit reached');
+      throw new BadRequestException('Este cupom atingiu o limite de usos.');
     }
 
     if (coupon.perClientLimit !== null) {
@@ -301,7 +301,9 @@ export class AppointmentService {
         where: { couponId: coupon.id, clientId },
       });
       if (clientRedemptions >= coupon.perClientLimit) {
-        throw new BadRequestException('Coupon per-client limit reached');
+        throw new BadRequestException(
+          'Você já usou este cupom o número máximo de vezes.',
+        );
       }
     }
 
@@ -406,7 +408,7 @@ export class AppointmentService {
     const appointment = await this.prisma.raw.appointment.findFirst({
       where: { id, businessId },
     });
-    if (!appointment) throw new NotFoundException('Appointment not found');
+    if (!appointment) throw new NotFoundException('Agendamento não encontrado.');
 
     const updated = await this.prisma.raw.appointment.update({
       where: { id },
@@ -461,7 +463,7 @@ export class AppointmentService {
     const appointment = await this.prisma.raw.appointment.findFirst({
       where: { id, businessId },
     });
-    if (!appointment) throw new NotFoundException('Appointment not found');
+    if (!appointment) throw new NotFoundException('Agendamento não encontrado.');
 
     return this.prisma.raw.appointment.update({
       where: { id },

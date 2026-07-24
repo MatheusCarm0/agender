@@ -47,7 +47,7 @@ const STATUS_LABEL: Record<Account['status'], string> = {
 };
 
 const WITHDRAWAL_STATUS: Record<Withdrawal['status'], { label: string; cls: string }> = {
-  pending: { label: 'Processando', cls: 'bg-info-bg text-info-text' },
+  pending: { label: 'Registrado', cls: 'bg-warning-bg text-warning-text' },
   confirmed: { label: 'Concluído', cls: 'bg-success-bg text-success-text' },
   failed: { label: 'Falhou', cls: 'bg-danger-bg text-danger-text' },
 };
@@ -314,7 +314,13 @@ export default function RecebimentoPage() {
 
       {/* Saque */}
       <section className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 shadow-[var(--shadow-elevation-1)]">
-        <h2 className="text-base font-semibold text-text-strong mb-4">Solicitar saque</h2>
+        <h2 className="text-base font-semibold text-text-strong mb-1">Solicitar saque</h2>
+        <div className="mb-4 flex items-start gap-2 text-xs text-warning-text bg-warning-bg border border-warning-fg/20 rounded-[var(--radius-sm)] p-3">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+          <span>
+            O repasse automático para sua conta é habilitado próximo ao lançamento. Nesta fase, os pagamentos são processados normalmente, mas saques solicitados ficam <strong>registrados como pendentes</strong> até o repasse ser ativado — nenhum valor é transferido ainda.
+          </span>
+        </div>
         <form onSubmit={handleWithdraw} className="flex items-end gap-3">
           <div className="flex-1 max-w-[200px]">
             <label className="block text-xs font-medium text-text-muted mb-1">Valor (R$)</label>

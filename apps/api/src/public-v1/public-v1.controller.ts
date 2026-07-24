@@ -11,6 +11,7 @@ import {
   ForbiddenException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { AppointmentService } from '../appointment/appointment.service';
@@ -41,6 +42,7 @@ export class PublicV1Controller {
     private readonly membershipService: MembershipService,
     private readonly notificationService: NotificationService,
     private readonly bookingPaymentService: BookingPaymentService,
+    private readonly config: ConfigService,
   ) {}
 
   @Get(':slug')
@@ -88,6 +90,12 @@ export class PublicV1Controller {
       acceptingBookings,
       bookingPaymentPolicy: effectivePolicy,
       depositPercent: business.depositPercent,
+      // Public key do gateway — segura para o frontend (tokenização de cartão).
+      // Só exposta quando há cobrança online ativa.
+      mpPublicKey:
+        paymentsAllowed && effectivePolicy !== 'none'
+          ? this.config.get<string>('MERCADOPAGO_PUBLIC_KEY') || null
+          : null,
       professionals: business.professionals.map((p) => ({
         id: p.id,
         name: p.name,
