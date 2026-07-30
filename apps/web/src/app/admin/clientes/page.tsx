@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
 
 interface Client {
@@ -74,7 +75,16 @@ export default function ClientsPage() {
   }, [token, page, debouncedSearch]);
 
   async function loadClients() {
-    setLoading(true);
+    // No view padrão (1ª página, sem busca) pinta do cache pré-carregado no hover.
+    const isDefaultView = page === 1 && !debouncedSearch;
+    const cached = isDefaultView ? getCached<PaginatedResult>('/clients?page=1&limit=20') : null;
+    if (cached) {
+      setClients(cached.data);
+      setTotalPages(cached.totalPages);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (debouncedSearch) params.set('search', debouncedSearch);

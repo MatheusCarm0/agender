@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/toast';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 
 type PlanTier = 'basico' | 'profissional' | 'pro';
 
@@ -87,6 +88,8 @@ export default function PlanPage() {
     if (params.get('subscription') === 'return') {
       syncOnReturn();
     } else {
+      const cached = getCached<SubscriptionInfo>('/plan-subscription');
+      if (cached) { setInfo(cached); setLoading(false); }
       loadData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
 import { ConfirmModal } from '@/components/confirm-modal';
 
@@ -97,6 +98,8 @@ export default function CampaignsPage() {
       setLoading(false);
       return;
     }
+    const cached = getCached<Campaign[]>('/campaigns');
+    if (cached) { setCampaigns(cached); setLoading(false); }
     try {
       const data = await api<Campaign[]>('/campaigns', { token });
       setCampaigns(data);

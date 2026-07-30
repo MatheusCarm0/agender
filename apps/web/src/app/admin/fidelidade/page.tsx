@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
 
 interface MembershipPlan {
@@ -59,7 +60,9 @@ export default function FidelityPage() {
 
   useEffect(() => {
     if (!token) return;
-    loadData();
+    const cached = getCached<MembershipPlan[]>('/membership-plans');
+    if (cached) { setPlans(cached); setLoading(false); }
+    loadData(!!cached);
   }, [token]);
 
   async function loadData(silent = false) {

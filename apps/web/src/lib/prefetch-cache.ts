@@ -48,15 +48,24 @@ export function invalidateCache(path: string): void {
   cache.delete(path);
 }
 
+// Cada rota mapeia para o(s) endpoint(s) que a página pinta na hora via getCached.
+// api() não lê deste cache, então mapear endpoints que a página não lê do cache
+// só geraria requisição duplicada — mapeamos apenas o endpoint primário de cada tela.
 const ROUTE_API_MAP: Record<string, string[]> = {
   '/admin': ['/appointments'],
-  '/admin/clientes': ['/clients'],
+  '/admin/clientes': ['/clients?page=1&limit=20'],
   '/admin/professionals': ['/professionals'],
   '/admin/services': ['/services', '/professionals'],
   '/admin/working-hours': ['/professionals'],
   '/admin/schedule-blocks': ['/schedule-blocks'],
+  '/admin/recurring-blocks': ['/recurring-blocks'],
   '/admin/equipe': ['/staff'],
-  '/admin/financeiro': ['/appointments'],
+  '/admin/campanhas': ['/campaigns'],
+  '/admin/cupons': ['/coupons'],
+  '/admin/fidelidade': ['/membership-plans'],
+  '/admin/notificacoes': ['/notifications/log'],
+  '/admin/plano': ['/plan-subscription'],
+  '/admin/recebimento': ['/payment-account'],
   '/admin/customization': ['/customization'],
 };
 

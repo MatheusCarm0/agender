@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { ConfirmModal } from '@/components/confirm-modal';
 import { useToast } from '@/components/toast';
 
@@ -43,7 +44,9 @@ export default function CouponsPage() {
 
   useEffect(() => {
     if (!token) return;
-    loadData();
+    const cached = getCached<Coupon[]>('/coupons');
+    if (cached) { setCoupons(cached); setLoading(false); }
+    loadData(!!cached);
   }, [token]);
 
   async function loadData(silent = false) {

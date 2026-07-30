@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
 
 interface NotificationLog {
@@ -43,9 +44,11 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     if (!token) return;
+    const cached = getCached<NotificationLog[]>('/notifications/log');
+    if (cached) { setLogs(cached); setLoading(false); }
     api<NotificationLog[]>('/notifications/log', { token })
       .then(setLogs)
-      .catch(() => toast('Não foi possível carregar as notificações', 'error'))
+      .catch(() => { if (!cached) toast('Não foi possível carregar as notificações', 'error'); })
       .finally(() => setLoading(false));
   }, [token]);
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/toast';
 import { api } from '@/lib/api';
+import { getCached } from '@/lib/prefetch-cache';
 
 interface Balance {
   gross: number;
@@ -72,6 +73,8 @@ export default function RecebimentoPage() {
 
   useEffect(() => {
     if (!token) return;
+    const cached = getCached<AccountResponse>('/payment-account');
+    if (cached) { setData(cached); setLoading(false); }
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
