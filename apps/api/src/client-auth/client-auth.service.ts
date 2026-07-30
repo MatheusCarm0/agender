@@ -13,6 +13,7 @@ import * as crypto from 'crypto';
 import Redis from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { NotificationService } from '../notification/notification.service';
 
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
@@ -27,6 +28,7 @@ export class ClientAuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
@@ -62,15 +64,26 @@ export class ClientAuthService {
       },
     });
 
-    // TODO(produção): enviar o código por WhatsApp/SMS via worker de notificação
-    // (novo tipo de job + template + categoria WhatsApp — ver docs/notificacoes.md).
-    // Enquanto isso não existe, logamos e — apenas fora de produção — devolvemos
-    // o código na resposta para permitir o fluxo de ponta a ponta em dev/testes.
+    // Entrega assíncrona pelo worker de notificação: e-mail (canal configurado)
+    // quando o cliente tem e-mail; WhatsApp/SMS entra quando as credenciais Meta
+    // forem plugadas (ver docs/notificacoes.md). Fora de produção também
+    // devolvemos o código na resposta para permitir o fluxo E2E em dev/testes.
     const isProd = this.config.get<string>('NODE_ENV') === 'production';
-    this.logger.log(`[OTP] business=${businessId} phone=${phone} code=${code}`);
+    await this.notifications.enqueueClientOtp(client.id, businessId, code);
 
+    // Nunca logar o código em claro em produção (logs podem vazar credenciais).
+    if (isProd) {
+      this.logger.log(`[OTP] solicitado para cliente=${client.id}`);
+    } else {
+      this.logger.log(`[OTP] business=${businessId} phone=${phone} code=${code}`);
+    }
+
+    const viaEmail = !!client.email;
     return {
-      message: 'Código enviado',
+      message: viaEmail
+        ? 'Enviamos um código de acesso para o seu e-mail.'
+        : 'Código enviado.',
+      channel: viaEmail ? 'email' : 'whatsapp',
       expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
       ...(isProd ? {} : { devCode: code }),
     };
@@ -182,7 +195,8 @@ export class ClientAuthService {
   }
 
   private generateCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    // Aleatoriedade criptográfica (não Math.random) para um código de acesso.
+    return crypto.randomInt(100000, 1000000).toString();
   }
 
   private hashCode(code: string): string {

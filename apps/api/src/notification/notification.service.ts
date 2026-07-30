@@ -21,6 +21,14 @@ export class NotificationService {
     );
   }
 
+  async enqueueClientOtp(clientId: string, businessId: string, code: string) {
+    await this.queue.add(
+      'client_otp',
+      { clientId, businessId, code },
+      { jobId: `otp-${clientId}-${Date.now()}`, removeOnComplete: true },
+    );
+  }
+
   async enqueueBookingCancellation(appointmentId: string, businessId: string) {
     await this.queue.add(
       'booking_cancelled',

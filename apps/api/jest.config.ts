@@ -11,8 +11,8 @@ const config: Config = {
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@agenda/database$': '<rootDir>/../../packages/database/src',
-    '^@agenda/shared$': '<rootDir>/../../packages/shared/src',
+    '^@agenda/database$': '<rootDir>/../../../packages/database/src',
+    '^@agenda/shared$': '<rootDir>/../../../packages/shared/src',
   },
 };
 

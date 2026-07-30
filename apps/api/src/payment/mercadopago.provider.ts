@@ -31,10 +31,12 @@ export class MercadoPagoProvider implements PaymentProvider {
   private readonly logger = new Logger(MercadoPagoProvider.name);
   private readonly accessToken: string | undefined;
   private readonly webhookSecret: string | undefined;
+  private readonly isProduction: boolean;
 
   constructor(private readonly config: ConfigService) {
     this.accessToken = this.config.get<string>('MERCADOPAGO_ACCESS_TOKEN');
     this.webhookSecret = this.config.get<string>('MERCADOPAGO_WEBHOOK_SECRET');
+    this.isProduction = this.config.get<string>('NODE_ENV') === 'production';
     if (!this.accessToken) {
       this.logger.warn(
         'MERCADOPAGO_ACCESS_TOKEN não configurado — cobranças vão falhar até ser definido.',
@@ -311,10 +313,18 @@ export class MercadoPagoProvider implements PaymentProvider {
     dataId: string;
   }): boolean {
     if (!this.webhookSecret) {
-      // Sem segredo configurado não há como validar. Em dev/sandbox aceitamos
-      // com aviso; em produção o segredo é OBRIGATÓRIO (ver checkpoint).
+      // Sem segredo configurado não há como validar. Em produção FALHAMOS
+      // FECHADO: sem o segredo, um webhook forjado poderia marcar cobranças como
+      // pagas — então recusamos. Em dev/sandbox aceitamos com aviso para permitir
+      // o teste de ponta a ponta.
+      if (this.isProduction) {
+        this.logger.error(
+          'MERCADOPAGO_WEBHOOK_SECRET ausente em produção — webhook RECUSADO. Configure o segredo do gateway.',
+        );
+        return false;
+      }
       this.logger.warn(
-        'MERCADOPAGO_WEBHOOK_SECRET não configurado — webhook aceito sem verificação (NÃO usar assim em produção).',
+        'MERCADOPAGO_WEBHOOK_SECRET não configurado — webhook aceito sem verificação (apenas fora de produção).',
       );
       return true;
     }

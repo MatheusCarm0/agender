@@ -4,9 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import { ClientAuthService } from './client-auth.service';
 import { ClientAuthGuard } from './guards/client-auth.guard';
 import { OptionalClientAuthGuard } from './guards/optional-client-auth.guard';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
+    NotificationModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

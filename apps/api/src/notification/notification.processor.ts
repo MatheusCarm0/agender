@@ -54,6 +54,10 @@ export class NotificationProcessor extends WorkerHost {
       return this.processFeedbackReport(job);
     }
 
+    if (type === 'client_otp') {
+      return this.processClientOtp(job);
+    }
+
     const referenceId = appointmentId || membershipId;
 
     const existing = await this.prisma.raw.notificationLog.findUnique({
@@ -179,6 +183,9 @@ export class NotificationProcessor extends WorkerHost {
     }
 
     const sent = client.email ? await this.sendEmail(to, subject, html) : false;
+    const failureReason = client.email
+      ? 'Falha ao enviar o e-mail (verifique o domínio/endereço no Resend).'
+      : 'Cliente sem e-mail; WhatsApp ainda não configurado.';
 
     await this.prisma.raw.notificationLog.upsert({
       where: { referenceId_type: { referenceId: appointmentId, type } },
@@ -191,7 +198,7 @@ export class NotificationProcessor extends WorkerHost {
         payload: { appointmentId, to, subject },
         sentAt: sent ? new Date() : undefined,
         referenceId: appointmentId,
-        error: sent ? undefined : 'No email address or send failed',
+        error: sent ? undefined : failureReason,
       },
       update: { status: sent ? 'sent' : 'failed', sentAt: sent ? new Date() : undefined },
     });
@@ -229,6 +236,47 @@ export class NotificationProcessor extends WorkerHost {
       },
       update: { status: sent ? 'sent' : 'failed', sentAt: sent ? new Date() : undefined },
     });
+  }
+
+  /**
+   * Entrega o código OTP de login do cliente ("meus agendamentos"). O e-mail é o
+   * canal já configurado (Resend); WhatsApp/SMS é o próximo canal (depende das
+   * credenciais Meta Cloud API — ver docs/notificacoes.md). Sem e-mail e sem
+   * WhatsApp configurado, registramos o motivo em vez de falhar silenciosamente.
+   */
+  private async processClientOtp(job: Job) {
+    const { clientId, businessId, code } = job.data;
+
+    const client = await this.prisma.raw.client.findFirst({
+      where: { id: clientId, businessId },
+      include: { business: { select: { name: true } } },
+    });
+    if (!client) return;
+
+    if (!client.email) {
+      this.logger.warn(
+        `OTP do cliente ${clientId} não entregue: cliente sem e-mail e WhatsApp ainda não configurado.`,
+      );
+      return;
+    }
+
+    const businessName = (client as any).business?.name ?? 'Agender';
+    const subject = `Seu código de acesso - ${businessName}`;
+    const html = emailLayout(
+      'Seu código de acesso',
+      [
+        emailText(
+          `Olá <strong>${escapeHtml(client.name)}</strong>, use o código abaixo para acessar seus agendamentos:`,
+        ),
+        emailInfoBox([{ label: 'Código', value: escapeHtml(String(code)) }]),
+        emailText(
+          'O código expira em 5 minutos. Se você não solicitou, ignore este e-mail.',
+        ),
+      ].join(''),
+      `Enviado por <strong style="color:#78716C;">${escapeHtml(businessName)}</strong> via Agender.`,
+    );
+
+    await this.sendEmail(client.email, subject, html);
   }
 
   private async processTrialWarning(job: Job) {
