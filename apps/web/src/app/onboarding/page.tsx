@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { AgenderLogo } from '@/components/logo';
+import { parseDecimalInput } from '@/lib/format';
 
 const STEPS = [
   { id: 2, label: 'Logo' },
@@ -161,7 +162,7 @@ function StepService({ token, onComplete, onSkip }: { token: string; onComplete:
         body: JSON.stringify({
           name: form.name,
           durationMin: Number(form.durationMin),
-          price: Number(form.price),
+          price: parseDecimalInput(form.price),
         }),
       });
       // Vincula o serviço aos profissionais existentes (no onboarding, o
@@ -222,14 +223,13 @@ function StepService({ token, onComplete, onSkip }: { token: string; onComplete:
           <div>
             <label className="block text-xs font-medium text-text-muted mb-1">Preço (R$)</label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={form.price}
               onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
               required
-              min="0"
-              step="0.01"
               className={inputClass}
-              placeholder="35.00"
+              placeholder="35,00"
             />
           </div>
         </div>

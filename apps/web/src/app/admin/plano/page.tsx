@@ -258,6 +258,7 @@ export default function PlanPage() {
             info?.plan === item.tier &&
             info?.planStatus === 'active' &&
             activeSub?.status === 'active';
+          const isTrialPlan = isTrialing && info?.plan === item.tier;
           const highlight = item.tier === 'profissional';
           return (
             <div
@@ -268,11 +269,15 @@ export default function PlanPage() {
                   : 'border-border-default'
               }`}
             >
-              {highlight && (
+              {isTrialPlan ? (
+                <span className="text-xs font-medium text-info-text mb-2">
+                  Seu teste atual
+                </span>
+              ) : highlight ? (
                 <span className="text-xs font-medium text-primary-default mb-2">
                   Mais popular
                 </span>
-              )}
+              ) : null}
               <h3 className="text-lg font-semibold text-text-strong">
                 {item.label}
               </h3>

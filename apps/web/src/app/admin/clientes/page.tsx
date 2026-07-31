@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
+import { formatBRL, formatPhone } from '@/lib/format';
 
 interface Client {
   id: string;
@@ -197,12 +198,12 @@ export default function ClientsPage() {
                       onClick={() => openDetail(c.id)}
                     >
                       <td className="px-4 py-3 font-medium text-text-strong">{c.name}</td>
-                      <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums">{c.phone}</td>
+                      <td className="px-4 py-3 font-[family-name:var(--font-geist-mono)] tabular-nums">{formatPhone(c.phone)}</td>
                       <td className="px-4 py-3 text-text-muted">{c.email || '—'}</td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={(e) => { e.stopPropagation(); openDetail(c.id); }}
-                          className="text-xs px-2 py-1 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                          className="text-xs inline-flex items-center min-h-[36px] px-2.5 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
                         >
                           Ver detalhes
                         </button>
@@ -311,7 +312,7 @@ export default function ClientsPage() {
                 </div>
                 <div>
                   <span className="text-xs text-text-muted">Telefone</span>
-                  <p className="text-sm font-[family-name:var(--font-geist-mono)] tabular-nums">{selectedClient.phone}</p>
+                  <p className="text-sm font-[family-name:var(--font-geist-mono)] tabular-nums">{formatPhone(selectedClient.phone)}</p>
                 </div>
                 <div>
                   <span className="text-xs text-text-muted">E-mail</span>
@@ -326,7 +327,7 @@ export default function ClientsPage() {
                 {canEdit && (
                   <button
                     onClick={startEdit}
-                    className="text-xs px-2 py-1 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
+                    className="text-xs inline-flex items-center min-h-[36px] px-2.5 text-primary-default hover:bg-surface-subtle rounded-[var(--radius-sm)]"
                   >
                     Editar
                   </button>
@@ -356,7 +357,7 @@ export default function ClientsPage() {
                             {new Date(a.startAt).toLocaleDateString('pt-BR')} {new Date(a.startAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </span>
                           <span className="font-[family-name:var(--font-geist-mono)] tabular-nums">
-                            R$ {Number(a.price).toFixed(2)}
+                            {formatBRL(a.price)}
                           </span>
                         </div>
                       </div>

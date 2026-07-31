@@ -10,6 +10,7 @@ import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import slugify from 'slugify';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { LoginDto } from './dto/login.dto';
 @Injectable()
@@ -18,6 +19,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async registerBusiness(dto: RegisterBusinessDto) {
@@ -238,9 +240,25 @@ export class AuthService {
       },
     });
 
-    // TODO: send email via notification worker
-    // For now return token in dev (remove in production)
-    return { message: 'If the email exists, a reset link was sent', token };
+    // Entrega assíncrona pelo worker (e-mail via Resend). O link aponta para o
+    // app web; a base vem de APP_WEB_URL (default localhost em dev).
+    const webUrl =
+      this.config.get<string>('APP_WEB_URL') || 'http://localhost:3000';
+    const resetUrl = `${webUrl}/redefinir-senha?token=${token}`;
+    await this.notifications.enqueuePasswordReset(
+      user.id,
+      user.email,
+      user.name,
+      resetUrl,
+    );
+
+    // Fora de produção devolvemos o token para permitir o fluxo E2E sem e-mail
+    // configurado. Em produção o token nunca vai na resposta (evita bypass).
+    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    return {
+      message: 'If the email exists, a reset link was sent',
+      ...(isProd ? {} : { token }),
+    };
   }
 
   async passwordResetConfirm(token: string, newPassword: string) {

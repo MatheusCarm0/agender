@@ -463,7 +463,7 @@ export default function BookingClient({ business, customization, workingHours }:
           <button type="button" onClick={() => setHoursExpanded(!hoursExpanded)}
             className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors cursor-pointer stagger-item"
             style={{ backgroundColor: openStatus.isOpen ? '#16A34A20' : '#DC262620', color: openStatus.isOpen ? '#16A34A' : '#DC2626' }}
-            aria-label={hoursExpanded ? 'Ocultar horários' : 'Ver horários'}>
+            aria-label={hoursExpanded ? 'Ocultar horário de funcionamento' : 'Ver horário de funcionamento'}>
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'currentColor' }} />
             {openStatus.label}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${hoursExpanded ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
@@ -475,10 +475,12 @@ export default function BookingClient({ business, customization, workingHours }:
           <div className="mt-2 p-3 rounded-lg text-xs w-full max-w-xs" style={{ backgroundColor: `${surface}`, border: `1px solid ${text}12` }}>
             {[1, 2, 3, 4, 5, 6, 0].map((day) => {
               const hours = hoursByDay[day];
+              // Vários profissionais podem ter a mesma faixa; mostramos cada janela uma só vez.
+              const ranges = hours ? Array.from(new Set(hours.map((h) => `${h.startTime} - ${h.endTime}`))) : [];
               return (
                 <div key={day} className="flex justify-between py-0.5">
                   <span style={{ opacity: 0.6 }}>{DAY_NAMES[day]}</span>
-                  <span style={{ opacity: hours ? 0.8 : 0.4 }}>{hours ? hours.map((h) => `${h.startTime} - ${h.endTime}`).join(', ') : 'Fechado'}</span>
+                  <span style={{ opacity: ranges.length ? 0.8 : 0.4 }}>{ranges.length ? ranges.join(', ') : 'Fechado'}</span>
                 </div>
               );
             })}
@@ -682,6 +684,36 @@ export default function BookingClient({ business, customization, workingHours }:
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
               Já tem agendamento? Ver meus agendamentos
             </a>
+
+            {/* Prévia de serviços — dá contexto na página sem personalização,
+                sem competir com o layout de links de quem personalizou. */}
+            {!hasLinks && business.acceptingBookings !== false && (() => {
+              const byService = new Map<string, { id: string; name: string; durationMin: number; price: number }>();
+              business.professionals.forEach((p) => p.services.forEach((s) => {
+                const ex = byService.get(s.id);
+                if (!ex || s.price < ex.price) byService.set(s.id, s);
+              }));
+              const preview = [...byService.values()].slice(0, 6);
+              if (preview.length === 0) return null;
+              return (
+                <div className="pt-2 stagger-item">
+                  <p className="text-xs font-medium mb-2" style={{ opacity: 0.5 }}>Serviços</p>
+                  <div className="space-y-1.5">
+                    {preview.map((s) => (
+                      <button key={s.id} type="button" onClick={() => navigate('select')}
+                        className="w-full flex items-center justify-between gap-3 px-3 py-2.5 border text-left transition-all hover:scale-[1.01]"
+                        style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
+                        <span className="min-w-0">
+                          <span className="text-sm font-medium block truncate" style={{ color: text }}>{s.name}</span>
+                          <span className="text-xs" style={{ opacity: 0.5 }}>{s.durationMin} min</span>
+                        </span>
+                        <span className="text-sm font-semibold shrink-0 tabular-nums" style={{ color: primary, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(s.price)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {hasLinks && links!.filter((l) => l.label || l.type === 'divider' || l.type === 'spacer').map((link, i) => {
               const blockType = link.type || 'link';
@@ -924,24 +956,24 @@ export default function BookingClient({ business, customization, workingHours }:
             <div className="border p-5" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
               <form onSubmit={handleBook} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu nome</label>
-                  <input value={clientForm.name} onChange={(e) => setClientForm((f) => ({ ...f, name: e.target.value }))} required
+                  <label htmlFor="book-name" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu nome</label>
+                  <input id="book-name" autoComplete="name" value={clientForm.name} onChange={(e) => setClientForm((f) => ({ ...f, name: e.target.value }))} required
                     className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, ['--tw-ring-color' as string]: `${primary}40` }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Telefone</label>
-                  <input value={clientForm.phone} onChange={(e) => setClientForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))} required placeholder="(11) 99999-9999" inputMode="numeric"
+                  <label htmlFor="book-phone" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Telefone</label>
+                  <input id="book-phone" autoComplete="tel" value={clientForm.phone} onChange={(e) => setClientForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))} required placeholder="(11) 99999-9999" inputMode="numeric"
                     className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, ['--tw-ring-color' as string]: `${primary}40` }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>E-mail (opcional)</label>
-                  <input type="email" value={clientForm.email} onChange={(e) => setClientForm((f) => ({ ...f, email: e.target.value }))}
+                  <label htmlFor="book-email" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>E-mail (opcional)</label>
+                  <input id="book-email" autoComplete="email" type="email" value={clientForm.email} onChange={(e) => setClientForm((f) => ({ ...f, email: e.target.value }))}
                     className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, ['--tw-ring-color' as string]: `${primary}40` }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Cupom de desconto (opcional)</label>
+                  <label htmlFor="book-coupon" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Cupom de desconto (opcional)</label>
                   <div className="flex gap-2">
-                    <input value={couponCode} onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponStatus(null); }} placeholder="CODIGO10"
+                    <input id="book-coupon" value={couponCode} onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponStatus(null); }} placeholder="CODIGO10"
                       className="flex-1 h-11 px-3 text-sm border focus:outline-none uppercase tracking-wider" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, fontFamily: 'monospace' }} />
                     <button type="button" onClick={validateCoupon} disabled={!couponCode.trim() || validatingCoupon}
                       className="h-11 px-4 text-sm font-medium border disabled:opacity-40" style={{ borderColor: `${text}20`, color: text, borderRadius: radius }}>
@@ -1177,6 +1209,9 @@ export default function BookingClient({ business, customization, workingHours }:
                 <button onClick={goHome} className="w-full py-3 text-sm font-medium transition-all hover:scale-[1.02]" style={{ color: primary }}>
                   Agendar outro horário
                 </button>
+                <a href={`/${business.slug}/conta`} className="w-full py-1 text-xs font-medium text-center transition-all hover:opacity-80" style={{ opacity: 0.55, color: text }}>
+                  Ver meus agendamentos
+                </a>
               </div>
             </div>
           </div>

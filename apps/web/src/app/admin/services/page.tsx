@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
+import { formatBRL, parseDecimalInput } from '@/lib/format';
 
 interface Service {
   id: string;
@@ -13,10 +14,6 @@ interface Service {
   price: string;
   active: boolean;
   professionals: { professionalId: string; professional: { id: string; name: string } }[];
-}
-
-function formatBRL(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 interface Professional {
@@ -83,7 +80,7 @@ export default function ServicesPage() {
     const body = JSON.stringify({
       name: form.name,
       durationMin: Number(form.durationMin),
-      price: Number(form.price),
+      price: parseDecimalInput(form.price),
     });
 
     try {
@@ -199,12 +196,12 @@ export default function ServicesPage() {
                 <label htmlFor="svc-price" className="block text-xs font-medium text-text-muted mb-1">Preço (R$)</label>
                 <input
                   id="svc-price"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="35,00"
                   value={form.price}
                   onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
                   required
-                  min={0}
-                  step={0.01}
                   className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
                 />
               </div>

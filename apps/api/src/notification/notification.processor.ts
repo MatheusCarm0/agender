@@ -54,6 +54,10 @@ export class NotificationProcessor extends WorkerHost {
       return this.processFeedbackReport(job);
     }
 
+    if (type === 'password_reset') {
+      return this.processPasswordReset(job);
+    }
+
     if (type === 'client_otp') {
       return this.processClientOtp(job);
     }
@@ -277,6 +281,36 @@ export class NotificationProcessor extends WorkerHost {
     );
 
     await this.sendEmail(client.email, subject, html);
+  }
+
+  /**
+   * Entrega o link de redefinição de senha do dono/membro por e-mail (Resend).
+   * A validade do token (1h) é controlada no AuthService; aqui só notificamos.
+   */
+  private async processPasswordReset(job: Job) {
+    const { email, name, resetUrl } = job.data as {
+      email: string;
+      name: string;
+      resetUrl: string;
+    };
+    if (!email) return;
+
+    const subject = 'Redefinição de senha - Agender';
+    const html = emailLayout(
+      'Redefinir sua senha',
+      [
+        emailText(
+          `Olá <strong>${escapeHtml(name || '')}</strong>, recebemos um pedido para redefinir a senha da sua conta.`,
+        ),
+        emailButton(resetUrl, 'Criar nova senha'),
+        emailText(
+          'O link expira em 1 hora. Se você não solicitou, ignore este e-mail — sua senha atual continua válida.',
+        ),
+      ].join(''),
+      'Enviado por <strong style="color:#78716C;">Agender</strong>.',
+    );
+
+    await this.sendEmail(email, subject, html);
   }
 
   private async processTrialWarning(job: Job) {

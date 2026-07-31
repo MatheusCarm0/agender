@@ -197,7 +197,10 @@ export default function EquipePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-text-strong">Equipe</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-text-strong">Equipe</h1>
+          <p className="text-xs text-text-muted mt-1">Convide e gerencie quem tem acesso ao painel do seu negócio.</p>
+        </div>
         <button
           onClick={() => setShowInviteModal(true)}
           className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover transition-colors"

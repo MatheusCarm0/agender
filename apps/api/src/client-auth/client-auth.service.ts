@@ -3,6 +3,7 @@ import {
   Logger,
   BadRequestException,
   UnauthorizedException,
+  NotFoundException,
   HttpException,
   HttpStatus,
   Inject,
@@ -175,6 +176,42 @@ export class ClientAuthService {
       durationMin: a.service.durationMin,
       professionalName: a.professional.name,
     }));
+  }
+
+  /**
+   * Cancelamento do próprio agendamento pelo cliente (área "meus agendamentos").
+   * Só permite o que é seguro sem intervenção do negócio: agendamento futuro,
+   * ainda ativo e sem pagamento online confirmado. Devolve o professionalId para
+   * o controller invalidar a disponibilidade e disparar a notificação.
+   */
+  async cancelAppointment(
+    clientId: string,
+    businessId: string,
+    appointmentId: string,
+  ) {
+    const appt = await this.prisma.raw.appointment.findFirst({
+      where: { id: appointmentId, clientId, businessId },
+    });
+    if (!appt) throw new NotFoundException('Agendamento não encontrado.');
+
+    if (!['scheduled', 'confirmed'].includes(appt.status)) {
+      throw new BadRequestException('Este agendamento não pode mais ser cancelado.');
+    }
+    if (new Date(appt.startAt).getTime() <= Date.now()) {
+      throw new BadRequestException('Não é possível cancelar um horário que já passou.');
+    }
+    if (appt.paymentStatus === 'paid') {
+      throw new BadRequestException(
+        'Este agendamento já foi pago. Entre em contato com o estabelecimento para cancelar.',
+      );
+    }
+
+    await this.prisma.raw.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'cancelled' },
+    });
+
+    return { professionalId: appt.professionalId };
   }
 
   private async generateClientTokens(clientId: string, businessId: string) {

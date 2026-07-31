@@ -357,4 +357,21 @@ export class PublicV1Controller {
     const { clientId, businessId } = req.clientUser;
     return this.clientAuthService.getClientAppointments(clientId, businessId);
   }
+
+  @Post(':slug/me/appointments/:id/cancel')
+  @UseGuards(ClientAuthGuard)
+  async cancelMyAppointment(@Param('id') appointmentId: string, @Req() req: any) {
+    const { clientId, businessId } = req.clientUser;
+    const { professionalId } = await this.clientAuthService.cancelAppointment(
+      clientId,
+      businessId,
+      appointmentId,
+    );
+    await this.availabilityService.invalidateCache(businessId, professionalId);
+    await this.notificationService.enqueueBookingCancellation(
+      appointmentId,
+      businessId,
+    );
+    return { ok: true };
+  }
 }

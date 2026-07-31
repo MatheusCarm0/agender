@@ -35,7 +35,7 @@ export default function LoginPage() {
         <div className="flex justify-center pb-8">
           <AgenderLogo />
         </div>
-        <h1 className="text-2xl font-semibold text-text-strong mb-1">Faça Login</h1>
+        <h1 className="text-2xl font-semibold text-text-strong mb-1">Entrar</h1>
         <p className="text-xs text-text-muted mb-6">Acesse seu painel de agendamento.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -54,7 +54,7 @@ export default function LoginPage() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label htmlFor="login-password" className="text-xs font-medium text-text-muted">Senha</label>
-              <span className="text-xs text-text-subtle">Em breve: recuperar senha</span>
+              <Link href="/recuperar-senha" className="text-xs text-primary-default hover:text-primary-hover font-medium">Esqueci minha senha</Link>
             </div>
             <div className="relative">
               <input

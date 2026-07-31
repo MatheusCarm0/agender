@@ -152,6 +152,29 @@ export default function AccountClient({
     setAppointments([]); setClientName('');
   }
 
+  const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  async function cancelAppointment(id: string) {
+    if (!token) return;
+    setCancelling(true); setError('');
+    try {
+      const res = await fetch(`${API_URL}/public/v1/${slug}/me/appointments/${id}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Não foi possível cancelar o agendamento.');
+      }
+      await loadAppointments(token);
+      setCancelId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível cancelar o agendamento.');
+    }
+    setCancelling(false);
+  }
+
   const inputStyle: React.CSSProperties = {
     backgroundColor: colors.surface, borderColor: `${colors.text}20`, color: colors.text, borderRadius: buttonRadius,
   };
@@ -160,7 +183,7 @@ export default function AccountClient({
   const upcoming = appointments.filter((a) => new Date(a.startAt).getTime() >= now && !['cancelled', 'no_show', 'completed'].includes(a.status));
   const past = appointments.filter((a) => !upcoming.includes(a));
 
-  function ApptCard({ a }: { a: Appointment }) {
+  function ApptCard({ a, cancellable = false }: { a: Appointment; cancellable?: boolean }) {
     const meta = STATUS_META[a.status] || STATUS_META.scheduled;
     const total = Math.max(0, a.price - a.discountAmount);
     return (
@@ -183,6 +206,27 @@ export default function AccountClient({
           <span style={{ opacity: 0.6 }}>{a.paymentStatus === 'paid' ? 'Pago' : 'Pagamento no local'}</span>
           <span className="font-semibold tabular-nums" style={{ color: colors.primary, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(total)}</span>
         </div>
+        {cancellable && (
+          cancelId === a.id ? (
+            <div className="flex items-center gap-2 mt-3 pt-3 text-xs" style={{ borderTop: `1px solid ${colors.text}10` }}>
+              <span style={{ opacity: 0.7 }}>Cancelar este horário?</span>
+              <button type="button" onClick={() => cancelAppointment(a.id)} disabled={cancelling}
+                className="ml-auto px-2.5 h-8 inline-flex items-center rounded font-medium text-white disabled:opacity-50"
+                style={{ backgroundColor: '#DC2626', borderRadius: buttonRadius }}>
+                {cancelling ? 'Cancelando...' : 'Sim, cancelar'}
+              </button>
+              <button type="button" onClick={() => setCancelId(null)} disabled={cancelling}
+                className="px-2.5 h-8 inline-flex items-center rounded font-medium" style={{ border: `1px solid ${colors.text}20`, borderRadius: buttonRadius }}>
+                Voltar
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => { setCancelId(a.id); setError(''); }}
+              className="mt-2 text-xs font-medium transition-opacity hover:opacity-70" style={{ color: '#DC2626' }}>
+              Cancelar agendamento
+            </button>
+          )
+        )}
       </div>
     );
   }
@@ -211,8 +255,8 @@ export default function AccountClient({
         ) : step === 'phone' ? (
           <form onSubmit={startOtp} className="border p-6 space-y-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: buttonRadius }}>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu telefone</label>
-              <input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 99999-9999" inputMode="numeric" autoFocus
+              <label htmlFor="otp-phone" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu telefone</label>
+              <input id="otp-phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 99999-9999" inputMode="numeric" autoFocus
                 className="w-full h-11 px-3 text-sm border focus:outline-none" style={inputStyle} />
               <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Use o mesmo telefone dos seus agendamentos. Enviaremos um código de confirmação.</p>
             </div>
@@ -225,8 +269,8 @@ export default function AccountClient({
         ) : step === 'code' ? (
           <form onSubmit={verifyOtp} className="border p-6 space-y-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: buttonRadius }}>
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Código de 6 dígitos</label>
-              <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" inputMode="numeric" autoFocus
+              <label htmlFor="otp-code" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Código de 6 dígitos</label>
+              <input id="otp-code" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" inputMode="numeric" autoFocus
                 className="w-full h-12 px-3 text-center text-xl tracking-[0.4em] border focus:outline-none tabular-nums" style={{ ...inputStyle, fontVariantNumeric: 'tabular-nums' }} />
               <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Enviado para {phone}. Válido por 5 minutos.</p>
               {devCode && (
@@ -265,7 +309,7 @@ export default function AccountClient({
                 {upcoming.length > 0 && (
                   <div>
                     <h2 className="text-sm font-medium mb-2" style={{ opacity: 0.7 }}>Próximos</h2>
-                    <div className="space-y-2">{upcoming.map((a) => <ApptCard key={a.id} a={a} />)}</div>
+                    <div className="space-y-2">{upcoming.map((a) => <ApptCard key={a.id} a={a} cancellable />)}</div>
                   </div>
                 )}
                 {past.length > 0 && (

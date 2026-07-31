@@ -5,6 +5,8 @@ import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
+import { UpsellCard, planAllows } from '@/components/plan-gate';
+import { formatBRL } from '@/lib/format';
 
 interface MembershipPlan {
   id: string;
@@ -156,6 +158,19 @@ export default function FidelityPage() {
     }
   }
 
+  if (!planAllows(user?.business.plan, 'pro')) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-text-strong">Clube de fidelidade</h1>
+        <UpsellCard
+          title="Clube de fidelidade"
+          description="Crie planos de assinatura recorrente para seus clientes e aumente a retenção."
+          plansLabel="Disponível no plano Pro."
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -255,6 +270,14 @@ export default function FidelityPage() {
               </svg>
               <p className="text-text-muted">Nenhum plano criado.</p>
               <p className="text-xs text-text-subtle mt-1">Crie planos de fidelidade para reter seus clientes.</p>
+              {canEdit && (
+                <button
+                  onClick={() => setShowPlanForm(true)}
+                  className="mt-4 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover transition-colors"
+                >
+                  Criar primeiro plano
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -270,7 +293,7 @@ export default function FidelityPage() {
                     </span>
                   </div>
                   <div className="text-2xl font-semibold text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums mb-1">
-                    R$ {Number(p.price).toFixed(2)}
+                    {formatBRL(p.price)}
                     <span className="text-xs text-text-muted font-normal ml-1">/{CYCLE_LABELS[p.billingCycle]?.toLowerCase()}</span>
                   </div>
                   <p className="text-xs text-text-muted">
@@ -307,7 +330,7 @@ export default function FidelityPage() {
                     <select id="member-plan" value={memberForm.planId} onChange={(e) => setMemberForm((f) => ({ ...f, planId: e.target.value }))} required
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none">
                       <option value="">Selecione...</option>
-                      {plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} — R$ {Number(p.price).toFixed(2)}</option>)}
+                      {plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} — {formatBRL(p.price)}</option>)}
                     </select>
                   </div>
                 </div>

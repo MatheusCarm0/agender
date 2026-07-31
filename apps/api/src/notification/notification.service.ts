@@ -29,6 +29,19 @@ export class NotificationService {
     );
   }
 
+  async enqueuePasswordReset(
+    userId: string,
+    email: string,
+    name: string,
+    resetUrl: string,
+  ) {
+    await this.queue.add(
+      'password_reset',
+      { userId, email, name, resetUrl },
+      { jobId: `pwreset-${userId}-${Date.now()}`, removeOnComplete: true },
+    );
+  }
+
   async enqueueBookingCancellation(appointmentId: string, businessId: string) {
     await this.queue.add(
       'booking_cancelled',

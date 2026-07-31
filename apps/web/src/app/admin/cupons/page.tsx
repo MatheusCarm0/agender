@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import { getCached } from '@/lib/prefetch-cache';
 import { ConfirmModal } from '@/components/confirm-modal';
 import { useToast } from '@/components/toast';
+import { UpsellCard, planAllows } from '@/components/plan-gate';
+import { formatBRL } from '@/lib/format';
 
 interface Coupon {
   id: string;
@@ -120,7 +122,20 @@ export default function CouponsPage() {
 
   function formatDiscount(c: Coupon) {
     if (c.discountType === 'percent') return `${c.discountValue}%`;
-    return `R$ ${Number(c.discountValue).toFixed(2)}`;
+    return formatBRL(c.discountValue);
+  }
+
+  if (!planAllows(user?.business.plan, 'profissional')) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-text-strong">Cupons</h1>
+        <UpsellCard
+          title="Cupons de desconto"
+          description="Crie cupons para atrair e fidelizar clientes com descontos por valor ou percentual."
+          plansLabel="Disponível nos planos Profissional e Pro."
+        />
+      </div>
+    );
   }
 
   return (
