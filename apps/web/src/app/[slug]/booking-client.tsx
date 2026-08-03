@@ -113,29 +113,28 @@ function StepIndicator({ current, primary, onPrimary, accent }: { current: 'sele
   ];
   const currentIdx = steps.findIndex((s) => s.key === current);
   return (
-    <div className="flex items-center gap-0 w-full mb-5">
+    <div className="flex items-start w-full mb-5">
       {steps.map((s, i) => {
         const isDone = i < currentIdx;
         const isActive = i === currentIdx;
+        const reached = i <= currentIdx;
         return (
-          <div key={s.key} className="flex items-center flex-1">
-            <div className="flex flex-col items-center ">
-              <div className="flex items-center w-full">
-                {i > 0 && <div className="flex-1 h-0.5 transition-colors" style={{ backgroundColor: isDone || isActive ? primary : `${primary}25` }} />}
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-all"
-                  style={{
-                    backgroundColor: isDone || isActive ? primary : 'transparent',
-                    color: isDone || isActive ? onPrimary : `${primary}80`,
-                    border: `2px solid ${isDone || isActive ? primary : `${primary}30`}`,
-                  }}>
-                  {isDone ? (
-                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
-                  ) : i + 1}
-                </div>
-                {i < steps.length - 1 && <div className="flex-1 h-0.5 transition-colors" style={{ backgroundColor: isDone ? primary : `${primary}25` }} />}
-              </div>
-              <span className="text-[11px] mt-1.5 font-medium" style={{ color: isActive ? accent : `${primary}60` }}>{s.label}</span>
+          <div key={s.key} className="flex-1 flex flex-col items-center relative">
+            {/* Linha entre os passos — ocupa só o vão, recuada pelo raio do círculo (16px) para não cruzar o número */}
+            {i > 0 && (
+              <div className="absolute top-4 h-0.5 transition-colors" style={{ left: 'calc(-50% + 18px)', right: 'calc(50% + 18px)', backgroundColor: reached ? primary : `${primary}25` }} />
+            )}
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold relative z-10 transition-all"
+              style={{
+                backgroundColor: isDone || isActive ? primary : 'transparent',
+                color: isDone || isActive ? onPrimary : `${primary}80`,
+                border: `2px solid ${isDone || isActive ? primary : `${primary}30`}`,
+              }}>
+              {isDone ? (
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+              ) : i + 1}
             </div>
+            <span className="text-[11px] mt-1.5 font-medium text-center" style={{ color: isActive ? accent : `${primary}60` }}>{s.label}</span>
           </div>
         );
       })}
@@ -280,6 +279,9 @@ export default function BookingClient({ business, customization, workingHours, p
   const accent = readableText(primary, surface);
   const accentOnBg = readableText(primary, bg);
   const radius = btnRadius(cust?.theme?.buttonStyle);
+  // Cards, painéis e inputs têm raio próprio e moderado — nunca viram pílula
+  // (999px em superfície larga forma elipse e espreme o conteúdo).
+  const cardRad = cust?.theme?.buttonStyle === 'square' ? '6px' : cust?.theme?.buttonStyle === 'pill' ? '18px' : '14px';
   const layout = cust?.theme?.layout || 'list';
   const socials = cust?.socials;
   const links = cust?.links;
@@ -696,7 +698,7 @@ export default function BookingClient({ business, customization, workingHours, p
               <p className="text-center text-xs px-4 py-2 rounded-full mb-1 stagger-item" style={{ backgroundColor: `${primary}15`, color: accentOnBg }}>{cust.welcomeMsg}</p>
             )}
             {business.acceptingBookings === false ? (
-              <div className="text-center py-4 px-4 rounded-lg stagger-item" style={{ backgroundColor: `${text}06`, border: `1px solid ${text}12`, borderRadius: radius }}>
+              <div className="text-center py-4 px-4 rounded-lg stagger-item" style={{ backgroundColor: `${text}06`, border: `1px solid ${text}12`, borderRadius: cardRad }}>
                 <p className="text-sm font-medium" style={{ color: text }}>Agendamento temporariamente indisponível</p>
                 <p className="text-xs mt-1" style={{ opacity: 0.5 }}>Este negócio não está aceitando novos agendamentos no momento.</p>
               </div>
@@ -730,7 +732,7 @@ export default function BookingClient({ business, customization, workingHours, p
                     {preview.map((s) => (
                       <button key={s.id} type="button" onClick={() => navigate('select')}
                         className="w-full flex items-center justify-between gap-3 px-3 py-2.5 border text-left transition-all hover:scale-[1.01]"
-                        style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
+                        style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
                         <span className="min-w-0">
                           <span className="text-sm font-medium block truncate" style={{ color: text }}>{s.name}</span>
                           <span className="text-xs" style={{ opacity: 0.5 }}>{s.durationMin} min</span>
@@ -826,7 +828,7 @@ export default function BookingClient({ business, customization, workingHours, p
                       return (
                         <button key={p.id} onClick={() => hasServices && selectProfessional(p)} disabled={!hasServices}
                           className={`w-full text-left p-4 border transition-all ${hasServices ? 'hover:scale-[1.01]' : 'cursor-not-allowed'}`}
-                          style={{ backgroundColor: surface, borderColor: selectedProf?.id === p.id ? primary : `${text}12`, borderRadius: radius, opacity: hasServices ? 1 : 0.55, ...(selectedProf?.id === p.id ? { boxShadow: `0 0 0 1px ${primary}` } : {}) }}>
+                          style={{ backgroundColor: surface, borderColor: selectedProf?.id === p.id ? primary : `${text}12`, borderRadius: cardRad, opacity: hasServices ? 1 : 0.55, ...(selectedProf?.id === p.id ? { boxShadow: `0 0 0 1px ${primary}` } : {}) }}>
                           <div className="flex items-center gap-3">
                             {p.avatarUrl ? (
                               <img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover" />
@@ -856,7 +858,7 @@ export default function BookingClient({ business, customization, workingHours, p
                       {selectedProf.services.map((s) => (
                         <button key={s.id} onClick={() => selectService(s)}
                           className={`w-full text-left p-4 border transition-all hover:scale-[1.01] ${layout === 'cards' ? 'flex flex-col gap-2' : 'flex items-center justify-between'}`}
-                          style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
+                          style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
                           <div>
                             <p className="font-medium text-sm">{s.name}</p>
                             <p className="text-xs mt-0.5" style={{ opacity: 0.5 }}>{s.durationMin} min</p>
@@ -881,7 +883,7 @@ export default function BookingClient({ business, customization, workingHours, p
             </button>
             <StepIndicator current="slots" primary={primary} onPrimary={onPrimary} accent={accent} />
 
-            <div className="border p-5" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
+            <div className="border p-5" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
               <div className="mb-4">
                 <p className="font-medium text-sm">{selectedService?.name}</p>
                 <p className="text-xs" style={{ opacity: 0.5 }}>com {selectedProf?.name} · {selectedService?.durationMin} min · {selectedService ? formatCurrency(selectedService.price) : ''}</p>
@@ -981,28 +983,28 @@ export default function BookingClient({ business, customization, workingHours, p
               )}
             </div>
 
-            <div className="border p-5" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
+            <div className="border p-5" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
               <form onSubmit={handleBook} className="space-y-4">
                 <div>
                   <label htmlFor="book-name" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu nome</label>
                   <input id="book-name" autoComplete="name" value={clientForm.name} onChange={(e) => setClientForm((f) => ({ ...f, name: e.target.value }))} required
-                    className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, ['--tw-ring-color' as string]: `${primary}40` }} />
+                    className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: cardRad, ['--tw-ring-color' as string]: `${primary}40` }} />
                 </div>
                 <div>
                   <label htmlFor="book-phone" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Telefone</label>
                   <input id="book-phone" autoComplete="tel" value={clientForm.phone} onChange={(e) => setClientForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))} required placeholder="(11) 99999-9999" inputMode="numeric"
-                    className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, ['--tw-ring-color' as string]: `${primary}40` }} />
+                    className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: cardRad, ['--tw-ring-color' as string]: `${primary}40` }} />
                 </div>
                 <div>
                   <label htmlFor="book-email" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>E-mail (opcional)</label>
                   <input id="book-email" autoComplete="email" type="email" value={clientForm.email} onChange={(e) => setClientForm((f) => ({ ...f, email: e.target.value }))}
-                    className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, ['--tw-ring-color' as string]: `${primary}40` }} />
+                    className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: cardRad, ['--tw-ring-color' as string]: `${primary}40` }} />
                 </div>
                 <div>
                   <label htmlFor="book-coupon" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Cupom de desconto (opcional)</label>
                   <div className="flex gap-2">
                     <input id="book-coupon" value={couponCode} onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponStatus(null); }} placeholder="CODIGO10"
-                      className="flex-1 h-11 px-3 text-sm border focus:outline-none uppercase tracking-wider" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: radius, fontFamily: 'monospace' }} />
+                      className="flex-1 h-11 px-3 text-sm border focus:outline-none uppercase tracking-wider" style={{ backgroundColor: surface, borderColor: `${text}20`, color: text, borderRadius: cardRad, fontFamily: 'monospace' }} />
                     <button type="button" onClick={validateCoupon} disabled={!couponCode.trim() || validatingCoupon}
                       className="h-11 px-4 text-sm font-medium border disabled:opacity-40" style={{ borderColor: `${text}20`, color: text, borderRadius: radius }}>
                       {validatingCoupon ? '...' : 'Aplicar'}
@@ -1040,7 +1042,7 @@ export default function BookingClient({ business, customization, workingHours, p
         {/* PAYMENT */}
         {step === 'payment' && (
           <div className="w-full max-w-md space-y-4 step-animate">
-            <div className="border p-6" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
+            <div className="border p-6" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
               <div className="text-center mb-5">
                 <p className="text-xs font-medium" style={{ color: accent }}>Falta pouco</p>
                 <h2 className="text-lg font-bold mt-1">
@@ -1124,7 +1126,7 @@ export default function BookingClient({ business, customization, workingHours, p
                           readOnly
                           value={payInfo.pixQrCode}
                           className="flex-1 h-10 px-3 text-xs border truncate"
-                          style={{ backgroundColor: `${text}04`, borderColor: `${text}15`, color: text, borderRadius: radius, fontFamily: 'monospace' }}
+                          style={{ backgroundColor: `${text}04`, borderColor: `${text}15`, color: text, borderRadius: cardRad, fontFamily: 'monospace' }}
                         />
                         <button
                           type="button"
@@ -1189,7 +1191,7 @@ export default function BookingClient({ business, customization, workingHours, p
         {/* DONE */}
         {step === 'done' && (
           <div className="w-full max-w-md space-y-4 step-animate">
-            <div className="border p-8 text-center" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
+            <div className="border p-8 text-center" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 check-animate" style={{ backgroundColor: `${primary}15` }}>
                 <svg width="32" height="32" fill="none" stroke={accent} strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
               </div>

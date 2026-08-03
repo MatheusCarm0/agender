@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { onColor, readableText } from '@/lib/color';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -175,8 +176,14 @@ export default function AccountClient({
     setCancelling(false);
   }
 
+  // Cards/painéis/inputs nunca viram pílula (999px em superfície larga vira elipse).
+  const cardRad = buttonRadius === '999px' ? '18px' : buttonRadius === '4px' ? '6px' : '14px';
+  // Cores legíveis (AA) para preenchimento primário e para o primário como texto/acento.
+  const onPrimary = onColor(colors.primary);
+  const accent = readableText(colors.primary, colors.surface);
+
   const inputStyle: React.CSSProperties = {
-    backgroundColor: colors.surface, borderColor: `${colors.text}20`, color: colors.text, borderRadius: buttonRadius,
+    backgroundColor: colors.surface, borderColor: `${colors.text}20`, color: colors.text, borderRadius: cardRad,
   };
 
   const now = Date.now();
@@ -187,7 +194,7 @@ export default function AccountClient({
     const meta = STATUS_META[a.status] || STATUS_META.scheduled;
     const total = Math.max(0, a.price - a.discountAmount);
     return (
-      <div className="border p-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: buttonRadius }}>
+      <div className="border p-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-semibold text-sm">{a.serviceName}</p>
@@ -204,7 +211,7 @@ export default function AccountClient({
         </div>
         <div className="flex items-center justify-between mt-3 pt-3 text-xs" style={{ borderTop: `1px solid ${colors.text}10` }}>
           <span style={{ opacity: 0.6 }}>{a.paymentStatus === 'paid' ? 'Pago' : 'Pagamento no local'}</span>
-          <span className="font-semibold tabular-nums" style={{ color: colors.primary, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(total)}</span>
+          <span className="font-semibold tabular-nums" style={{ color: accent, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(total)}</span>
         </div>
         {cancellable && (
           cancelId === a.id ? (
@@ -240,7 +247,7 @@ export default function AccountClient({
           {logoUrl ? (
             <img src={logoUrl} alt={businessName} className="w-16 h-16 rounded-full object-cover border-2 shadow-sm" style={{ borderColor: colors.surface }} />
           ) : (
-            <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold" style={{ backgroundColor: colors.primary }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold" style={{ backgroundColor: colors.primary, color: onPrimary }}>
               {businessName[0]?.toUpperCase() || 'N'}
             </div>
           )}
@@ -253,7 +260,7 @@ export default function AccountClient({
             {[1, 2].map((i) => <div key={i} className="h-24 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.text}08` }} />)}
           </div>
         ) : step === 'phone' ? (
-          <form onSubmit={startOtp} className="border p-6 space-y-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: buttonRadius }}>
+          <form onSubmit={startOtp} className="border p-6 space-y-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
             <div>
               <label htmlFor="otp-phone" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu telefone</label>
               <input id="otp-phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 99999-9999" inputMode="numeric" autoFocus
@@ -261,27 +268,27 @@ export default function AccountClient({
               <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Use o mesmo telefone dos seus agendamentos. Enviaremos um código de confirmação.</p>
             </div>
             {error && <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{error}</p>}
-            <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm text-white disabled:opacity-50 transition-all hover:scale-[1.02]"
-              style={{ backgroundColor: colors.primary, borderRadius: buttonRadius }}>
+            <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm disabled:opacity-50 transition-all hover:scale-[1.02]"
+              style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
               {loading ? 'Enviando...' : 'Enviar código'}
             </button>
           </form>
         ) : step === 'code' ? (
-          <form onSubmit={verifyOtp} className="border p-6 space-y-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: buttonRadius }}>
+          <form onSubmit={verifyOtp} className="border p-6 space-y-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
             <div>
               <label htmlFor="otp-code" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Código de 6 dígitos</label>
               <input id="otp-code" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" inputMode="numeric" autoFocus
                 className="w-full h-12 px-3 text-center text-xl tracking-[0.4em] border focus:outline-none tabular-nums" style={{ ...inputStyle, fontVariantNumeric: 'tabular-nums' }} />
               <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Enviado para {phone}. Válido por 5 minutos.</p>
               {devCode && (
-                <p className="text-[11px] mt-2 px-2 py-1.5 rounded" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary }}>
+                <p className="text-[11px] mt-2 px-2 py-1.5 rounded" style={{ backgroundColor: `${colors.primary}12`, color: accent }}>
                   Ambiente de teste — seu código é <strong>{devCode}</strong>
                 </p>
               )}
             </div>
             {error && <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{error}</p>}
-            <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm text-white disabled:opacity-50 transition-all hover:scale-[1.02]"
-              style={{ backgroundColor: colors.primary, borderRadius: buttonRadius }}>
+            <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm disabled:opacity-50 transition-all hover:scale-[1.02]"
+              style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
             <button type="button" onClick={() => { setStep('phone'); setCode(''); setError(''); }} className="w-full text-xs transition-opacity hover:opacity-70" style={{ opacity: 0.5 }}>
@@ -298,9 +305,9 @@ export default function AccountClient({
             )}
 
             {appointments.length === 0 ? (
-              <div className="border p-8 text-center" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: buttonRadius }}>
+              <div className="border p-8 text-center" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
                 <p className="text-sm font-medium">Você ainda não tem agendamentos</p>
-                <a href={`/${slug}`} className="inline-block mt-3 px-4 py-2 text-sm font-semibold text-white" style={{ backgroundColor: colors.primary, borderRadius: buttonRadius }}>
+                <a href={`/${slug}`} className="inline-block mt-3 px-4 py-2 text-sm font-semibold" style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
                   Agendar horário
                 </a>
               </div>
@@ -318,7 +325,7 @@ export default function AccountClient({
                     <div className="space-y-2">{past.map((a) => <ApptCard key={a.id} a={a} />)}</div>
                   </div>
                 )}
-                <a href={`/${slug}`} className="block text-center w-full py-3 text-sm font-semibold text-white transition-all hover:scale-[1.02]" style={{ backgroundColor: colors.primary, borderRadius: buttonRadius }}>
+                <a href={`/${slug}`} className="block text-center w-full py-3 text-sm font-semibold transition-all hover:scale-[1.02]" style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
                   Agendar novo horário
                 </a>
               </>
