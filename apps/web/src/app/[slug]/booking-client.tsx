@@ -179,6 +179,10 @@ export default function BookingClient({ business, customization, workingHours, p
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const galleryRef = useRef<HTMLDivElement>(null);
+  function scrollGallery(dir: -1 | 1) {
+    galleryRef.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
+  }
 
   // Pagamento no agendamento (quando o negócio exige)
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
@@ -301,6 +305,24 @@ export default function BookingClient({ business, customization, workingHours, p
   const overlayOpacity = cust?.theme?.overlayOpacity;
   const backgroundEffect = cust?.theme?.backgroundEffect || 'none';
   const containerStyle = cust?.theme?.containerStyle || 'solid';
+
+  // Desktop: roda do mouse rola a galeria na horizontal (mobile/trackpad já rolam
+  // sozinhos). Nas pontas, libera a rolagem vertical da página.
+  useEffect(() => {
+    const el = galleryRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      if (el!.scrollWidth <= el!.clientWidth) return;
+      const atStart = el!.scrollLeft <= 0;
+      const atEnd = el!.scrollLeft + el!.clientWidth >= el!.scrollWidth - 1;
+      if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return;
+      el!.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [step, gallery]);
 
   // Totais do agendamento (cupom aplicado) e cobrança online esperada.
   const appliedDiscount = couponStatus?.valid ? couponStatus.discountAmount ?? 0 : 0;
@@ -475,7 +497,7 @@ export default function BookingClient({ business, customization, workingHours, p
       )}
 
       {/* Profile header */}
-      <div className={`flex flex-col items-center text-center w-full max-w-[680px] px-6 ${coverUrl && bgTheme?.type !== 'image' ? '-mt-12' : 'mt-10'}`}>
+      <div className={`flex flex-col items-center text-center w-full max-w-[680px] px-6 ${coverUrl && bgTheme?.type !== 'image' ? '-mt-12' : 'mt-14'}`}>
         <div className="stagger-item avatar-ring">
           {logoUrl ? (
             <img src={logoUrl} alt={business.name} className="w-24 h-24 rounded-full object-cover border-4 shadow-md" style={{ borderColor: surface }} />
@@ -485,16 +507,16 @@ export default function BookingClient({ business, customization, workingHours, p
             </div>
           )}
         </div>
-        <h1 className="text-xl font-bold mt-4 stagger-item">{headline}</h1>
-        {about && <p className="text-sm mt-1 max-w-sm stagger-item" style={{ opacity: 0.65 }}>{about}</p>}
+        <h1 className="text-2xl font-semibold mt-5 tracking-[-0.01em] stagger-item">{headline}</h1>
+        {about && <p className="text-sm mt-2 max-w-sm leading-relaxed stagger-item" style={{ opacity: 0.55 }}>{about}</p>}
 
         {/* Open/closed status */}
         {showHours && openStatus && openStatus.label && (
           <button type="button" onClick={() => setHoursExpanded(!hoursExpanded)}
-            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors cursor-pointer stagger-item"
-            style={{ backgroundColor: openStatus.isOpen ? '#16A34A20' : '#DC262620', color: openStatus.isOpen ? '#16A34A' : '#DC2626' }}
+            className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium transition-opacity cursor-pointer hover:opacity-100 stagger-item"
+            style={{ color: text, opacity: 0.55 }}
             aria-label={hoursExpanded ? 'Ocultar horário de funcionamento' : 'Ver horário de funcionamento'}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'currentColor' }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: openStatus.isOpen ? '#16A34A' : '#DC2626' }} />
             {openStatus.label}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${hoursExpanded ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
           </button>
@@ -519,7 +541,7 @@ export default function BookingClient({ business, customization, workingHours, p
 
         {/* Social icons */}
         {hasSocials && (
-          <div className="flex gap-3 mt-3 stagger-item">
+          <div className="flex gap-3 mt-5 stagger-item">
             {socials!.instagram && (
               <a href={`https://instagram.com/${socials!.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
                 className="w-10 h-10 rounded-full flex items-center justify-center social-icon" style={{ backgroundColor: `${text}10`, opacity: 0.7 }}>
@@ -549,8 +571,9 @@ export default function BookingClient({ business, customization, workingHours, p
       </div>
 
       {/* Content area with transitions */}
-      <div ref={contentRef} className={`w-full max-w-[680px] px-6 pb-12 mt-6 flex flex-col items-center ${containerStyle === 'glass' ? 'container-glass rounded-2xl mx-4 py-6' : containerStyle === 'frosted' ? 'container-frosted rounded-3xl mx-4 py-8' : ''}`} style={{ position: 'relative', zIndex: 1 }}>
+      <div ref={contentRef} className={`w-full max-w-[680px] px-6 pb-16 mt-9 flex flex-col items-center ${containerStyle === 'glass' ? 'container-glass rounded-2xl mx-4 py-6' : containerStyle === 'frosted' ? 'container-frosted rounded-3xl mx-4 py-8' : ''}`} style={{ position: 'relative', zIndex: 1 }}>
         <style>{`
+          .scrollbar-none::-webkit-scrollbar { display: none; }
           @keyframes slideInLeft { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
           @keyframes slideInRight { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
           .step-animate { animation: ${slideDirection === 'left' ? 'slideInLeft' : 'slideInRight'} 0.2s ease-out; }
@@ -579,59 +602,56 @@ export default function BookingClient({ business, customization, workingHours, p
           .stagger-item:nth-child(10) { animation-delay: 0.68s; }
 
           .link-btn {
-            transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
+            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, border-color 0.25s ease;
           }
           .link-btn:hover {
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 8px 25px -5px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px -8px rgba(0,0,0,0.18);
           }
           .link-btn:active {
-            transform: translateY(0) scale(0.98);
+            transform: translateY(0);
             box-shadow: none;
           }
 
           .cta-btn {
-            transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, filter 0.2s ease;
+            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, filter 0.2s ease;
           }
           .cta-btn:hover {
-            transform: translateY(-2px) scale(1.03);
-            box-shadow: 0 12px 30px -8px var(--pub-primary-glow, rgba(0,0,0,0.25));
-            filter: brightness(1.08);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px -12px var(--pub-primary-glow, rgba(0,0,0,0.2));
+            filter: brightness(1.03);
           }
           .cta-btn:active {
-            transform: translateY(0) scale(0.97);
+            transform: translateY(0);
             box-shadow: none;
           }
 
           .social-icon {
-            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease;
+            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease, opacity 0.2s ease;
           }
           .social-icon:hover {
-            transform: translateY(-3px) scale(1.15);
+            transform: translateY(-1px);
+            opacity: 1;
           }
 
+          /* Anel do avatar: estático e discreto — sem pulsar (premium é contenção) */
           .avatar-ring {
             position: relative;
           }
           .avatar-ring::before {
             content: '';
             position: absolute;
-            inset: -4px;
+            inset: -5px;
             border-radius: 50%;
-            border: 2px solid ${primary}40;
-            animation: ringPulse 3s ease-in-out infinite;
-          }
-          @keyframes ringPulse {
-            0%, 100% { opacity: 0.4; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.04); }
+            border: 1px solid ${primary}22;
           }
 
           .gallery-item {
             transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
           }
           .gallery-item:hover {
-            transform: scale(1.06);
-            box-shadow: 0 8px 20px -4px rgba(0,0,0,0.2);
+            transform: scale(1.02);
+            box-shadow: 0 6px 16px -6px rgba(0,0,0,0.16);
             z-index: 2;
           }
 
@@ -693,9 +713,9 @@ export default function BookingClient({ business, customization, workingHours, p
 
         {/* HOME */}
         {step === 'home' && (
-          <div className="w-full max-w-md space-y-3 step-animate">
+          <div className="w-full max-w-md space-y-5 step-animate">
             {cust?.welcomeMsg && (
-              <p className="text-center text-xs px-4 py-2 rounded-full mb-1 stagger-item" style={{ backgroundColor: `${primary}15`, color: accentOnBg }}>{cust.welcomeMsg}</p>
+              <p className="text-center text-[13px] font-medium tracking-wide mb-1 stagger-item" style={{ color: accentOnBg }}>{cust.welcomeMsg}</p>
             )}
             {business.acceptingBookings === false ? (
               <div className="text-center py-4 px-4 rounded-lg stagger-item" style={{ backgroundColor: `${text}06`, border: `1px solid ${text}12`, borderRadius: cardRad }}>
@@ -703,16 +723,16 @@ export default function BookingClient({ business, customization, workingHours, p
                 <p className="text-xs mt-1" style={{ opacity: 0.5 }}>Este negócio não está aceitando novos agendamentos no momento.</p>
               </div>
             ) : (
-              <button onClick={() => navigate('select')} className="w-full py-3.5 text-sm font-semibold shadow-sm cta-btn stagger-item" style={{ backgroundColor: primary, color: onPrimary, borderRadius: radius, ['--pub-primary-glow' as string]: `${primary}50` }}>
+              <button onClick={() => navigate('select')} className="w-full py-4 text-sm font-semibold tracking-wide cta-btn stagger-item" style={{ backgroundColor: primary, color: onPrimary, borderRadius: radius, ['--pub-primary-glow' as string]: `${primary}50` }}>
                 Agendar horário
               </button>
             )}
 
             <a href={`/${business.slug}/conta`}
-              className="flex items-center justify-center gap-1.5 w-full py-2.5 text-xs font-medium transition-opacity hover:opacity-80 stagger-item"
-              style={{ color: text, opacity: 0.6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-              Já tem agendamento? Ver meus agendamentos
+              className="flex items-center justify-center gap-1.5 w-full py-2.5 text-xs font-medium transition-opacity hover:opacity-90 stagger-item"
+              style={{ color: text, opacity: 0.5 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+              Meus agendamentos
             </a>
 
             {/* Prévia de serviços — dá contexto na página sem personalização,
@@ -726,16 +746,16 @@ export default function BookingClient({ business, customization, workingHours, p
               const preview = [...byService.values()].slice(0, 6);
               if (preview.length === 0) return null;
               return (
-                <div className="pt-2 stagger-item">
-                  <p className="text-xs font-medium mb-2" style={{ opacity: 0.5 }}>Serviços</p>
-                  <div className="space-y-1.5">
-                    {preview.map((s) => (
+                <div className="pt-4 stagger-item">
+                  <p className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ opacity: 0.4 }}>Serviços</p>
+                  <div>
+                    {preview.map((s, idx) => (
                       <button key={s.id} type="button" onClick={() => navigate('select')}
-                        className="w-full flex items-center justify-between gap-3 px-3 py-2.5 border text-left transition-all hover:scale-[1.01]"
-                        style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
+                        className="w-full flex items-center justify-between gap-3 py-3 text-left transition-opacity hover:opacity-70"
+                        style={{ borderBottom: idx < preview.length - 1 ? `1px solid ${text}0d` : 'none' }}>
                         <span className="min-w-0">
                           <span className="text-sm font-medium block truncate" style={{ color: text }}>{s.name}</span>
-                          <span className="text-xs" style={{ opacity: 0.5 }}>{s.durationMin} min</span>
+                          <span className="text-xs" style={{ opacity: 0.45 }}>{s.durationMin} min</span>
                         </span>
                         <span className="text-sm font-semibold shrink-0 tabular-nums" style={{ color: accent, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(s.price)}</span>
                       </button>
@@ -782,23 +802,39 @@ export default function BookingClient({ business, customization, workingHours, p
               );
             })}
 
-            {/* Gallery with lightbox */}
+            {/* Gallery — carrossel lateral (full-bleed) com lightbox */}
             {gallery && gallery.length > 0 && (
-              <div className="pt-3 stagger-item">
-                <div className="grid grid-cols-3 gap-1.5 rounded-lg overflow-hidden">
-                  {gallery.slice(0, 6).map((url, i) => (
-                    <button key={i} type="button" onClick={() => setLightboxIndex(i)} className="aspect-square cursor-pointer gallery-item relative overflow-hidden rounded">
+              <div className="pt-5 -mx-6 stagger-item relative group">
+                <div ref={galleryRef} className="flex gap-2.5 overflow-x-auto px-6 pb-1 snap-x scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+                  {gallery.map((url, i) => (
+                    <button key={i} type="button" onClick={() => setLightboxIndex(i)}
+                      className="shrink-0 w-36 h-44 overflow-hidden rounded-xl snap-start cursor-pointer gallery-item relative">
                       <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>
+                {/* Setas — só no desktop (no mobile o swipe basta) */}
+                {gallery.length > 2 && (
+                  <>
+                    <button type="button" onClick={() => scrollGallery(-1)} aria-label="Fotos anteriores"
+                      className="hidden md:flex absolute left-7 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full items-center justify-center shadow-md border opacity-80 hover:opacity-100 transition-opacity z-20"
+                      style={{ backgroundColor: surface, color: text, borderColor: `${text}12` }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+                    </button>
+                    <button type="button" onClick={() => scrollGallery(1)} aria-label="Próximas fotos"
+                      className="hidden md:flex absolute right-7 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full items-center justify-center shadow-md border opacity-80 hover:opacity-100 transition-opacity z-20"
+                      style={{ backgroundColor: surface, color: text, borderColor: `${text}12` }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
             {/* Address with maps link */}
             {hasAddress && (
               <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-                className="flex items-start gap-2 pt-2 text-xs no-underline transition-opacity hover:opacity-80 stagger-item" style={{ color: text, opacity: 0.6 }}>
+                className="flex items-start gap-2 pt-4 text-xs no-underline transition-opacity hover:opacity-80 stagger-item" style={{ color: text, opacity: 0.55 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
                 <span className="underline">{addressStr}</span>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
@@ -809,7 +845,7 @@ export default function BookingClient({ business, customization, workingHours, p
 
         {/* SELECT */}
         {step === 'select' && (
-          <div className="w-full max-w-md space-y-4 step-animate">
+          <div className="w-full max-w-md space-y-5 step-animate">
             <button onClick={goHome} className="text-sm flex items-center gap-1 transition-opacity hover:opacity-70" style={{ opacity: 0.5 }} aria-label="Voltar ao início">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
               Voltar
@@ -821,13 +857,13 @@ export default function BookingClient({ business, customization, workingHours, p
             ) : (
               <>
                 <div>
-                  <h2 className="text-sm font-medium mb-3" style={{ opacity: 0.7 }}>Escolha o profissional</h2>
+                  <h2 className="text-[11px] font-medium uppercase tracking-wider mb-2.5" style={{ opacity: 0.4 }}>Profissional</h2>
                   <div className="space-y-2">
                     {business.professionals.map((p) => {
                       const hasServices = p.services.length > 0;
                       return (
                         <button key={p.id} onClick={() => hasServices && selectProfessional(p)} disabled={!hasServices}
-                          className={`w-full text-left p-4 border transition-all ${hasServices ? 'hover:scale-[1.01]' : 'cursor-not-allowed'}`}
+                          className={`w-full text-left p-4 border transition-colors ${hasServices ? '' : 'cursor-not-allowed'}`}
                           style={{ backgroundColor: surface, borderColor: selectedProf?.id === p.id ? primary : `${text}12`, borderRadius: cardRad, opacity: hasServices ? 1 : 0.55, ...(selectedProf?.id === p.id ? { boxShadow: `0 0 0 1px ${primary}` } : {}) }}>
                           <div className="flex items-center gap-3">
                             {p.avatarUrl ? (
@@ -840,7 +876,7 @@ export default function BookingClient({ business, customization, workingHours, p
                               {p.bio && <p className="text-xs mt-0.5 truncate" style={{ opacity: 0.5 }}>{p.bio}</p>}
                               <p className="text-[11px] mt-0.5" style={{ opacity: 0.4 }}>
                                 {hasServices
-                                  ? `${p.services.length} ${p.services.length === 1 ? 'serviço' : 'serviços'} · a partir de ${formatCurrency(Math.min(...p.services.map((s) => s.price)))}`
+                                  ? `a partir de ${formatCurrency(Math.min(...p.services.map((s) => s.price)))}`
                                   : 'Sem serviços disponíveis no momento'}
                               </p>
                             </div>
@@ -853,11 +889,11 @@ export default function BookingClient({ business, customization, workingHours, p
 
                 {selectedProf && selectedProf.services.length > 0 && (
                   <div>
-                    <h2 className="text-sm font-medium mb-3" style={{ opacity: 0.7 }}>Escolha o serviço</h2>
+                    <h2 className="text-[11px] font-medium uppercase tracking-wider mb-2.5" style={{ opacity: 0.4 }}>Serviço</h2>
                     <div className={layout === 'cards' ? 'grid gap-2 grid-cols-2' : 'space-y-2'}>
                       {selectedProf.services.map((s) => (
                         <button key={s.id} onClick={() => selectService(s)}
-                          className={`w-full text-left p-4 border transition-all hover:scale-[1.01] ${layout === 'cards' ? 'flex flex-col gap-2' : 'flex items-center justify-between'}`}
+                          className={`w-full text-left p-4 border transition-colors ${layout === 'cards' ? 'flex flex-col gap-2' : 'flex items-center justify-between'}`}
                           style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
                           <div>
                             <p className="font-medium text-sm">{s.name}</p>
@@ -876,7 +912,7 @@ export default function BookingClient({ business, customization, workingHours, p
 
         {/* SLOTS */}
         {step === 'slots' && (
-          <div className="w-full max-w-md space-y-4 step-animate">
+          <div className="w-full max-w-md space-y-5 step-animate">
             <button onClick={() => navigate('select')} className="text-sm flex items-center gap-1 transition-opacity hover:opacity-70" style={{ opacity: 0.5 }} aria-label="Voltar para seleção">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
               Voltar
@@ -931,7 +967,7 @@ export default function BookingClient({ business, customization, workingHours, p
 
         {/* FORM */}
         {step === 'form' && (
-          <div className="w-full max-w-md space-y-4 step-animate">
+          <div className="w-full max-w-md space-y-5 step-animate">
             <button onClick={() => navigate('slots')} className="text-sm flex items-center gap-1 transition-opacity hover:opacity-70" style={{ opacity: 0.5 }} aria-label="Voltar para horários">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
               Voltar
@@ -1041,7 +1077,7 @@ export default function BookingClient({ business, customization, workingHours, p
 
         {/* PAYMENT */}
         {step === 'payment' && (
-          <div className="w-full max-w-md space-y-4 step-animate">
+          <div className="w-full max-w-md space-y-5 step-animate">
             <div className="border p-6" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
               <div className="text-center mb-5">
                 <p className="text-xs font-medium" style={{ color: accent }}>Falta pouco</p>
@@ -1190,7 +1226,7 @@ export default function BookingClient({ business, customization, workingHours, p
 
         {/* DONE */}
         {step === 'done' && (
-          <div className="w-full max-w-md space-y-4 step-animate">
+          <div className="w-full max-w-md space-y-5 step-animate">
             <div className="border p-8 text-center" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: cardRad }}>
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 check-animate" style={{ backgroundColor: `${primary}15` }}>
                 <svg width="32" height="32" fill="none" stroke={accent} strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
@@ -1269,33 +1305,18 @@ export default function BookingClient({ business, customization, workingHours, p
       {/* WhatsApp FAB */}
       {socials?.whatsapp && (
         <a href={`https://wa.me/${socials.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-110 z-40"
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 z-40"
           style={{ backgroundColor: '#25D366' }} aria-label="Falar no WhatsApp">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
         </a>
       )}
 
-      {/* Footer badge */}
-      <footer className="w-full mt-auto pt-8 pb-6 flex justify-center">
-        <a
-          href="/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium no-underline transition-all hover:scale-105"
-          style={{
-            backgroundColor: `${text}08`,
-            color: text,
-            opacity: 0.5,
-            border: `1px solid ${text}06`,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <path d="M16 2v4M8 2v4M3 10h18" />
-          </svg>
-          Crie sua página com Agender
+      {/* Crédito discreto */}
+      <footer className="w-full mt-auto pt-10 pb-7 flex justify-center">
+        <a href="/" target="_blank" rel="noopener noreferrer"
+          className="text-[11px] tracking-wide no-underline transition-opacity hover:opacity-70"
+          style={{ color: text, opacity: 0.4 }}>
+          Feito com Agender
         </a>
       </footer>
     </div>

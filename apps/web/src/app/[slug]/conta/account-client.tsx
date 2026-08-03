@@ -194,7 +194,7 @@ export default function AccountClient({
     const meta = STATUS_META[a.status] || STATUS_META.scheduled;
     const total = Math.max(0, a.price - a.discountAmount);
     return (
-      <div className="border p-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
+      <div className="border p-5" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-semibold text-sm">{a.serviceName}</p>
@@ -239,11 +239,11 @@ export default function AccountClient({
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-6 py-10"
+    <div className="min-h-screen flex flex-col items-center px-6 py-12"
       style={{ backgroundColor: colors.background, color: colors.text, fontFamily: fontFamily(font) }}>
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="flex flex-col items-center text-center mb-8">
+        <div className="flex flex-col items-center text-center mb-10">
           {logoUrl ? (
             <img src={logoUrl} alt={businessName} className="w-16 h-16 rounded-full object-cover border-2 shadow-sm" style={{ borderColor: colors.surface }} />
           ) : (
@@ -251,8 +251,8 @@ export default function AccountClient({
               {businessName[0]?.toUpperCase() || 'N'}
             </div>
           )}
-          <h1 className="text-lg font-bold mt-3">{businessName}</h1>
-          <p className="text-sm" style={{ opacity: 0.6 }}>Meus agendamentos</p>
+          <h1 className="text-xl font-semibold mt-4 tracking-[-0.01em]">{businessName}</h1>
+          <p className="text-[11px] font-medium uppercase tracking-wider mt-1.5" style={{ opacity: 0.4 }}>Meus agendamentos</p>
         </div>
 
         {bootstrapping ? (
@@ -265,10 +265,10 @@ export default function AccountClient({
               <label htmlFor="otp-phone" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu telefone</label>
               <input id="otp-phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 99999-9999" inputMode="numeric" autoFocus
                 className="w-full h-11 px-3 text-sm border focus:outline-none" style={inputStyle} />
-              <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Use o mesmo telefone dos seus agendamentos. Enviaremos um código de confirmação.</p>
+              <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Enviaremos um código de confirmação.</p>
             </div>
             {error && <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{error}</p>}
-            <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm disabled:opacity-50 transition-all hover:scale-[1.02]"
+            <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm disabled:opacity-50 transition-colors"
               style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
               {loading ? 'Enviando...' : 'Enviar código'}
             </button>
@@ -287,7 +287,7 @@ export default function AccountClient({
               )}
             </div>
             {error && <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{error}</p>}
-            <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm disabled:opacity-50 transition-all hover:scale-[1.02]"
+            <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm disabled:opacity-50 transition-colors"
               style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
@@ -296,7 +296,7 @@ export default function AccountClient({
             </button>
           </form>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {clientName && (
               <div className="flex items-center justify-between">
                 <p className="text-sm" style={{ opacity: 0.7 }}>Olá, <span className="font-semibold" style={{ opacity: 1 }}>{clientName.split(' ')[0]}</span></p>
@@ -315,17 +315,17 @@ export default function AccountClient({
               <>
                 {upcoming.length > 0 && (
                   <div>
-                    <h2 className="text-sm font-medium mb-2" style={{ opacity: 0.7 }}>Próximos</h2>
-                    <div className="space-y-2">{upcoming.map((a) => <ApptCard key={a.id} a={a} cancellable />)}</div>
+                    <h2 className="text-[11px] font-medium uppercase tracking-wider mb-2.5" style={{ opacity: 0.4 }}>Próximos</h2>
+                    <div className="space-y-2.5">{upcoming.map((a) => <ApptCard key={a.id} a={a} cancellable />)}</div>
                   </div>
                 )}
                 {past.length > 0 && (
                   <div>
-                    <h2 className="text-sm font-medium mb-2" style={{ opacity: 0.7 }}>Histórico</h2>
-                    <div className="space-y-2">{past.map((a) => <ApptCard key={a.id} a={a} />)}</div>
+                    <h2 className="text-[11px] font-medium uppercase tracking-wider mb-2.5" style={{ opacity: 0.4 }}>Histórico</h2>
+                    <div className="space-y-2.5">{past.map((a) => <ApptCard key={a.id} a={a} />)}</div>
                   </div>
                 )}
-                <a href={`/${slug}`} className="block text-center w-full py-3 text-sm font-semibold transition-all hover:scale-[1.02]" style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
+                <a href={`/${slug}`} className="block text-center w-full py-3 text-sm font-semibold transition-colors" style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
                   Agendar novo horário
                 </a>
               </>
@@ -333,7 +333,7 @@ export default function AccountClient({
           </div>
         )}
 
-        <div className="text-center mt-8">
+        <div className="text-center mt-10">
           <a href={`/${slug}`} className="text-xs transition-opacity hover:opacity-70" style={{ opacity: 0.5, color: colors.text }}>← Voltar para a página</a>
         </div>
       </div>
