@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import CardPaymentForm from './card-payment-form';
+import { onColor, readableText } from '@/lib/color';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -104,7 +105,7 @@ function getOpenStatus(workingHours: WorkingHour[], timezone: string): { isOpen:
   }
 }
 
-function StepIndicator({ current, primary }: { current: 'select' | 'slots' | 'form'; primary: string }) {
+function StepIndicator({ current, primary, onPrimary, accent }: { current: 'select' | 'slots' | 'form'; primary: string; onPrimary: string; accent: string }) {
   const steps = [
     { key: 'select', label: 'Escolher' },
     { key: 'slots', label: 'Horário' },
@@ -124,7 +125,7 @@ function StepIndicator({ current, primary }: { current: 'select' | 'slots' | 'fo
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-all"
                   style={{
                     backgroundColor: isDone || isActive ? primary : 'transparent',
-                    color: isDone || isActive ? '#fff' : `${primary}80`,
+                    color: isDone || isActive ? onPrimary : `${primary}80`,
                     border: `2px solid ${isDone || isActive ? primary : `${primary}30`}`,
                   }}>
                   {isDone ? (
@@ -133,7 +134,7 @@ function StepIndicator({ current, primary }: { current: 'select' | 'slots' | 'fo
                 </div>
                 {i < steps.length - 1 && <div className="flex-1 h-0.5 transition-colors" style={{ backgroundColor: isDone ? primary : `${primary}25` }} />}
               </div>
-              <span className="text-[11px] mt-1.5 font-medium" style={{ color: isActive ? primary : `${primary}60` }}>{s.label}</span>
+              <span className="text-[11px] mt-1.5 font-medium" style={{ color: isActive ? accent : `${primary}60` }}>{s.label}</span>
             </div>
           </div>
         );
@@ -142,7 +143,26 @@ function StepIndicator({ current, primary }: { current: 'select' | 'slots' | 'fo
   );
 }
 
-export default function BookingClient({ business, customization, workingHours }: { business: Business; customization?: Customization | null; workingHours?: WorkingHour[] }) {
+export default function BookingClient({ business, customization, workingHours, preview = false }: { business: Business; customization?: Customization | null; workingHours?: WorkingHour[]; preview?: boolean }) {
+  // Modo pré-visualização: quando embutida num iframe do editor, a página aceita
+  // um override ao vivo da personalização (não salva) via postMessage same-origin.
+  const [override, setOverride] = useState<Customization | null>(null);
+  const [overrideLogo, setOverrideLogo] = useState<string | null>(null);
+  useEffect(() => {
+    if (!preview) return;
+    function onMsg(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return;
+      const d = e.data;
+      if (d && d.type === 'agender:preview' && d.payload) {
+        setOverride(d.payload.customization ?? null);
+        setOverrideLogo(typeof d.payload.logoUrl === 'string' ? d.payload.logoUrl : null);
+      }
+    }
+    window.addEventListener('message', onMsg);
+    try { window.parent?.postMessage({ type: 'agender:preview-ready' }, window.location.origin); } catch { /* noop */ }
+    return () => window.removeEventListener('message', onMsg);
+  }, [preview]);
+
   const [step, setStep] = useState<Step>('home');
   const [prevStep, setPrevStep] = useState<Step>('home');
   const [selectedProf, setSelectedProf] = useState<Professional | null>(null);
@@ -198,7 +218,7 @@ export default function BookingClient({ business, customization, workingHours }:
   }
 
   async function startPixPayment() {
-    if (!appointmentId) return;
+    if (preview || !appointmentId) return;
     setPayLoading(true); setPayError('');
     try {
       const res = await fetch(`${API_URL}/public/v1/${business.slug}/appointments/${appointmentId}/pay`, {
@@ -247,31 +267,38 @@ export default function BookingClient({ business, customization, workingHours }:
     }).catch(() => {});
   }
 
-  const c = customization?.theme?.colors;
+  const cust = override ?? customization;
+  const c = cust?.theme?.colors;
   const bg = c?.background || '#f9fafb';
   const text = c?.text || '#1c1917';
   const surface = c?.surface || '#ffffff';
   const primary = c?.primary || '#0d9488';
-  const radius = btnRadius(customization?.theme?.buttonStyle);
-  const layout = customization?.theme?.layout || 'list';
-  const socials = customization?.socials;
-  const links = customization?.links;
-  const coverUrl = business.coverUrl || customization?.theme?.coverUrl;
-  const logoUrl = business.logoUrl || customization?.theme?.logoUrl;
-  const headline = customization?.headline || business.name;
-  const about = customization?.about;
-  const address = customization?.address;
-  const gallery = customization?.gallery;
-  const showHours = customization?.showHours;
+  // Cores derivadas legíveis (AA), qualquer que seja a paleta escolhida:
+  // onPrimary = texto sobre preenchimento primário; accent = primário como
+  // texto/ícone sobre superfície/fundo claro (mantém o tom quando já passa).
+  const onPrimary = onColor(primary);
+  const accent = readableText(primary, surface);
+  const accentOnBg = readableText(primary, bg);
+  const radius = btnRadius(cust?.theme?.buttonStyle);
+  const layout = cust?.theme?.layout || 'list';
+  const socials = cust?.socials;
+  const links = cust?.links;
+  const coverUrl = business.coverUrl || cust?.theme?.coverUrl;
+  const logoUrl = (overrideLogo ?? business.logoUrl) || cust?.theme?.logoUrl;
+  const headline = cust?.headline || business.name;
+  const about = cust?.about;
+  const address = cust?.address;
+  const gallery = cust?.gallery;
+  const showHours = cust?.showHours;
   const hasAddress = address && Object.values(address).some(Boolean);
   const hasSocials = socials && Object.values(socials).some(Boolean);
   const hasLinks = links && links.length > 0 && links.some((l) => l.label);
   const hoursByDay = (workingHours || []).reduce<Record<number, WorkingHour[]>>((acc, wh) => { (acc[wh.weekday] ??= []).push(wh); return acc; }, {});
   const openStatus = workingHours && workingHours.length > 0 ? getOpenStatus(workingHours, business.timezone) : null;
-  const bgTheme = customization?.theme?.background;
-  const overlayOpacity = customization?.theme?.overlayOpacity;
-  const backgroundEffect = customization?.theme?.backgroundEffect || 'none';
-  const containerStyle = customization?.theme?.containerStyle || 'solid';
+  const bgTheme = cust?.theme?.background;
+  const overlayOpacity = cust?.theme?.overlayOpacity;
+  const backgroundEffect = cust?.theme?.backgroundEffect || 'none';
+  const containerStyle = cust?.theme?.containerStyle || 'solid';
 
   // Totais do agendamento (cupom aplicado) e cobrança online esperada.
   const appliedDiscount = couponStatus?.valid ? couponStatus.discountAmount ?? 0 : 0;
@@ -352,6 +379,7 @@ export default function BookingClient({ business, customization, workingHours }:
 
   async function handleBook(e: React.FormEvent) {
     e.preventDefault();
+    if (preview) { setError('Pré-visualização: o agendamento fica desativado aqui.'); return; }
     if (!selectedProf || !selectedService || !selectedSlot) return;
     const phone = clientForm.phone.replace(/\D/g, '');
     if (phone.length < 10) { setError('Telefone deve ter pelo menos 10 dígitos'); return; }
@@ -450,7 +478,7 @@ export default function BookingClient({ business, customization, workingHours }:
           {logoUrl ? (
             <img src={logoUrl} alt={business.name} className="w-24 h-24 rounded-full object-cover border-4 shadow-md" style={{ borderColor: surface }} />
           ) : (
-            <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 shadow-md" style={{ backgroundColor: primary, borderColor: surface }}>
+            <div className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold border-4 shadow-md" style={{ backgroundColor: primary, color: onPrimary, borderColor: surface }}>
               {headline[0]?.toUpperCase() || 'N'}
             </div>
           )}
@@ -664,8 +692,8 @@ export default function BookingClient({ business, customization, workingHours }:
         {/* HOME */}
         {step === 'home' && (
           <div className="w-full max-w-md space-y-3 step-animate">
-            {customization?.welcomeMsg && (
-              <p className="text-center text-xs px-4 py-2 rounded-full mb-1 stagger-item" style={{ backgroundColor: `${primary}15`, color: primary }}>{customization.welcomeMsg}</p>
+            {cust?.welcomeMsg && (
+              <p className="text-center text-xs px-4 py-2 rounded-full mb-1 stagger-item" style={{ backgroundColor: `${primary}15`, color: accentOnBg }}>{cust.welcomeMsg}</p>
             )}
             {business.acceptingBookings === false ? (
               <div className="text-center py-4 px-4 rounded-lg stagger-item" style={{ backgroundColor: `${text}06`, border: `1px solid ${text}12`, borderRadius: radius }}>
@@ -673,7 +701,7 @@ export default function BookingClient({ business, customization, workingHours }:
                 <p className="text-xs mt-1" style={{ opacity: 0.5 }}>Este negócio não está aceitando novos agendamentos no momento.</p>
               </div>
             ) : (
-              <button onClick={() => navigate('select')} className="w-full py-3.5 text-sm font-semibold text-white shadow-sm cta-btn stagger-item" style={{ backgroundColor: primary, borderRadius: radius, ['--pub-primary-glow' as string]: `${primary}50` }}>
+              <button onClick={() => navigate('select')} className="w-full py-3.5 text-sm font-semibold shadow-sm cta-btn stagger-item" style={{ backgroundColor: primary, color: onPrimary, borderRadius: radius, ['--pub-primary-glow' as string]: `${primary}50` }}>
                 Agendar horário
               </button>
             )}
@@ -707,7 +735,7 @@ export default function BookingClient({ business, customization, workingHours }:
                           <span className="text-sm font-medium block truncate" style={{ color: text }}>{s.name}</span>
                           <span className="text-xs" style={{ opacity: 0.5 }}>{s.durationMin} min</span>
                         </span>
-                        <span className="text-sm font-semibold shrink-0 tabular-nums" style={{ color: primary, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(s.price)}</span>
+                        <span className="text-sm font-semibold shrink-0 tabular-nums" style={{ color: accent, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(s.price)}</span>
                       </button>
                     ))}
                   </div>
@@ -733,7 +761,7 @@ export default function BookingClient({ business, customization, workingHours }:
               const linkStyles: React.CSSProperties = linkStyle === 'outline'
                 ? { backgroundColor: 'transparent', borderColor: `${text}30`, color: text, borderWidth: '2px' }
                 : linkStyle === 'soft'
-                ? { backgroundColor: `${primary}12`, borderColor: 'transparent', color: primary }
+                ? { backgroundColor: `${primary}12`, borderColor: 'transparent', color: accentOnBg }
                 : linkStyle === 'glass'
                 ? { backgroundColor: `${surface}80`, borderColor: `${surface}40`, color: text, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', boxShadow: `0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 ${surface}60` }
                 : { backgroundColor: surface, borderColor: `${text}15`, color: text };
@@ -784,7 +812,7 @@ export default function BookingClient({ business, customization, workingHours }:
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
               Voltar
             </button>
-            <StepIndicator current="select" primary={primary} />
+            <StepIndicator current="select" primary={primary} onPrimary={onPrimary} accent={accent} />
 
             {business.professionals.length === 0 ? (
               <p className="text-center py-12 text-sm" style={{ opacity: 0.5 }}>Nenhum profissional disponível no momento.</p>
@@ -803,7 +831,7 @@ export default function BookingClient({ business, customization, workingHours }:
                             {p.avatarUrl ? (
                               <img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover" />
                             ) : (
-                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: primary }}>{p.name[0]?.toUpperCase()}</div>
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold" style={{ backgroundColor: primary, color: onPrimary }}>{p.name[0]?.toUpperCase()}</div>
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm">{p.name}</p>
@@ -833,7 +861,7 @@ export default function BookingClient({ business, customization, workingHours }:
                             <p className="font-medium text-sm">{s.name}</p>
                             <p className="text-xs mt-0.5" style={{ opacity: 0.5 }}>{s.durationMin} min</p>
                           </div>
-                          <span className="text-sm font-semibold tabular-nums" style={{ color: primary, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(s.price)}</span>
+                          <span className="text-sm font-semibold tabular-nums" style={{ color: accent, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(s.price)}</span>
                         </button>
                       ))}
                     </div>
@@ -851,7 +879,7 @@ export default function BookingClient({ business, customization, workingHours }:
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
               Voltar
             </button>
-            <StepIndicator current="slots" primary={primary} />
+            <StepIndicator current="slots" primary={primary} onPrimary={onPrimary} accent={accent} />
 
             <div className="border p-5" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
               <div className="mb-4">
@@ -866,7 +894,7 @@ export default function BookingClient({ business, customization, workingHours }:
                     className="flex flex-col items-center min-w-[52px] py-2 px-1.5 rounded-lg text-xs transition-all shrink-0"
                     style={{
                       backgroundColor: selectedDate === d.date ? primary : `${text}06`,
-                      color: selectedDate === d.date ? '#fff' : text,
+                      color: selectedDate === d.date ? onPrimary : text,
                       border: `1px solid ${selectedDate === d.date ? primary : `${text}10`}`,
                     }}>
                     <span className="font-medium" style={{ opacity: selectedDate === d.date ? 1 : 0.5 }}>{d.dayName}</span>
@@ -906,11 +934,11 @@ export default function BookingClient({ business, customization, workingHours }:
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5m7-7-7 7 7 7" /></svg>
               Voltar
             </button>
-            <StepIndicator current="form" primary={primary} />
+            <StepIndicator current="form" primary={primary} onPrimary={onPrimary} accent={accent} />
 
             {/* Booking summary card */}
             <div className="p-4 rounded-lg" style={{ backgroundColor: `${primary}08`, border: `1px solid ${primary}20` }}>
-              <p className="text-xs font-medium mb-2" style={{ color: primary }}>Resumo do agendamento</p>
+              <p className="text-xs font-medium mb-2" style={{ color: accent }}>Resumo do agendamento</p>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span style={{ opacity: 0.7 }}>Serviço</span>
@@ -938,11 +966,11 @@ export default function BookingClient({ business, customization, workingHours }:
                 )}
                 <div className="flex justify-between pt-1 mt-1" style={{ borderTop: `1px solid ${primary}15` }}>
                   <span className="font-semibold">Total</span>
-                  <span className="font-semibold" style={{ color: primary }}>{formatCurrency(bookingTotal)}</span>
+                  <span className="font-semibold" style={{ color: accent }}>{formatCurrency(bookingTotal)}</span>
                 </div>
               </div>
               {paymentPolicy !== 'none' && expectedCharge > 0 && (
-                <p className="text-xs mt-3 px-3 py-2 rounded-lg flex items-start gap-1.5" style={{ backgroundColor: `${primary}12`, color: primary }}>
+                <p className="text-xs mt-3 px-3 py-2 rounded-lg flex items-start gap-1.5" style={{ backgroundColor: `${primary}12`, color: accent }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5"><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>
                   <span>
                     {paymentPolicy === 'full'
@@ -1000,8 +1028,8 @@ export default function BookingClient({ business, customization, workingHours }:
                 </label>
                 {error && <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{error}</p>}
                 <button type="submit" disabled={booking}
-                  className="w-full h-12 font-semibold text-sm text-white disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ backgroundColor: primary, borderRadius: radius }}>
+                  className="w-full h-12 font-semibold text-sm disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ backgroundColor: primary, color: onPrimary, borderRadius: radius }}>
                   {booking ? 'Agendando...' : 'Confirmar agendamento'}
                 </button>
               </form>
@@ -1014,14 +1042,14 @@ export default function BookingClient({ business, customization, workingHours }:
           <div className="w-full max-w-md space-y-4 step-animate">
             <div className="border p-6" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
               <div className="text-center mb-5">
-                <p className="text-xs font-medium" style={{ color: primary }}>Falta pouco</p>
+                <p className="text-xs font-medium" style={{ color: accent }}>Falta pouco</p>
                 <h2 className="text-lg font-bold mt-1">
                   {paymentPolicy === 'deposit' ? 'Pague o sinal para confirmar' : 'Pague para confirmar'}
                 </h2>
                 <p className="text-sm mt-1" style={{ opacity: 0.6 }}>
                   Seu horário fica reservado enquanto o pagamento não expira.
                 </p>
-                <p className="text-2xl font-bold mt-1 tabular-nums" style={{ color: primary, fontVariantNumeric: 'tabular-nums' }}>
+                <p className="text-2xl font-bold mt-1 tabular-nums" style={{ color: accent, fontVariantNumeric: 'tabular-nums' }}>
                   {formatCurrency(payDue)}
                 </p>
                 {paymentPolicy === 'deposit' && bookingTotal > payDue && (
@@ -1040,7 +1068,7 @@ export default function BookingClient({ business, customization, workingHours }:
                           className="flex-1 py-2 text-sm font-medium transition-all"
                           style={{
                             backgroundColor: payMethod === m ? surface : 'transparent',
-                            color: payMethod === m ? primary : text,
+                            color: payMethod === m ? accent : text,
                             opacity: payMethod === m ? 1 : 0.55,
                             borderRadius: radius,
                             boxShadow: payMethod === m ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
@@ -1056,8 +1084,8 @@ export default function BookingClient({ business, customization, workingHours }:
                       type="button"
                       onClick={startPixPayment}
                       disabled={payLoading}
-                      className="w-full h-12 font-semibold text-sm text-white disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                      style={{ backgroundColor: primary, borderRadius: radius }}
+                      className="w-full h-12 font-semibold text-sm disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                      style={{ backgroundColor: primary, color: onPrimary, borderRadius: radius }}
                     >
                       {payLoading ? 'Gerando PIX...' : 'Pagar com PIX'}
                     </button>
@@ -1067,7 +1095,7 @@ export default function BookingClient({ business, customization, workingHours }:
                         slug={business.slug}
                         appointmentId={appointmentId}
                         publicKey={business.mpPublicKey}
-                        theme={{ primary, text, surface, radius }}
+                        theme={{ primary, text, surface, radius, onPrimary }}
                         onConfirmed={() => { stopPolling(); navigate('done'); }}
                         onPending={() => { setPayError('Pagamento em análise. Você receberá a confirmação em instantes.'); }}
                       />
@@ -1134,7 +1162,7 @@ export default function BookingClient({ business, customization, workingHours }:
                   <p className="text-sm px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>
                     O pagamento não foi concluído a tempo e a reserva foi liberada.
                   </p>
-                  <button onClick={goHome} className="w-full py-3 text-sm font-medium" style={{ color: primary }}>
+                  <button onClick={goHome} className="w-full py-3 text-sm font-medium" style={{ color: accent }}>
                     Tentar de novo
                   </button>
                 </div>
@@ -1163,7 +1191,7 @@ export default function BookingClient({ business, customization, workingHours }:
           <div className="w-full max-w-md space-y-4 step-animate">
             <div className="border p-8 text-center" style={{ backgroundColor: surface, borderColor: `${text}12`, borderRadius: radius }}>
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 check-animate" style={{ backgroundColor: `${primary}15` }}>
-                <svg width="32" height="32" fill="none" stroke={primary} strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
+                <svg width="32" height="32" fill="none" stroke={accent} strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>
               </div>
               <h2 className="text-xl font-bold mb-2">Agendamento confirmado!</h2>
 
@@ -1171,7 +1199,7 @@ export default function BookingClient({ business, customization, workingHours }:
                 <p className="font-medium">{selectedService?.name}</p>
                 <p>com {selectedProf?.name} · {selectedService?.durationMin} min</p>
                 <p>{selectedSlot && new Date(selectedSlot.startAt).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
-                <p className="font-semibold text-base mt-2" style={{ color: primary }}>{formatCurrency(bookingTotal)}</p>
+                <p className="font-semibold text-base mt-2" style={{ color: accent }}>{formatCurrency(bookingTotal)}</p>
                 {payDue > 0 && (
                   <p className="text-xs" style={{ opacity: 0.6 }}>
                     {payDue >= bookingTotal
@@ -1184,7 +1212,7 @@ export default function BookingClient({ business, customization, workingHours }:
               {hasAddress && (
                 <div className="text-xs mb-4 p-3 rounded-lg" style={{ backgroundColor: `${text}05` }}>
                   <p className="font-medium mb-0.5" style={{ opacity: 0.6 }}>Endereço</p>
-                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer" style={{ color: primary }} className="underline">{addressStr}</a>
+                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer" style={{ color: accent }} className="underline">{addressStr}</a>
                 </div>
               )}
 
@@ -1206,7 +1234,7 @@ export default function BookingClient({ business, customization, workingHours }:
                   </a>
                 )}
 
-                <button onClick={goHome} className="w-full py-3 text-sm font-medium transition-all hover:scale-[1.02]" style={{ color: primary }}>
+                <button onClick={goHome} className="w-full py-3 text-sm font-medium transition-all hover:scale-[1.02]" style={{ color: accent }}>
                   Agendar outro horário
                 </button>
                 <a href={`/${business.slug}/conta`} className="w-full py-1 text-xs font-medium text-center transition-all hover:opacity-80" style={{ opacity: 0.55, color: text }}>

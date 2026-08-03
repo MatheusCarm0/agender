@@ -97,10 +97,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PublicBookingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { slug } = await params;
+  const sp = await searchParams;
+  const preview = sp?.preview === '1';
 
   let business: Business;
   try {
@@ -131,6 +135,7 @@ export default async function PublicBookingPage({
         business={business}
         customization={business.customization}
         workingHours={business.workingHours}
+        preview={preview}
       />
     </div>
   );

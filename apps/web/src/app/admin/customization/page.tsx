@@ -1,10 +1,74 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { getCached } from '@/lib/prefetch-cache';
 import { useToast } from '@/components/toast';
+import { contrastRatio } from '@/lib/color';
+
+// Sincroniza a personalização (não salva) com os iframes de pré-visualização
+// via postMessage same-origin. Cada iframe anuncia "ready" ao montar; nós
+// respondemos com o estado atual e reemitimos a cada alteração.
+function usePreviewBroadcast(payload: unknown) {
+  const payloadRef = useRef(payload);
+  payloadRef.current = payload;
+  const windowsRef = useRef<Set<Window>>(new Set());
+  useEffect(() => {
+    function onMsg(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type === 'agender:preview-ready' && e.source) {
+        const w = e.source as Window;
+        windowsRef.current.add(w);
+        try { w.postMessage({ type: 'agender:preview', payload: payloadRef.current }, window.location.origin); } catch { /* noop */ }
+      }
+    }
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+  useEffect(() => {
+    windowsRef.current.forEach((w) => {
+      try { w.postMessage({ type: 'agender:preview', payload }, window.location.origin); } catch { /* noop */ }
+    });
+  }, [payload]);
+}
+
+// Moldura de celular com a página pública real embutida em modo preview.
+function PhonePreview({ slug, className, style }: { slug: string; className?: string; style?: React.CSSProperties }) {
+  return (
+    <div className={`rounded-[2rem] border-[6px] border-neutral-800 bg-neutral-800 shadow-xl overflow-hidden flex flex-col ${className || ''}`} style={style}>
+      <div className="h-6 bg-neutral-800 flex items-center justify-center shrink-0">
+        <div className="w-20 h-3 bg-neutral-900 rounded-full" />
+      </div>
+      <iframe
+        src={`/${slug}?preview=1`}
+        title="Pré-visualização da página"
+        className="flex-1 w-full bg-white"
+        style={{ border: 'none' }}
+      />
+      <div className="h-5 bg-neutral-800 flex items-center justify-center shrink-0">
+        <div className="w-24 h-1 bg-neutral-600 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+// Leitura de contraste (WCAG) para o card de cores — advisory, não bloqueia.
+function ContrastRow({ label, fg, bg }: { label: string; fg: string; bg: string }) {
+  const ratio = contrastRatio(fg, bg);
+  const ok = ratio >= 4.5;
+  const warn = !ok && ratio >= 3;
+  const color = ok ? 'var(--color-success-fg)' : warn ? 'var(--color-warning-fg)' : 'var(--color-danger-fg)';
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-text-muted">{label}</span>
+      <span className="flex items-center gap-1.5 font-medium" style={{ color }}>
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+        {ratio.toFixed(1)}:1 · {ok ? 'bom' : warn ? 'baixo' : 'ruim'}
+      </span>
+    </div>
+  );
+}
 
 interface Theme {
   palette: 'ocean' | 'sand' | 'forest' | 'mono' | 'sunset' | 'midnight' | 'elegant' | 'custom';
@@ -148,19 +212,6 @@ function fontFamily(font: string): string {
   return map[font] || 'var(--font-inter)';
 }
 
-function bgStyle(bg: Theme['background'], overlayOpacity?: number): React.CSSProperties {
-  if (bg.type === 'gradient' && bg.gradient) {
-    return { background: `linear-gradient(${bg.gradient.direction}, ${bg.gradient.from}, ${bg.gradient.to})` };
-  }
-  if (bg.type === 'image' && bg.value) {
-    return {
-      backgroundImage: `linear-gradient(rgba(0,0,0,${overlayOpacity ?? 0}), rgba(0,0,0,${overlayOpacity ?? 0})), url(${bg.value})`,
-      backgroundSize: 'cover', backgroundPosition: 'center',
-    };
-  }
-  return { backgroundColor: bg.value };
-}
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const inputClass = "w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong placeholder:text-text-subtle focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default";
 
@@ -204,7 +255,10 @@ export default function CustomizationPage() {
   const [activeTab, setActiveTab] = useState<Tab>('appearance');
   const [isDirty, setIsDirty] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [showManualColors, setShowManualColors] = useState(false);
   const savedRef = useRef<string>('');
+  const savedLogoRef = useRef<string>('');
   const [fetchingCep, setFetchingCep] = useState(false);
 
   useEffect(() => {
@@ -215,6 +269,17 @@ export default function CustomizationPage() {
   }, [isDirty]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
+
+  // Estado enviado à pré-visualização ao vivo (mesma forma que o /customization).
+  const previewPayload = useMemo(() => ({
+    customization: {
+      theme: data.theme, headline: data.headline, about: data.about, welcomeMsg: data.welcomeMsg,
+      address: data.address, gallery: data.gallery, showHours: data.showHours,
+      links: data.links, socials: data.socials, faviconUrl: data.faviconUrl,
+    },
+    logoUrl: businessLogoUrl,
+  }), [data, businessLogoUrl]);
+  usePreviewBroadcast(previewPayload);
 
   async function uploadFile(file: File): Promise<string> {
     const formData = new FormData();
@@ -256,9 +321,9 @@ export default function CustomizationPage() {
     setUploadingLogo(true);
     try {
       const fullUrl = await uploadFile(file);
-      await api('/business', { method: 'PATCH', token, body: JSON.stringify({ logoUrl: fullUrl }) });
+      // Agrupado com o resto: persiste no "Salvar", junto da personalização.
       setBusinessLogoUrl(fullUrl);
-      toast('Logo atualizada');
+      markDirty();
     } catch { toast('Erro ao enviar a logo', 'error'); }
     setUploadingLogo(false);
   }
@@ -307,7 +372,8 @@ export default function CustomizationPage() {
         api<WorkingHour[]>('/working-hours', { token: token! }).catch(() => []),
       ]);
       if (result) setData({ ...defaultCustomization(), ...result });
-      if (biz?.logoUrl) setBusinessLogoUrl(biz.logoUrl);
+      setBusinessLogoUrl(biz?.logoUrl || '');
+      savedLogoRef.current = biz?.logoUrl || '';
       if (hours) setWorkingHours(hours);
       savedRef.current = JSON.stringify(result || defaultCustomization());
     } catch { /* keep defaults */ }
@@ -433,6 +499,11 @@ export default function CustomizationPage() {
           links: data.links, socials: data.socials,
         }),
       });
+      // A logo vive no business; persiste junto quando mudou.
+      if (businessLogoUrl !== savedLogoRef.current) {
+        await api('/business', { method: 'PATCH', token, body: JSON.stringify({ logoUrl: businessLogoUrl }) });
+        savedLogoRef.current = businessLogoUrl;
+      }
       toast('Personalização salva');
       setIsDirty(false);
       savedRef.current = JSON.stringify(data);
@@ -466,7 +537,6 @@ export default function CustomizationPage() {
   }
 
   const { theme } = data;
-  const hasAddress = data.address && Object.values(data.address).some(Boolean);
   const hoursByDay = workingHours.reduce<Record<number, WorkingHour[]>>((acc, wh) => {
     (acc[wh.weekday] ??= []).push(wh);
     return acc;
@@ -550,7 +620,8 @@ export default function CustomizationPage() {
               </SectionCard>
 
               {/* PALETA */}
-              <SectionCard title="Paleta de cores">
+              {/* CORES — paletas prontas + contraste + ajuste manual */}
+              <SectionCard title="Cores">
                 <div className="space-y-4">
                   {Object.entries(PALETTE_CATEGORIES).map(([category, palettes]) => (
                     <div key={category}>
@@ -576,22 +647,35 @@ export default function CustomizationPage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </SectionCard>
 
-              {/* CORES - sempre visível com botão de ajuste */}
-              <SectionCard title="Ajustar cores">
-                <p className="text-xs text-text-muted mb-3">Ajuste as cores individualmente. Ao alterar, a paleta muda para "Personalizado".</p>
-                <div className="grid grid-cols-2 gap-4">
-                  {([['background', 'Fundo'], ['surface', 'Superfície'], ['primary', 'Primária'], ['text', 'Texto']] as [keyof Theme['colors'], string][]).map(([key, label]) => (
-                    <div key={key}>
-                      <label className="block text-xs font-medium text-text-muted mb-1">{label}</label>
-                      <div className="flex items-center gap-2">
-                        <input type="color" value={theme.colors[key]} onChange={(e) => updateColor(key, e.target.value)} className="w-9 h-9 p-0.5 border border-border-strong rounded-[var(--radius-sm)] cursor-pointer" />
-                        <input type="text" value={theme.colors[key]} onChange={(e) => updateColor(key, e.target.value)} className="flex-1 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default" />
+                  {/* Leitura de contraste — guia, não bloqueia (a página curada já é validada ao salvar) */}
+                  <div className="pt-3 border-t border-border-default space-y-1.5">
+                    <ContrastRow label="Texto sobre o fundo" fg={theme.colors.text} bg={theme.colors.background} />
+                    <ContrastRow label="Texto sobre a superfície" fg={theme.colors.text} bg={theme.colors.surface} />
+                  </div>
+
+                  {/* Ajuste manual (avançado) */}
+                  <div className="pt-1">
+                    <button type="button" onClick={() => setShowManualColors((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-text-default">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${showManualColors ? 'rotate-90' : ''}`}><path d="M9 18l6-6-6-6" /></svg>
+                      Ajustar cores manualmente
+                    </button>
+                    {showManualColors && (
+                      <div className="grid grid-cols-2 gap-4 mt-3">
+                        {([['background', 'Fundo'], ['surface', 'Superfície'], ['primary', 'Primária'], ['text', 'Texto']] as [keyof Theme['colors'], string][]).map(([key, label]) => (
+                          <div key={key}>
+                            <label className="block text-xs font-medium text-text-muted mb-1">{label}</label>
+                            <div className="flex items-center gap-2">
+                              <input type="color" value={theme.colors[key]} onChange={(e) => updateColor(key, e.target.value)} className="w-9 h-9 p-0.5 border border-border-strong rounded-[var(--radius-sm)] cursor-pointer" />
+                              <input type="text" value={theme.colors[key]} onChange={(e) => updateColor(key, e.target.value)} className="flex-1 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default" />
+                            </div>
+                          </div>
+                        ))}
+                        <p className="col-span-2 text-[11px] text-text-subtle">Ao alterar, a paleta muda para &quot;Personalizado&quot;.</p>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
               </SectionCard>
 
@@ -702,8 +786,9 @@ export default function CustomizationPage() {
               </SectionCard>
 
               {/* ESTILO DE BOTÃO + LAYOUT */}
-              <SectionCard title="Botão e layout">
-                <div className="space-y-4">
+              {/* ESTILO & EFEITOS — botão, layout, efeito de fundo e container num só lugar */}
+              <SectionCard title="Estilo e efeitos">
+                <div className="space-y-5">
                   <div>
                     <label className="block text-xs font-medium text-text-muted mb-2">Estilo de botão</label>
                     <div className="flex gap-2">
@@ -723,12 +808,6 @@ export default function CustomizationPage() {
                       ))}
                     </div>
                   </div>
-                </div>
-              </SectionCard>
-
-              {/* EFEITOS */}
-              <SectionCard title="Efeitos visuais">
-                <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-text-muted mb-2">Efeito de fundo</label>
                     <p className="text-[11px] text-text-subtle mb-2">Adiciona uma textura sutil sobre o fundo da página.</p>
@@ -762,28 +841,6 @@ export default function CustomizationPage() {
                 </div>
               </SectionCard>
 
-              {/* FAVICON */}
-              <SectionCard title="Favicon">
-                <p className="text-xs text-text-muted mb-3">O ícone que aparece na aba do navegador. Use uma imagem quadrada (idealmente 64×64 ou maior).</p>
-                <div className="flex items-center gap-4">
-                  {data.faviconUrl ? (
-                    <div className="relative">
-                      <img src={data.faviconUrl} alt="Favicon" className="w-12 h-12 object-contain rounded-[var(--radius-sm)] border border-border-default bg-surface-subtle p-1" />
-                      {canEdit && <button type="button" onClick={() => { setData((prev) => ({ ...prev, faviconUrl: '' })); markDirty(); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-danger-bg text-danger-fg rounded-full text-xs border border-border-default">×</button>}
-                    </div>
-                  ) : (
-                    <label className="flex items-center justify-center w-12 h-12 border-2 border-dashed border-border-strong rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-subtle transition-colors">
-                      {uploadingFavicon ? (
-                        <div className="w-4 h-4 border-2 border-primary-default border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-subtle"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-                      )}
-                      <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/x-icon" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFaviconUpload(f); }} />
-                    </label>
-                  )}
-                  <p className="text-[11px] text-text-subtle">PNG, JPG, SVG ou ICO.</p>
-                </div>
-              </SectionCard>
             </>
           )}
 
@@ -809,7 +866,7 @@ export default function CustomizationPage() {
                         </label>
                       )}
                     </div>
-                    <p className="text-[11px] text-text-subtle mt-1.5">Aparece na página de agendamento e no painel. Salva na hora.</p>
+                    <p className="text-[11px] text-text-subtle mt-1.5">Aparece na página de agendamento e no painel.</p>
                   </div>
                   <div>
                     <label htmlFor="cust-headline" className="block text-xs font-medium text-text-muted mb-1">Título da página</label>
@@ -824,6 +881,28 @@ export default function CustomizationPage() {
                     <input id="cust-welcome" value={data.welcomeMsg ?? ''} onChange={(e) => { setData((prev) => ({ ...prev, welcomeMsg: e.target.value })); markDirty(); }} placeholder="Ex.: Agende online e ganhe 10% no primeiro corte!" className={inputClass} />
                     <p className="text-[11px] text-text-subtle mt-1">Aparece acima do botão de agendar na página pública.</p>
                   </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Favicon">
+                <p className="text-xs text-text-muted mb-3">O ícone que aparece na aba do navegador. Use uma imagem quadrada (idealmente 64×64 ou maior).</p>
+                <div className="flex items-center gap-4">
+                  {data.faviconUrl ? (
+                    <div className="relative">
+                      <img src={data.faviconUrl} alt="Favicon" className="w-12 h-12 object-contain rounded-[var(--radius-sm)] border border-border-default bg-surface-subtle p-1" />
+                      {canEdit && <button type="button" onClick={() => { setData((prev) => ({ ...prev, faviconUrl: '' })); markDirty(); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-danger-bg text-danger-fg rounded-full text-xs border border-border-default">×</button>}
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center w-12 h-12 border-2 border-dashed border-border-strong rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-subtle transition-colors">
+                      {uploadingFavicon ? (
+                        <div className="w-4 h-4 border-2 border-primary-default border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-subtle"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                      )}
+                      <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/x-icon" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFaviconUpload(f); }} />
+                    </label>
+                  )}
+                  <p className="text-[11px] text-text-subtle">PNG, JPG, SVG ou ICO.</p>
                 </div>
               </SectionCard>
 
@@ -1046,10 +1125,10 @@ export default function CustomizationPage() {
 
         </div>
 
-      {/* ======================== PREVIEW — painel fixo no viewport ======================== */}
+      {/* ======================== PREVIEW ao vivo — iframe da página real ======================== */}
       <div className="hidden lg:flex fixed right-6 flex-col" style={{ top: 'calc(3.5rem + 0.75rem)', height: 'calc(100vh - 3.5rem - 1.5rem)', width: '380px' }}>
         <div className="flex items-center justify-between px-1 pb-2 shrink-0">
-          <h2 className="text-xs font-medium text-text-muted">Pré-visualização</h2>
+          <h2 className="text-xs font-medium text-text-muted">Pré-visualização ao vivo</h2>
           {businessSlug && (
             <a href={`/${businessSlug}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-default hover:text-primary-hover flex items-center gap-1">
               Abrir em nova aba
@@ -1057,135 +1136,47 @@ export default function CustomizationPage() {
             </a>
           )}
         </div>
-            {/* Phone frame */}
-            <div className="flex-1 min-h-0 rounded-[2rem] border-[6px] border-neutral-800 bg-neutral-800 shadow-xl overflow-hidden flex flex-col">
-              {/* Notch bar */}
-              <div className="h-6 bg-neutral-800 flex items-center justify-center shrink-0">
-                <div className="w-20 h-3 bg-neutral-900 rounded-full" />
-              </div>
-              {/* Screen content */}
-              <div
-                className={`flex-1 overflow-y-auto overflow-x-hidden ${theme.backgroundEffect === 'animated-gradient' && theme.background.type === 'gradient' ? 'pv-fx-animated-gradient' : ''}`}
-                style={{
-                  ...bgStyle(theme.background, theme.overlayOpacity),
-                  color: theme.colors.text,
-                  fontFamily: fontFamily(theme.font),
-                }}
-              >
-                {/* Efeitos e container — espelham as classes da página pública */}
-                <style>{`
-                  .pv-fx-dots { background-image: radial-gradient(circle, ${theme.colors.primary}18 1px, transparent 1px); background-size: 24px 24px; }
-                  .pv-fx-grid { background-image: linear-gradient(${theme.colors.text}08 1px, transparent 1px), linear-gradient(90deg, ${theme.colors.text}08 1px, transparent 1px); background-size: 40px 40px; }
-                  .pv-fx-noise { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); background-size: 256px 256px; }
-                  @keyframes pvMesh { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-                  .pv-fx-animated-gradient { background-size: 400% 400% !important; animation: pvMesh 12s ease infinite; }
-                  .pv-container-glass { background: ${theme.colors.surface}cc; backdrop-filter: blur(20px) saturate(1.4); border: 1px solid ${theme.colors.surface}40; border-radius: 16px; margin: 0 10px; }
-                  .pv-container-frosted { background: ${theme.colors.surface}99; backdrop-filter: blur(40px) saturate(1.6); border: 1px solid ${theme.colors.surface}30; border-radius: 20px; margin: 0 10px; }
-                  @media (prefers-reduced-motion: reduce) { .pv-fx-animated-gradient { animation: none; } }
-                `}</style>
-                <div className={`min-h-full flex flex-col ${
-                  theme.backgroundEffect === 'dots' ? 'pv-fx-dots'
-                  : theme.backgroundEffect === 'grid' ? 'pv-fx-grid'
-                  : theme.backgroundEffect === 'noise' ? 'pv-fx-noise'
-                  : ''
-                }`}>
-                {theme.coverUrl && theme.background.type !== 'image' && (
-                  <div className="w-full h-24 bg-cover bg-center shrink-0" style={{ backgroundImage: `url(${theme.coverUrl})` }} />
-                )}
-                <div className={`px-5 py-6 flex flex-col items-center text-center ${theme.coverUrl && theme.background.type !== 'image' ? '-mt-8' : ''} ${
-                  theme.containerStyle === 'glass' ? 'pv-container-glass' : theme.containerStyle === 'frosted' ? 'pv-container-frosted' : ''
-                }`}>
-                  {businessLogoUrl ? (
-                    <img src={businessLogoUrl} alt="Logo" className="w-14 h-14 rounded-full mb-3 object-cover border-2" style={{ borderColor: theme.colors.surface }} />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full mb-3 flex items-center justify-center text-white text-lg font-semibold" style={{ backgroundColor: theme.colors.primary }}>
-                      {(data.headline || businessName || 'N')[0].toUpperCase()}
-                    </div>
-                  )}
-                  <h3 className="text-base font-semibold mb-0.5" style={{ color: theme.colors.text }}>
-                    {data.headline || businessName || 'Seu negócio'}
-                  </h3>
-                  {data.about && (
-                    <p className="text-xs mb-2.5 opacity-70 leading-relaxed" style={{ color: theme.colors.text }}>{data.about}</p>
-                  )}
+        {businessSlug ? (
+          <PhonePreview slug={businessSlug} className="flex-1 min-h-0" />
+        ) : (
+          <div className="flex-1 rounded-[2rem] border-[6px] border-neutral-800 bg-surface-subtle flex items-center justify-center text-center px-6">
+            <p className="text-xs text-text-muted">Defina o link da sua página para ver a pré-visualização.</p>
+          </div>
+        )}
+      </div>
 
-                  {(data.socials.instagram || data.socials.whatsapp || data.socials.facebook || data.socials.tiktok) && (
-                    <div className="flex gap-2 mb-3">
-                      {data.socials.instagram && <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${theme.colors.text}10`, color: theme.colors.text, opacity: 0.7 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></span>}
-                      {data.socials.whatsapp && <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${theme.colors.text}10`, color: theme.colors.text, opacity: 0.7 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></span>}
-                      {data.socials.facebook && <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${theme.colors.text}10`, color: theme.colors.text, opacity: 0.7 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></span>}
-                      {data.socials.tiktok && <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${theme.colors.text}10`, color: theme.colors.text, opacity: 0.7 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg></span>}
-                    </div>
-                  )}
+      {/* Botão flutuante de prévia no mobile (o painel fixo só existe no desktop) */}
+      {businessSlug && (
+        <button type="button" onClick={() => setMobilePreviewOpen(true)}
+          className={`lg:hidden fixed right-4 z-30 h-12 pl-4 pr-5 flex items-center gap-2 rounded-[var(--radius-pill)] bg-primary-default text-primary-fg text-sm font-medium shadow-[var(--shadow-elevation-2)] active:bg-primary-active transition-[bottom] ${isDirty ? 'bottom-[4.75rem]' : 'bottom-5'}`}
+          aria-label="Ver pré-visualização da página">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M12 18h.01" /></svg>
+          Ver prévia
+        </button>
+      )}
 
-                  {data.welcomeMsg && (
-                    <p className="text-[10px] mb-3 px-3 py-1.5 rounded-full" style={{ backgroundColor: `${theme.colors.primary}15`, color: theme.colors.primary }}>
-                      {data.welcomeMsg}
-                    </p>
-                  )}
-
-                  <button type="button" className="w-full py-2.5 px-4 text-xs font-semibold text-white shadow-sm" style={{ backgroundColor: theme.colors.primary, borderRadius: buttonRadius(theme.buttonStyle) }}>
-                    Agendar horário
-                  </button>
-
-                  {data.links.length > 0 && (
-                    <div className="w-full space-y-1.5 mt-2">
-                      {data.links.filter((l) => l.label || l.type === 'divider' || l.type === 'spacer').map((link, i) => {
-                        const bt = link.type || 'link';
-                        if (bt === 'heading') return <p key={i} className="text-xs font-bold pt-2 pb-0.5" style={{ color: theme.colors.text }}>{link.label}</p>;
-                        if (bt === 'divider') return <div key={i} className="py-0.5"><div style={{ borderTop: `1px solid ${theme.colors.text}20` }} /></div>;
-                        if (bt === 'text') return <p key={i} className="text-[10px]" style={{ color: theme.colors.text, opacity: 0.7 }}>{link.label}</p>;
-                        if (bt === 'spacer') return <div key={i} className="h-2" />;
-                        const ls = link.style || 'fill';
-                        const previewStyle: React.CSSProperties = ls === 'outline'
-                          ? { backgroundColor: 'transparent', borderColor: `${theme.colors.text}30`, color: theme.colors.text, borderWidth: '2px' }
-                          : ls === 'soft'
-                          ? { backgroundColor: `${theme.colors.primary}12`, borderColor: 'transparent', color: theme.colors.primary }
-                          : ls === 'glass'
-                          ? { backgroundColor: `${theme.colors.surface}80`, borderColor: `${theme.colors.surface}40`, color: theme.colors.text }
-                          : { backgroundColor: theme.colors.surface, borderColor: theme.colors.text + '15', color: theme.colors.text };
-                        return (
-                          <div key={i} className="w-full py-2.5 px-3 text-xs font-medium border flex items-center gap-2" style={{ ...previewStyle, borderRadius: buttonRadius(theme.buttonStyle), borderStyle: 'solid' }}>
-                            {link.icon && <span className="text-sm">{link.icon}</span>}
-                            <span className="flex-1 text-center">{link.label}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {data.gallery && data.gallery.length > 0 && (
-                    <div className="w-full mt-3 grid grid-cols-3 gap-1 rounded-md overflow-hidden">
-                      {data.gallery!.slice(0, 6).map((url, i) => (
-                        <div key={i} className="aspect-square"><img src={url} alt="" className="w-full h-full object-cover" /></div>
-                      ))}
-                    </div>
-                  )}
-
-                  {hasAddress && (
-                    <div className="w-full mt-3 text-[10px] opacity-60 flex items-start gap-1">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                      <span>{[data.address?.street, [data.address?.city, data.address?.state].filter(Boolean).join(' - '), data.address?.zip].filter(Boolean).join(', ')}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Preview footer */}
-                <div className="mt-auto py-3 text-center" style={{ borderTop: `1px solid ${theme.colors.text}08` }}>
-                  <p className="text-[9px]" style={{ opacity: 0.3 }}>Crie sua página com Agender</p>
-                </div>
-                </div>
-              </div>
-              {/* Home indicator */}
-              <div className="h-5 bg-neutral-800 flex items-center justify-center shrink-0">
-                <div className="w-24 h-1 bg-neutral-600 rounded-full" />
+      {/* Sheet de prévia no mobile — mesmo iframe da página real, em tela cheia */}
+      {mobilePreviewOpen && businessSlug && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-black/45" onClick={() => setMobilePreviewOpen(false)}>
+          <div className="mt-auto bg-surface-app rounded-t-[var(--radius-lg)] p-4 h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <h2 className="text-sm font-semibold text-text-strong">Pré-visualização ao vivo</h2>
+              <div className="flex items-center gap-3">
+                <a href={`/${businessSlug}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-default hover:text-primary-hover">Abrir</a>
+                <button type="button" onClick={() => setMobilePreviewOpen(false)} aria-label="Fechar pré-visualização"
+                  className="w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] text-text-muted hover:bg-surface-subtle">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
               </div>
             </div>
+            <PhonePreview slug={businessSlug} className="flex-1 min-h-0 w-full max-w-[400px] mx-auto" />
           </div>
+        </div>
+      )}
         </div>
 
     {canEdit && isDirty && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-surface-card border-t border-border-default shadow-[var(--shadow-elevation-2)]">
+        <div className="fixed bottom-0 left-0 right-0 lg:right-[404px] z-40 bg-surface-card border-t border-border-default shadow-[var(--shadow-elevation-2)]">
           <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
             <span className="text-sm text-text-muted">Você tem alterações não salvas</span>
             <div className="flex items-center gap-3">

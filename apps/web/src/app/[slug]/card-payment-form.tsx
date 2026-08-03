@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const MP_SDK_SRC = 'https://sdk.mercadopago.com/js/v2';
 
-interface Theme { primary: string; text: string; surface: string; radius: string }
+interface Theme { primary: string; text: string; surface: string; radius: string; onPrimary?: string }
 
 // Carrega o SDK do Mercado Pago uma única vez (checkout transparente: os dados
 // do cartão vivem em iframes do MP; o número nunca passa pelo nosso frontend).
@@ -152,8 +152,8 @@ export default function CardPaymentForm({
       {error && <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{error}</p>}
 
       <button type="button" onClick={handlePay} disabled={!ready || processing}
-        className="w-full h-12 font-semibold text-sm text-white disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
-        style={{ backgroundColor: theme.primary, borderRadius: theme.radius }}>
+        className="w-full h-12 font-semibold text-sm disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        style={{ backgroundColor: theme.primary, color: theme.onPrimary || '#ffffff', borderRadius: theme.radius }}>
         {processing ? 'Processando...' : ready ? 'Pagar com cartão' : 'Carregando...'}
       </button>
       <p className="text-[10px] text-center" style={{ opacity: 0.4 }}>
