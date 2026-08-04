@@ -288,7 +288,6 @@ export default function BookingClient({ business, customization, workingHours, p
   const cardRad = cust?.theme?.buttonStyle === 'square' ? '6px' : cust?.theme?.buttonStyle === 'pill' ? '18px' : '14px';
   const layout = cust?.theme?.layout || 'list';
   const socials = cust?.socials;
-  const links = cust?.links;
   const coverUrl = business.coverUrl || cust?.theme?.coverUrl;
   const logoUrl = (overrideLogo ?? business.logoUrl) || cust?.theme?.logoUrl;
   const headline = cust?.headline || business.name;
@@ -298,7 +297,6 @@ export default function BookingClient({ business, customization, workingHours, p
   const showHours = cust?.showHours;
   const hasAddress = address && Object.values(address).some(Boolean);
   const hasSocials = socials && Object.values(socials).some(Boolean);
-  const hasLinks = links && links.length > 0 && links.some((l) => l.label);
   const hoursByDay = (workingHours || []).reduce<Record<number, WorkingHour[]>>((acc, wh) => { (acc[wh.weekday] ??= []).push(wh); return acc; }, {});
   const openStatus = workingHours && workingHours.length > 0 ? getOpenStatus(workingHours, business.timezone) : null;
   const bgTheme = cust?.theme?.background;
@@ -735,9 +733,8 @@ export default function BookingClient({ business, customization, workingHours, p
               Meus agendamentos
             </a>
 
-            {/* Prévia de serviços — dá contexto na página sem personalização,
-                sem competir com o layout de links de quem personalizou. */}
-            {!hasLinks && business.acceptingBookings !== false && (() => {
+            {/* Prévia de serviços — foco da página é o agendamento. */}
+            {business.acceptingBookings !== false && (() => {
               const byService = new Map<string, { id: string; name: string; durationMin: number; price: number }>();
               business.professionals.forEach((p) => p.services.forEach((s) => {
                 const ex = byService.get(s.id);
@@ -764,43 +761,6 @@ export default function BookingClient({ business, customization, workingHours, p
                 </div>
               );
             })()}
-
-            {hasLinks && links!.filter((l) => l.label || l.type === 'divider' || l.type === 'spacer').map((link, i) => {
-              const blockType = link.type || 'link';
-              if (blockType === 'heading') {
-                return <h3 key={i} className="text-base font-bold pt-3 pb-1 stagger-item" style={{ color: text }}>{link.label}</h3>;
-              }
-              if (blockType === 'divider') {
-                return <div key={i} className="w-full py-1 stagger-item"><div style={{ borderTop: `1px solid ${text}20` }} /></div>;
-              }
-              if (blockType === 'text') {
-                return <p key={i} className="text-sm px-1 stagger-item" style={{ color: text, opacity: 0.7 }}>{link.label}</p>;
-              }
-              if (blockType === 'spacer') {
-                return <div key={i} className="h-4 stagger-item" />;
-              }
-              const linkStyle = link.style || 'fill';
-              const linkStyles: React.CSSProperties = linkStyle === 'outline'
-                ? { backgroundColor: 'transparent', borderColor: `${text}30`, color: text, borderWidth: '2px' }
-                : linkStyle === 'soft'
-                ? { backgroundColor: `${primary}12`, borderColor: 'transparent', color: accentOnBg }
-                : linkStyle === 'glass'
-                ? { backgroundColor: `${surface}80`, borderColor: `${surface}40`, color: text, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', boxShadow: `0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 ${surface}60` }
-                : { backgroundColor: surface, borderColor: `${text}15`, color: text };
-              return (
-                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center w-full py-3 px-4 text-sm font-medium border link-btn stagger-item"
-                  style={{ ...linkStyles, borderRadius: radius, borderStyle: 'solid', gap: '0.75rem' }}>
-                  {link.thumbnailUrl && (
-                    <img src={link.thumbnailUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                  )}
-                  {link.icon && !link.thumbnailUrl && (
-                    <span className="text-lg shrink-0">{link.icon}</span>
-                  )}
-                  <span className="flex-1 text-center">{link.label}</span>
-                </a>
-              );
-            })}
 
             {/* Gallery — carrossel lateral (full-bleed) com lightbox */}
             {gallery && gallery.length > 0 && (

@@ -79,6 +79,12 @@ enum CommissionType { none percent fixed }
 
 Sistema de tema **curado**: o dono escolhe dentro de opções seguras, para nenhuma página ficar ilegível.
 
+> **Atualização (pós-Fase 3):** os **blocos de links (Linktree)** foram **descontinuados** na página
+> pública. O foco da página é o **agendamento** — links externos competiam com essa ação. A primeira
+> dobra mostra sempre a prévia de serviços; **redes sociais** seguem no topo como contato. O campo
+> `links` permanece no schema por compatibilidade (dados antigos preservados), mas **não é exibido nem
+> editável**. As menções a "links extras" abaixo referem-se ao estado original da fase.
+
 ### Shape do tema (`pageCustomization.theme`)
 
 ```ts
@@ -103,12 +109,12 @@ Regras:
 ### Editor (no admin — segue `estilo-admin.md`)
 - Formulário com **preview ao vivo** da página do cliente ao lado.
 - Seções: identidade (logo, capa, headline, sobre), tema (paleta, fonte, fundo, botões, layout),
-  links extras (Linktree: label + url + ícone, reordenáveis), redes sociais.
+  redes sociais. *(Os "links extras / Linktree" foram descontinuados — ver nota no topo da seção.)*
 - Botão "Salvar alterações" → toast "Alterações salvas". Alteração publica direto (sem rascunho nesta fase).
 
 ### Aplicação na página pública (Next.js)
 - A rota `app/[slug]` lê `pageCustomization` no SSR e injeta as cores/fonte via CSS variables.
-- Renderiza: capa + logo + headline + sobre + botão de agendar (fluxo do MVP) + links extras + redes.
+- Renderiza: capa + logo + headline + sobre + botão de agendar (fluxo do MVP) + prévia de serviços + redes.
 - Manter performático (ISR + revalidação ao salvar personalização).
 
 ---

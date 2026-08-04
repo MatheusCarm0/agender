@@ -234,7 +234,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'appearance', label: 'Aparência', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
   { key: 'content', label: 'Conteúdo', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z' },
   { key: 'location', label: 'Local e horários', icon: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z' },
-  { key: 'links', label: 'Links e redes', icon: 'M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71' },
+  { key: 'links', label: 'Redes sociais', icon: 'M18 8a3 3 0 10-2.83-4M6 12a3 3 0 100-6 3 3 0 000 6zm12 6a3 3 0 10-2.83-4M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98' },
 ];
 
 export default function CustomizationPage() {
@@ -419,38 +419,6 @@ export default function CustomizationPage() {
     updateTheme(bgPatch);
   }
 
-  function updateLink(index: number, field: keyof LinkItem, value: string) {
-    setData((prev) => {
-      const links = [...prev.links];
-      links[index] = { ...links[index], [field]: value };
-      return { ...prev, links };
-    });
-    markDirty();
-  }
-
-  function addLink() { setData((prev) => ({ ...prev, links: [...prev.links, { label: '', url: '', type: 'link' }] })); markDirty(); }
-  function addBlock(type: BlockType) {
-    const defaults: Record<BlockType, LinkItem> = {
-      link: { label: '', url: '', type: 'link' },
-      heading: { label: 'Título', url: '', type: 'heading' },
-      divider: { label: '', url: '', type: 'divider' },
-      text: { label: 'Texto descritivo aqui...', url: '', type: 'text' },
-      spacer: { label: '', url: '', type: 'spacer' },
-    };
-    setData((prev) => ({ ...prev, links: [...prev.links, { ...defaults[type] }] }));
-    markDirty();
-  }
-  function removeLink(index: number) { setData((prev) => ({ ...prev, links: prev.links.filter((_, i) => i !== index) })); markDirty(); }
-  function moveLink(index: number, dir: -1 | 1) {
-    setData((prev) => {
-      const arr = [...prev.links];
-      const target = index + dir;
-      if (target < 0 || target >= arr.length) return prev;
-      [arr[index], arr[target]] = [arr[target], arr[index]];
-      return { ...prev, links: arr };
-    });
-    markDirty();
-  }
 
   function updateSocial(key: keyof Socials, value: string) {
     setData((prev) => ({ ...prev, socials: { ...prev.socials, [key]: value || undefined } }));
@@ -1015,90 +983,9 @@ export default function CustomizationPage() {
             </>
           )}
 
-          {/* ======================== TAB: LINKS E REDES ======================== */}
+          {/* ======================== TAB: REDES SOCIAIS ======================== */}
           {activeTab === 'links' && (
             <>
-              <SectionCard title="Links e blocos" action={
-                canEdit ? (
-                  <div className="flex gap-1.5">
-                    {([
-                      ['link', 'Link', 'M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71'],
-                      ['heading', 'Título', 'M4 12h8M4 18V6M12 18V6M20 12h-4M20 6v12'],
-                      ['text', 'Texto', 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z'],
-                      ['divider', 'Linha', 'M5 12h14'],
-                      ['spacer', 'Espaço', 'M12 5v14M5 12h14'],
-                    ] as [BlockType, string, string][]).map(([type, label, icon]) => (
-                      <button key={type} type="button" onClick={() => addBlock(type)}
-                        className="h-7 px-2 text-[10px] font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle flex items-center gap-1"
-                        title={`Adicionar ${label.toLowerCase()}`}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d={icon} /></svg>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                ) : undefined
-              }>
-                {data.links.length === 0 ? (
-                  <p className="text-sm text-text-muted">Nenhum link ou bloco adicionado.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {data.links.map((link, i) => {
-                      const blockType = link.type || 'link';
-                      const typeLabels: Record<BlockType, string> = { link: 'Link', heading: 'Título', divider: 'Linha', text: 'Texto', spacer: 'Espaço' };
-                      return (
-                        <div key={i} className="border border-border-default rounded-[var(--radius-sm)] p-3 space-y-2">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-medium text-text-subtle uppercase tracking-wider bg-surface-subtle px-1.5 py-0.5 rounded">{typeLabels[blockType]}</span>
-                            <div className="flex-1" />
-                            {canEdit && (
-                              <div className="flex gap-0.5">
-                                <button type="button" onClick={() => moveLink(i, -1)} disabled={i === 0} className="h-6 w-6 flex items-center justify-center text-text-subtle hover:text-text-strong hover:bg-surface-subtle rounded disabled:opacity-30" aria-label="Mover para cima">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 15l-6-6-6 6" /></svg>
-                                </button>
-                                <button type="button" onClick={() => moveLink(i, 1)} disabled={i === data.links.length - 1} className="h-6 w-6 flex items-center justify-center text-text-subtle hover:text-text-strong hover:bg-surface-subtle rounded disabled:opacity-30" aria-label="Mover para baixo">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
-                                </button>
-                                <button type="button" onClick={() => removeLink(i)} className="h-6 w-6 flex items-center justify-center text-danger-fg hover:bg-danger-bg rounded" aria-label="Remover">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                          {blockType === 'link' && (
-                            <>
-                              <div className="flex gap-2 items-start">
-                                <div className="flex-1 space-y-2">
-                                  <input value={link.label} onChange={(e) => updateLink(i, 'label', e.target.value)} placeholder="Rótulo" className={inputClass} />
-                                  <input value={link.url} onChange={(e) => updateLink(i, 'url', e.target.value)} placeholder="https://..." className={inputClass} />
-                                </div>
-                              </div>
-                              <div className="flex gap-2 items-center flex-wrap">
-                                <input value={link.icon || ''} onChange={(e) => updateLink(i, 'icon', e.target.value)} placeholder="Emoji ícone" className="w-24 h-8 px-2 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong text-center" />
-                                <select value={link.style || 'fill'} onChange={(e) => updateLink(i, 'style', e.target.value)} className="h-8 px-2 text-xs border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong">
-                                  <option value="fill">Preenchido</option>
-                                  <option value="outline">Contorno</option>
-                                  <option value="soft">Suave</option>
-                                  <option value="glass">Glass</option>
-                                </select>
-                              </div>
-                            </>
-                          )}
-                          {blockType === 'heading' && (
-                            <input value={link.label} onChange={(e) => updateLink(i, 'label', e.target.value)} placeholder="Texto do título" className={inputClass} />
-                          )}
-                          {blockType === 'text' && (
-                            <textarea value={link.label} onChange={(e) => updateLink(i, 'label', e.target.value)} placeholder="Texto descritivo..." rows={2} className={`${inputClass} h-auto py-2`} />
-                          )}
-                          {(blockType === 'divider' || blockType === 'spacer') && (
-                            <p className="text-[11px] text-text-subtle italic">{blockType === 'divider' ? 'Linha separadora' : 'Espaçamento vertical'}</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </SectionCard>
-
               <SectionCard title="Redes sociais">
                 <div className="space-y-4">
                   {([
