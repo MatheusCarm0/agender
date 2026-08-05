@@ -48,9 +48,14 @@ export class ClientAuthService {
     });
 
     if (!client) {
-      throw new BadRequestException(
-        'Nenhuma conta encontrada com este telefone. Faça um agendamento primeiro.',
-      );
+      // Não revela se o telefone tem conta (evita enumeração de clientes do
+      // tenant). O rate limit acima já contou a tentativa. Responde igual ao
+      // caminho de sucesso, sem enfileirar nada.
+      return {
+        message: 'Se houver uma conta com este telefone, enviamos um código de acesso.',
+        channel: 'unknown' as const,
+        expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+      };
     }
 
     const code = this.generateCode();

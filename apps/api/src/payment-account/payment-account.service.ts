@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -125,6 +126,14 @@ export class PaymentAccountService {
    * gateway). Disponível só para destravar o teste do fluxo de saque.
    */
   async markVerified(businessId: string) {
+    // Stub de KYC só para destravar o teste do saque em dev. Em produção quem
+    // ativa a conta é o webhook do gateway após o KYC real — nunca o próprio
+    // dono. Recusar aqui fecha o auto-approve antes do payout real ser plugado.
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException(
+        'A verificação da conta é feita automaticamente pelo provedor de pagamento.',
+      );
+    }
     const account = await this.prisma.raw.paymentAccount.findUnique({
       where: { businessId },
     });

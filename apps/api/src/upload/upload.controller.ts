@@ -83,6 +83,9 @@ export class UploadController {
     if (!existsSync(filepath)) {
       return res.status(404).send('Not found');
     }
+    // Impede o browser de "sniffar" o conteúdo como outro tipo (ex.: HTML) — o
+    // arquivo é validado só pela extensão no upload.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     return res.sendFile(filepath);
   }
 }

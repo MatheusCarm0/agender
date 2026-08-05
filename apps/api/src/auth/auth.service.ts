@@ -13,6 +13,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { LoginDto } from './dto/login.dto';
+
+// Hash argon2 fixo usado só para gastar tempo quando o e-mail não existe, de
+// modo que login com e-mail inexistente demore o mesmo que com senha errada
+// (evita oráculo de timing para enumerar contas). Não é segredo.
+const DUMMY_PASSWORD_HASH =
+  '$argon2id$v=19$m=65536,t=3,p=4$Oh5GYErc2U/Iwub70XxOaA$N7npysEVydQVe3lFEOUxv+ZsY+M46hgTcqOiPj1DiB0';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -98,22 +105,35 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.raw.user.findFirst({
+    // E-mail é único POR negócio (@@unique([businessId, email])) — o mesmo e-mail
+    // pode existir em negócios diferentes. Buscamos todos os candidatos e
+    // autenticamos contra cada um; o usuário entra no negócio cuja senha confere.
+    const users = await this.prisma.raw.user.findMany({
       where: { email: dto.email },
       include: { business: true },
     });
 
+    if (users.length === 0) {
+      // Tempo constante: verifica um hash dummy para não revelar (por timing) que
+      // o e-mail não existe.
+      await argon2.verify(DUMMY_PASSWORD_HASH, dto.password).catch(() => false);
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    let user: (typeof users)[number] | null = null;
+    for (const candidate of users) {
+      if (await argon2.verify(candidate.passwordHash, dto.password)) {
+        user = candidate;
+        break;
+      }
+    }
+
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
+    // Só depois de confirmar a senha (não é vetor de enumeração aqui).
     if (!user.active) {
       throw new UnauthorizedException('Account deactivated');
-    }
-
-    const valid = await argon2.verify(user.passwordHash, dto.password);
-    if (!valid) {
-      throw new UnauthorizedException('Invalid credentials');
     }
 
     const tokens = await this.generateTokens({
