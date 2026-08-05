@@ -15,6 +15,15 @@ export class ReportService {
     return id;
   }
 
+  /**
+   * Valor efetivamente devido no agendamento: preço menos o desconto (cupom ou
+   * fidelidade). A receita e a base de comissão usam o líquido — somar o bruto
+   * infla o faturamento na proporção dos descontos concedidos.
+   */
+  private net(a: { price: unknown; discountAmount: unknown }): number {
+    return Number(a.price) - Number(a.discountAmount);
+  }
+
   async getRevenue(
     from: string,
     to: string,
@@ -44,11 +53,11 @@ export class ReportService {
     });
 
     const realized = completedAppointments.reduce(
-      (sum, a) => sum + Number(a.price),
+      (sum, a) => sum + this.net(a),
       0,
     );
     const projected = projectedAppointments.reduce(
-      (sum, a) => sum + Number(a.price),
+      (sum, a) => sum + this.net(a),
       0,
     );
     const totalCompleted = completedAppointments.length;
@@ -70,7 +79,7 @@ export class ReportService {
         revenue: 0,
         count: 0,
       };
-      pEntry.revenue += Number(a.price);
+      pEntry.revenue += this.net(a);
       pEntry.count += 1;
       profMap.set(a.professionalId, pEntry);
 
@@ -80,7 +89,7 @@ export class ReportService {
         revenue: 0,
         count: 0,
       };
-      sEntry.revenue += Number(a.price);
+      sEntry.revenue += this.net(a);
       sEntry.count += 1;
       svcMap.set(a.serviceId, sEntry);
     }
@@ -135,7 +144,7 @@ export class ReportService {
         commissionValue: Number(a.professional.commissionValue),
         count: 0,
       };
-      entry.totalRevenue += Number(a.price);
+      entry.totalRevenue += this.net(a);
       entry.count += 1;
       profMap.set(a.professionalId, entry);
     }
