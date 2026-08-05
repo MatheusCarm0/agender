@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { QueueModule } from './queue/queue.module';
@@ -41,6 +42,10 @@ import { FeedbackModule } from './feedback/feedback.module';
     // envFilePath explícito para não depender do cwd: carrega o .env do app
     // (apps/api/.env) e cai para o .env da raiz do monorepo como fallback.
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'] }),
+    // Teto global por IP (defesa contra flood/brute-force). Rotas sensíveis
+    // (login/registro) apertam esse limite com @Throttle no controller; as rotas
+    // públicas de agendamento mantêm o RateLimitGuard dedicado por negócio.
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     PrismaModule,
     RedisModule,
     QueueModule,
@@ -79,6 +84,10 @@ import { FeedbackModule } from './feedback/feedback.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

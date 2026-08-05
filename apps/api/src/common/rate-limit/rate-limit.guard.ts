@@ -89,10 +89,8 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private clientIp(req: any): string {
-    const fwd = req.headers?.['x-forwarded-for'];
-    if (typeof fwd === 'string' && fwd.length > 0) {
-      return fwd.split(',')[0].trim();
-    }
+    // `req.ip` já resolve o X-Forwarded-For com base no `trust proxy` (main.ts).
+    // Ler o header cru permitiria forjar um IP novo por request e furar o limite.
     return req.ip || req.socket?.remoteAddress || 'unknown';
   }
 }

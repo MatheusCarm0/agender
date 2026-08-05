@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { LoginDto } from './dto/login.dto';
@@ -29,11 +30,13 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register-business')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async registerBusiness(@Body() dto: RegisterBusinessDto) {
     return this.authService.registerBusiness(dto);
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
@@ -64,6 +67,7 @@ export class AuthController {
   }
 
   @Post('password-reset/start')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async passwordResetStart(@Body() dto: PasswordResetStartDto) {
     return this.authService.passwordResetStart(dto.email);
   }
