@@ -36,9 +36,12 @@ export class AvailabilityService {
       where: {
         professionalId_serviceId: { professionalId, serviceId },
       },
-      include: { service: true },
+      include: { service: true, professional: true },
     });
-    if (!profService) throw new NotFoundException('Professional does not offer this service');
+    // O profissional/serviço têm que ser deste negócio (vínculo por chave global).
+    if (!profService || profService.professional.businessId !== businessId) {
+      throw new NotFoundException('Professional does not offer this service');
+    }
 
     const durationMin = profService.durationOverride ?? profService.service.durationMin;
     const bufferBefore = profService.service.bufferBefore;

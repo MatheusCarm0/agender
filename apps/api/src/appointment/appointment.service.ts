@@ -46,9 +46,12 @@ export class AppointmentService {
           serviceId: dto.serviceId,
         },
       },
-      include: { service: true },
+      include: { service: true, professional: true },
     });
-    if (!profService) {
+    // O vínculo é buscado pela chave global (profissional+serviço); exigir que o
+    // profissional pertença a ESTE negócio impede agendar recursos de outro
+    // tenant pelo slug alheio (isolamento — ver docs/00-contexto-geral.md §6).
+    if (!profService || profService.professional.businessId !== bId) {
       throw new NotFoundException('Este profissional não realiza o serviço escolhido.');
     }
 
@@ -77,7 +80,8 @@ export class AppointmentService {
 
       const conflicts: { id: string }[] = await tx.$queryRaw`
         SELECT id FROM appointments
-        WHERE professional_id = ${dto.professionalId}
+        WHERE business_id = ${bId}
+          AND professional_id = ${dto.professionalId}
           AND status IN ('scheduled', 'confirmed')
           AND start_at < ${blockEnd}
           AND end_at > ${blockStart}
@@ -137,9 +141,12 @@ export class AppointmentService {
           serviceId: dto.serviceId,
         },
       },
-      include: { service: true },
+      include: { service: true, professional: true },
     });
-    if (!profService) {
+    // Isolamento: o profissional/serviço têm que ser DESTE negócio (o vínculo é
+    // buscado por chave global). Sem isso, dá para ocupar a agenda de outro
+    // tenant agendando pelo slug alheio.
+    if (!profService || profService.professional.businessId !== businessId) {
       throw new NotFoundException('Este profissional não realiza o serviço escolhido.');
     }
 
@@ -168,7 +175,8 @@ export class AppointmentService {
 
       const conflicts: { id: string }[] = await tx.$queryRaw`
         SELECT id FROM appointments
-        WHERE professional_id = ${dto.professionalId}
+        WHERE business_id = ${businessId}
+          AND professional_id = ${dto.professionalId}
           AND status IN ('scheduled', 'confirmed')
           AND start_at < ${blockEnd}
           AND end_at > ${blockStart}
@@ -276,9 +284,18 @@ export class AppointmentService {
     clientId: string,
     price: Prisma.Decimal,
   ) {
-    const coupon = await tx.coupon.findUnique({
+    const couponRow = await tx.coupon.findUnique({
       where: { businessId_code: { businessId, code: couponCode.toUpperCase().trim() } },
     });
+    if (!couponRow) {
+      throw new BadRequestException('Cupom inválido ou inativo.');
+    }
+
+    // Trava a linha do cupom antes de checar/incrementar o uso — senão dois
+    // agendamentos simultâneos furam maxUses/perClientLimit (mesmo padrão do
+    // membership abaixo). Re-lê o estado fresco já sob o lock.
+    await tx.$queryRaw`SELECT id FROM coupons WHERE id = ${couponRow.id} FOR UPDATE`;
+    const coupon = await tx.coupon.findUnique({ where: { id: couponRow.id } });
 
     if (!coupon || !coupon.active) {
       throw new BadRequestException('Cupom inválido ou inativo.');
