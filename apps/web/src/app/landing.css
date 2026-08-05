@@ -164,6 +164,99 @@
   font-size: 0.85rem;
 }
 
+/* --------------------- Formulários (auth) ------------------------ */
+.lp-label {
+  display: block;
+  font-family: var(--lp-font-display);
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--lp-text-strong);
+  margin-bottom: 7px;
+}
+.lp-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--lp-border);
+  background: #fff;
+  color: var(--lp-text-strong);
+  font-size: 15px;
+  font-family: var(--lp-font-body);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.lp-input::placeholder { color: #a8a29e; }
+.lp-input:focus {
+  outline: none;
+  border-color: var(--lp-teal);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+.lp-input:disabled { opacity: 0.6; }
+.lp-link {
+  color: var(--lp-teal-deep);
+  font-weight: 600;
+  text-decoration: none;
+}
+.lp-link:hover { color: var(--lp-teal); text-decoration: underline; }
+.lp-alert {
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.lp-alert-error { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; }
+.lp-alert-ok { background: #f0fdf4; border: 1px solid #86efac; color: #15803d; }
+
+/* --------------------- FAQ (details nativo) ---------------------- */
+.lp-faq-item {
+  background: var(--lp-card);
+  border: 1px solid var(--lp-border);
+  border-radius: 18px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.lp-faq-item[open] {
+  border-color: var(--lp-border-teal);
+  box-shadow: var(--lp-shadow-sm);
+}
+.lp-faq-item > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  font-family: var(--lp-font-display);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--lp-text-strong);
+}
+.lp-faq-item > summary::-webkit-details-marker { display: none; }
+.lp-faq-chev {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--lp-mint-tint);
+  color: var(--lp-teal-deep);
+  transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+.lp-faq-item[open] .lp-faq-chev {
+  transform: rotate(180deg);
+  background: linear-gradient(135deg, #14b8a6, #0f766e);
+  color: #fff;
+}
+.lp-faq-answer {
+  padding: 0 20px 20px;
+  color: var(--lp-text-muted);
+  font-size: 15.5px;
+  line-height: 1.65;
+}
+.lp-faq-answer a { color: var(--lp-teal-deep); font-weight: 600; text-decoration: none; }
+.lp-faq-answer a:hover { text-decoration: underline; }
+
 /* --------------------- Elementos decorativos 3D ------------------- */
 /* "Blob" orgânico com gradiente — o principal artifício artístico */
 .lp-blob {

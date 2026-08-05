@@ -1,5 +1,8 @@
 import Link from 'next/link';
+
+import '../landing.css';
 import { AgenderLogo } from '@/components/logo';
+import { Halo } from '@/components/landing/decor';
 
 export const metadata = {
   title: 'Perguntas frequentes — Agender',
@@ -92,14 +95,8 @@ const SECTIONS: Section[] = [
             acessa. Sobre esses dados, <strong>você é o Controlador</strong> e a plataforma é a{' '}
             <strong>Operadora</strong> (tratamos os dados a seu pedido). Isso significa que você
             deve ter base legal para usá-los e informar seus clientes. Os detalhes estão nos{' '}
-            <Link href="/termos" className="text-primary-default hover:text-primary-hover font-medium">
-              Termos de Uso
-            </Link>{' '}
-            e na{' '}
-            <Link href="/privacidade" className="text-primary-default hover:text-primary-hover font-medium">
-              Política de Privacidade
-            </Link>
-            .
+            <Link href="/termos">Termos de Uso</Link> e na{' '}
+            <Link href="/privacidade">Política de Privacidade</Link>.
           </>
         ),
       },
@@ -114,13 +111,7 @@ const SECTIONS: Section[] = [
           <>
             Estamos em fase de testes e seu retorno é muito bem-vindo. Use o botão{' '}
             <strong>“Reportar problema”</strong> dentro do painel, ou escreva para{' '}
-            <a
-              href="mailto:suporte@agender.app"
-              className="text-primary-default hover:text-primary-hover font-medium"
-            >
-              suporte@agender.app
-            </a>
-            .
+            <a href="mailto:suporte@agender.app">suporte@agender.app</a>.
           </>
         ),
       },
@@ -130,87 +121,74 @@ const SECTIONS: Section[] = [
 
 export default function FaqPage() {
   return (
-    <div className="min-h-screen bg-surface-app">
-      <header className="border-b border-border-default bg-surface-card">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" aria-label="Agender">
-            <AgenderLogo />
+    <div className="lp" style={{ minHeight: '100vh', background: 'var(--lp-cream)' }}>
+      {/* Header */}
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          background: 'rgba(250,250,249,.82)',
+          backdropFilter: 'blur(14px)',
+          borderBottom: '1px solid var(--lp-border)',
+        }}
+      >
+        <nav className="lp-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72 }}>
+          <Link href="/" aria-label="Agender — início" style={{ display: 'inline-flex' }}>
+            <AgenderLogo width={132} height={40} />
           </Link>
-          <div className='flex items-center gap-6'>
-            <Link
-              href="/login"
-              className="text-sm text-primary-default hover:text-primary-hover font-medium"
-            >
-              Entrar
-            </Link>
-            <Link
-              href="/register"
-              className="text-sm text-white hover:bg-primary-active font-medium bg-primary-default p-2 rounded-2xl"
-            >
-              Registrar-se
-            </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Link href="/login" className="lp-btn lp-btn-ghost" style={{ padding: '0.7rem 1.15rem', fontSize: 15 }}>Entrar</Link>
+            <Link href="/register" className="lp-btn lp-btn-primary" style={{ padding: '0.7rem 1.3rem', fontSize: 15 }}>Começar grátis</Link>
           </div>
-        </div>
+        </nav>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-semibold text-text-strong">Perguntas frequentes</h1>
-        <p className="text-sm text-text-muted mt-2">
-          As dúvidas mais comuns sobre a Agender. Não achou o que procurava? Fale com a gente em{' '}
-          <a
-            href="mailto:suporte@agender.app"
-            className="text-primary-default hover:text-primary-hover font-medium"
-          >
-            suporte@agender.app
-          </a>
-          .
-        </p>
+      {/* Conteúdo */}
+      <section className="lp-grain" style={{ position: 'relative', overflow: 'hidden', paddingTop: 'clamp(3rem, 6vw, 5rem)', paddingBottom: 'clamp(4rem, 8vw, 7rem)' }}>
+        <Halo color="rgba(94,234,212,.5)" size={520} top={-200} left="30%" />
+        <Halo color="rgba(139,92,246,.28)" size={380} top={-80} right={-120} />
 
-        <div className="mt-8 space-y-8">
-          {SECTIONS.map((section) => (
-            <section key={section.title}>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-text-subtle mb-3">
-                {section.title}
-              </h2>
-              <div className="space-y-2">
-                {section.items.map((item) => (
-                  <details
-                    key={item.q}
-                    className="group bg-surface-card border border-border-default rounded-[var(--radius-md)] overflow-hidden"
-                  >
-                    <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer list-none text-sm font-medium text-text-strong hover:bg-surface-subtle">
-                      {item.q}
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="shrink-0 text-text-subtle transition-transform group-open:rotate-180"
-                        aria-hidden="true"
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </summary>
-                    <div className="px-4 pb-4 pt-0 text-sm text-text-muted leading-relaxed">
-                      {item.a}
-                    </div>
-                  </details>
-                ))}
+        <div className="lp-container" style={{ position: 'relative', maxWidth: 820 }}>
+          <span className="lp-eyebrow">Central de ajuda</span>
+          <h1 className="lp-display" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.4rem)', marginTop: 12, marginBottom: 14 }}>
+            Perguntas frequentes
+          </h1>
+          <p className="lp-lead" style={{ color: 'var(--lp-text-muted)', margin: 0, maxWidth: 620 }}>
+            As dúvidas mais comuns sobre a Agender. Não achou o que procurava? Fale com a gente em{' '}
+            <a href="mailto:suporte@agender.app" className="lp-link">suporte@agender.app</a>.
+          </p>
+
+          <div style={{ marginTop: 'clamp(2.5rem, 5vw, 3.5rem)', display: 'flex', flexDirection: 'column', gap: 'clamp(2rem, 4vw, 3rem)' }}>
+            {SECTIONS.map((section) => (
+              <div key={section.title}>
+                <h2 className="lp-eyebrow" style={{ marginBottom: 14 }}>{section.title}</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {section.items.map((item) => (
+                    <details key={item.q} className="lp-faq-item">
+                      <summary>
+                        {item.q}
+                        <span className="lp-faq-chev" aria-hidden="true">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </span>
+                      </summary>
+                      <div className="lp-faq-answer">{item.a}</div>
+                    </details>
+                  ))}
+                </div>
               </div>
-            </section>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <footer className="mt-12 pt-6 border-t border-border-default flex flex-wrap gap-x-6 gap-y-2 text-xs text-text-subtle">
-          <Link href="/termos" className="hover:text-text-muted">Termos de Uso</Link>
-          <Link href="/privacidade" className="hover:text-text-muted">Política de Privacidade</Link>
-          <span className="ml-auto">© {new Date().getFullYear()} Agender · Plataforma de agendamento online.</span>
-        </footer>
-      </main>
+          <footer style={{ marginTop: 'clamp(3rem, 6vw, 4.5rem)', paddingTop: 24, borderTop: '1px solid var(--lp-border)', display: 'flex', flexWrap: 'wrap', gap: '8px 24px', alignItems: 'center', fontSize: 13, color: 'var(--lp-text-subtle)' }}>
+            <Link href="/termos" className="lp-link" style={{ color: 'var(--lp-text-muted)', fontWeight: 500 }}>Termos de Uso</Link>
+            <Link href="/privacidade" className="lp-link" style={{ color: 'var(--lp-text-muted)', fontWeight: 500 }}>Política de Privacidade</Link>
+            <span style={{ marginLeft: 'auto' }}>© {new Date().getFullYear()} Agender · Plataforma de agendamento online.</span>
+          </footer>
+        </div>
+      </section>
     </div>
   );
 }

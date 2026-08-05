@@ -4,7 +4,16 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { AgenderLogo } from '@/components/logo';
+import { AuthShell } from '@/components/landing/auth-shell';
+
+function Heading({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <>
+      <h1 className="lp-display" style={{ fontSize: 'clamp(1.7rem, 3vw, 2.1rem)', textAlign: 'center', marginBottom: 8 }}>{title}</h1>
+      <p style={{ textAlign: 'center', color: 'var(--lp-text-muted)', fontSize: 15, margin: '0 0 24px' }}>{subtitle}</p>
+    </>
+  );
+}
 
 function ResetForm() {
   const searchParams = useSearchParams();
@@ -44,14 +53,8 @@ function ResetForm() {
   if (!token) {
     return (
       <>
-        <h1 className="text-2xl font-semibold text-text-strong mb-1">Link inválido</h1>
-        <p className="text-sm text-text-muted mb-6">
-          Este link de redefinição está incompleto. Solicite um novo link de recuperação.
-        </p>
-        <Link
-          href="/recuperar-senha"
-          className="block text-center w-full h-9 leading-9 bg-primary-default text-primary-fg font-medium text-sm rounded-[var(--radius-sm)] hover:bg-primary-hover"
-        >
+        <Heading title="Link inválido" subtitle="Este link de redefinição está incompleto. Solicite um novo link de recuperação." />
+        <Link href="/recuperar-senha" className="lp-btn lp-btn-primary" style={{ width: '100%' }}>
           Recuperar senha
         </Link>
       </>
@@ -61,14 +64,8 @@ function ResetForm() {
   if (done) {
     return (
       <>
-        <h1 className="text-2xl font-semibold text-text-strong mb-1">Senha redefinida</h1>
-        <p className="text-sm text-text-muted mb-6">
-          Sua senha foi atualizada. Você já pode entrar com a nova senha.
-        </p>
-        <Link
-          href="/login"
-          className="block text-center w-full h-9 leading-9 bg-primary-default text-primary-fg font-medium text-sm rounded-[var(--radius-sm)] hover:bg-primary-hover"
-        >
+        <Heading title="Senha redefinida" subtitle="Sua senha foi atualizada. Você já pode entrar com a nova senha." />
+        <Link href="/login" className="lp-btn lp-btn-primary" style={{ width: '100%' }}>
           Entrar
         </Link>
       </>
@@ -77,11 +74,10 @@ function ResetForm() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold text-text-strong mb-1">Criar nova senha</h1>
-      <p className="text-xs text-text-muted mb-6">Escolha uma senha com pelo menos 8 caracteres.</p>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <Heading title="Criar nova senha" subtitle="Escolha uma senha com pelo menos 8 caracteres." />
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label htmlFor="new-password" className="block text-xs font-medium text-text-muted mb-1">Nova senha</label>
+          <label htmlFor="new-password" className="lp-label">Nova senha</label>
           <input
             id="new-password"
             type="password"
@@ -90,12 +86,12 @@ function ResetForm() {
             required
             autoComplete="new-password"
             autoFocus
-            className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-default/20"
+            className="lp-input"
             placeholder="Mínimo 8 caracteres"
           />
         </div>
         <div>
-          <label htmlFor="confirm-password" className="block text-xs font-medium text-text-muted mb-1">Confirmar senha</label>
+          <label htmlFor="confirm-password" className="lp-label">Confirmar senha</label>
           <input
             id="confirm-password"
             type="password"
@@ -103,18 +99,14 @@ function ResetForm() {
             onChange={(e) => setConfirm(e.target.value)}
             required
             autoComplete="new-password"
-            className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-default/20"
+            className="lp-input"
             placeholder="Repita a senha"
           />
         </div>
         {error && (
-          <p className="text-xs text-danger-text bg-danger-bg px-3 py-2 rounded-[var(--radius-sm)]" role="alert">{error}</p>
+          <p className="lp-alert lp-alert-error" role="alert">{error}</p>
         )}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full h-9 bg-primary-default text-primary-fg font-medium text-sm rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-        >
+        <button type="submit" disabled={loading} className="lp-btn lp-btn-primary" style={{ width: '100%', opacity: loading ? 0.6 : 1 }}>
           {loading ? 'Salvando...' : 'Redefinir senha'}
         </button>
       </form>
@@ -124,15 +116,10 @@ function ResetForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-app px-4">
-      <div className="w-full max-w-sm bg-surface-card border border-border-default rounded-[var(--radius-md)] p-8 shadow-[var(--shadow-elevation-1)]">
-        <div className="flex justify-center pb-8">
-          <AgenderLogo />
-        </div>
-        <Suspense fallback={<p className="text-sm text-text-muted text-center">Carregando…</p>}>
-          <ResetForm />
-        </Suspense>
-      </div>
-    </div>
+    <AuthShell>
+      <Suspense fallback={<p style={{ textAlign: 'center', color: 'var(--lp-text-muted)', fontSize: 15 }}>Carregando…</p>}>
+        <ResetForm />
+      </Suspense>
+    </AuthShell>
   );
 }
