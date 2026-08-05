@@ -1,0 +1,644 @@
+/* ------------------------------------------------------------------
+   Landing institucional do Agender.
+   Superfície de MARCA (não segue estilo-admin.md, que é só do painel).
+   Tudo escopado sob .lp para não vazar estilo pro admin.
+   Estética: teal da marca + acentos artísticos, volume via claymorphism
+   em CSS/SVG (sem assets 3D externos). Respeita prefers-reduced-motion.
+------------------------------------------------------------------ */
+
+.lp {
+  /* Paleta ancorada no teal da marca (#0D9488) com acentos analógicos/quentes */
+  --lp-teal: #0d9488;
+  --lp-teal-deep: #0f766e;
+  --lp-teal-darker: #115e59;
+  --lp-teal-bright: #14b8a6;
+  --lp-mint: #5eead4;
+  --lp-mint-soft: #99f6e4;
+  --lp-mint-tint: #f0fdfa;
+
+  --lp-lime: #34d399;
+  --lp-amber: #fbbf24;
+  --lp-coral: #fb7185;
+  --lp-violet: #8b5cf6;
+  --lp-sky: #38bdf8;
+
+  --lp-ink: #071a17; /* fundo escuro com leve viés teal */
+  --lp-ink-2: #0c2723;
+
+  --lp-cream: #fafaf9;
+  --lp-cream-2: #f4f6f5;
+  --lp-card: #ffffff;
+  --lp-border: #e7e5e4;
+  --lp-border-teal: #cbebe6;
+
+  --lp-text-strong: #0d1f1b;
+  --lp-text: #3f4b48;
+  --lp-text-muted: #6c7a76;
+
+  --lp-radius: 18px;
+  --lp-radius-lg: 28px;
+  --lp-radius-xl: 40px;
+
+  --lp-shadow-sm: 0 2px 8px rgba(6, 40, 35, 0.06);
+  --lp-shadow: 0 12px 32px -8px rgba(6, 40, 35, 0.14);
+  --lp-shadow-lg: 0 40px 80px -24px rgba(6, 40, 35, 0.28);
+  --lp-shadow-teal: 0 24px 60px -18px rgba(13, 148, 136, 0.45);
+
+  --lp-font-display: var(--font-space-grotesk), var(--font-geist-sans), system-ui, sans-serif;
+  --lp-font-body: var(--font-geist-sans), -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  font-family: var(--lp-font-body);
+  color: var(--lp-text);
+  background: var(--lp-cream);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+.lp *,
+.lp *::before,
+.lp *::after {
+  box-sizing: border-box;
+}
+
+.lp-display {
+  font-family: var(--lp-font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--lp-text-strong);
+  line-height: 1.04;
+}
+
+.lp-eyebrow {
+  font-family: var(--lp-font-display);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--lp-teal-deep);
+}
+
+/* Texto com gradiente para destaques */
+.lp-grad-text {
+  background: linear-gradient(115deg, var(--lp-teal-bright) 0%, var(--lp-teal) 40%, var(--lp-violet) 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ----------------------------- Botões ----------------------------- */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--lp-font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.95rem 1.6rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+  white-space: nowrap;
+}
+
+.lp-btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--lp-teal-bright), var(--lp-teal-deep));
+  box-shadow: var(--lp-shadow-teal);
+}
+.lp-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 30px 70px -18px rgba(13, 148, 136, 0.6);
+}
+
+.lp-btn-ghost {
+  color: var(--lp-text-strong);
+  background: rgba(255, 255, 255, 0.7);
+  border-color: var(--lp-border);
+  backdrop-filter: blur(6px);
+}
+.lp-btn-ghost:hover {
+  transform: translateY(-2px);
+  border-color: var(--lp-border-teal);
+  box-shadow: var(--lp-shadow-sm);
+}
+
+.lp-btn-dark {
+  color: #062621;
+  background: var(--lp-mint);
+}
+.lp-btn-dark:hover {
+  transform: translateY(-2px);
+  background: #7cf0dd;
+  box-shadow: 0 24px 50px -18px rgba(94, 234, 212, 0.5);
+}
+
+/* --------------------------- Pílulas/chips ------------------------ */
+.lp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem 0.4rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--lp-border-teal);
+  box-shadow: var(--lp-shadow-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--lp-text);
+  backdrop-filter: blur(6px);
+}
+.lp-pill-dot {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--lp-teal-bright), var(--lp-teal-deep));
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+/* --------------------- Elementos decorativos 3D ------------------- */
+/* "Blob" orgânico com gradiente — o principal artifício artístico */
+.lp-blob {
+  position: absolute;
+  border-radius: 42% 58% 63% 37% / 42% 45% 55% 58%;
+  filter: blur(2px);
+  opacity: 0.9;
+  will-change: transform, border-radius;
+  pointer-events: none;
+}
+.lp-blob-teal {
+  background: radial-gradient(circle at 30% 30%, var(--lp-mint), var(--lp-teal) 60%, var(--lp-teal-darker));
+}
+.lp-blob-violet {
+  background: radial-gradient(circle at 30% 30%, #c4b5fd, var(--lp-violet) 65%, #6d28d9);
+}
+.lp-blob-amber {
+  background: radial-gradient(circle at 30% 30%, #fde68a, var(--lp-amber) 60%, #d97706);
+}
+.lp-blob-coral {
+  background: radial-gradient(circle at 30% 30%, #fecdd3, var(--lp-coral) 60%, #e11d48);
+}
+
+/* Halo de fundo suave (grande, muito desfocado) */
+.lp-halo {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(70px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Esfera 3D (claymorphism) */
+.lp-orb {
+  position: absolute;
+  border-radius: 999px;
+  box-shadow:
+    inset 0 -12px 24px rgba(0, 0, 0, 0.18),
+    inset 8px 10px 18px rgba(255, 255, 255, 0.55),
+    var(--lp-shadow);
+  pointer-events: none;
+}
+
+/* Cartão flutuante de vidro */
+.lp-glass {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--lp-shadow);
+  backdrop-filter: blur(14px);
+  border-radius: var(--lp-radius);
+}
+
+/* Grade pontilhada de fundo */
+.lp-dotgrid {
+  background-image: radial-gradient(rgba(13, 148, 136, 0.16) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+}
+
+/* ------------------------------ Cards ---------------------------- */
+.lp-card {
+  background: var(--lp-card);
+  border: 1px solid var(--lp-border);
+  border-radius: var(--lp-radius-lg);
+  box-shadow: var(--lp-shadow-sm);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.lp-card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--lp-shadow);
+  border-color: var(--lp-border-teal);
+}
+
+/* Moldura de dispositivo (mockups dos prints reais) */
+.lp-phone {
+  position: relative;
+  border-radius: 44px;
+  padding: 12px;
+  background: linear-gradient(155deg, #1a2a27, #0b1a17);
+  box-shadow: var(--lp-shadow-lg), inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+.lp-phone-screen {
+  position: relative;
+  border-radius: 32px;
+  overflow: hidden;
+  background: var(--lp-cream);
+  aspect-ratio: 9 / 19.5;
+}
+.lp-phone-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38%;
+  height: 22px;
+  background: #0b1a17;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  z-index: 3;
+}
+.lp-browser {
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--lp-card);
+  border: 1px solid var(--lp-border);
+  box-shadow: var(--lp-shadow-lg);
+}
+.lp-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 14px;
+  background: #f1f3f2;
+  border-bottom: 1px solid var(--lp-border);
+}
+.lp-browser-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+}
+
+/* placeholder enquanto o print real não entra */
+.lp-shot-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(139, 92, 246, 0.08)),
+    var(--lp-cream);
+  color: var(--lp-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+/* --------------------------- Marquee ----------------------------- */
+.lp-marquee {
+  display: flex;
+  width: max-content;
+  gap: 3rem;
+  animation: lp-marquee 32s linear infinite;
+}
+.lp-marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+/* --------------------------- Animações --------------------------- */
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-22px) rotate(3deg); }
+}
+@keyframes lp-float-sm {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes lp-blob-morph {
+  0%, 100% { border-radius: 42% 58% 63% 37% / 42% 45% 55% 58%; transform: translateY(0) rotate(0deg); }
+  33% { border-radius: 60% 40% 42% 58% / 58% 42% 58% 42%; transform: translateY(-14px) rotate(6deg); }
+  66% { border-radius: 38% 62% 55% 45% / 48% 62% 38% 52%; transform: translateY(8px) rotate(-4deg); }
+}
+@keyframes lp-spin-slow {
+  to { transform: rotate(360deg); }
+}
+@keyframes lp-marquee {
+  to { transform: translateX(-50%); }
+}
+@keyframes lp-reveal {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes lp-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.45); }
+  70% { box-shadow: 0 0 0 16px rgba(20, 184, 166, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+}
+
+.lp-anim-float { animation: lp-float 8s ease-in-out infinite; }
+.lp-anim-float-sm { animation: lp-float-sm 6s ease-in-out infinite; }
+.lp-anim-blob { animation: lp-blob-morph 16s ease-in-out infinite; }
+.lp-anim-spin { animation: lp-spin-slow 26s linear infinite; }
+.lp-anim-pulse { animation: lp-pulse-ring 2.6s ease-out infinite; }
+
+/* Reveal on scroll (IntersectionObserver adiciona .is-in) */
+.lp-reveal {
+  opacity: 0;
+  transform: translateY(26px);
+}
+.lp-reveal.is-in {
+  animation: lp-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* =================================================================
+   ELEVAÇÃO: textura, mesh, animações fortes, 3D e parallax
+   ================================================================= */
+
+/* Grão sutil por cima de qualquer container (reduz cara de "flat/IA") */
+.lp-grain { position: relative; }
+.lp-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+.lp-grain-strong::after { opacity: 0.09; }
+
+/* Fundo mesh (várias radiais) */
+.lp-mesh {
+  background-color: var(--lp-cream);
+  background-image:
+    radial-gradient(42% 55% at 12% 8%, rgba(94, 234, 212, 0.5) 0%, transparent 60%),
+    radial-gradient(40% 50% at 92% 4%, rgba(139, 92, 246, 0.32) 0%, transparent 62%),
+    radial-gradient(45% 45% at 78% 82%, rgba(251, 191, 36, 0.28) 0%, transparent 60%),
+    radial-gradient(50% 50% at 30% 100%, rgba(13, 148, 136, 0.24) 0%, transparent 60%);
+}
+.lp-mesh-dark {
+  background-color: var(--lp-ink);
+  background-image:
+    radial-gradient(50% 60% at 8% 0%, rgba(20, 184, 166, 0.45) 0%, transparent 60%),
+    radial-gradient(45% 55% at 100% 10%, rgba(139, 92, 246, 0.4) 0%, transparent 60%),
+    radial-gradient(55% 55% at 85% 100%, rgba(56, 189, 248, 0.24) 0%, transparent 62%);
+}
+
+/* Marcador de destaque (traço "grifado" atrás da palavra) */
+.lp-mark {
+  position: relative;
+  white-space: nowrap;
+  color: var(--lp-text-strong);
+  z-index: 0;
+}
+.lp-mark::before {
+  content: '';
+  position: absolute;
+  left: -0.12em;
+  right: -0.12em;
+  bottom: 0.02em;
+  height: 0.42em;
+  background: linear-gradient(90deg, var(--lp-mint), var(--lp-teal-bright));
+  border-radius: 0.25em;
+  transform: rotate(-1.2deg);
+  z-index: -1;
+  opacity: 0.9;
+}
+.lp-mark-amber::before { background: linear-gradient(90deg, #fde68a, #fbbf24); }
+.lp-mark-violet::before { background: linear-gradient(90deg, #c4b5fd, #8b5cf6); }
+
+/* Texto gradiente animado */
+.lp-grad-anim {
+  background: linear-gradient(100deg, var(--lp-teal-bright), var(--lp-violet), var(--lp-teal-bright));
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: lp-grad-pan 6s linear infinite;
+}
+
+/* Palco 3D + parallax por mouse (var setadas pelo componente Parallax).
+   Perspectiva ampla p/ o translateZ dar profundidade sem escalar/borrar. */
+.lp-stage { perspective: 2400px; }
+.lp-parallax {
+  --lp-mx: 0;
+  --lp-my: 0;
+  transform: rotateY(calc(var(--lp-mx) * 6deg)) rotateX(calc(var(--lp-my) * -6deg));
+  transform-style: preserve-3d;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Janela do produto inclinada em 3D (showcase) — tilt suave p/ manter nitidez */
+.lp-window-3d {
+  transform: perspective(2600px) rotateY(-8deg) rotateX(3.5deg);
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lp-window-3d:hover { transform: perspective(2600px) rotateY(-3deg) rotateX(1.5deg); }
+
+/* Cartão de UII "flutuante" (rebuild, sempre nítido) */
+.lp-ui-card {
+  background: var(--lp-card);
+  border-radius: 16px;
+  border: 1px solid var(--lp-border);
+  box-shadow: 0 30px 60px -22px rgba(6, 40, 35, 0.5);
+}
+
+/* Marca-texto scanline para o showcase */
+.lp-glow-ring {
+  border-radius: 999px;
+  filter: blur(60px);
+  opacity: 0.55;
+}
+
+/* --------------------- Animações (fortes) ------------------------ */
+@keyframes lp-drift {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  33% { transform: translate3d(18px, -26px, 0) rotate(8deg); }
+  66% { transform: translate3d(-14px, 12px, 0) rotate(-6deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+@keyframes lp-float-lg {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-34px) rotate(2deg); }
+}
+@keyframes lp-glow {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.12); }
+}
+@keyframes lp-grad-pan {
+  to { background-position: 220% center; }
+}
+@keyframes lp-shimmer {
+  to { background-position: 200% center; }
+}
+@keyframes lp-slot-pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@keyframes lp-marquee-strong {
+  to { transform: translateX(-50%); }
+}
+@keyframes lp-rise-3d {
+  from { opacity: 0; transform: translateY(40px) rotateX(12deg); }
+  to { opacity: 1; transform: translateY(0) rotateX(0); }
+}
+
+@keyframes lp-shake {
+  0%, 62%, 100% { transform: translateX(0); }
+  66% { transform: translateX(-5px); }
+  70% { transform: translateX(5px); }
+  74% { transform: translateX(-4px); }
+  78% { transform: translateX(4px); }
+  82% { transform: translateX(0); }
+}
+@keyframes lp-grow-bar {
+  0% { transform: scaleY(0.35); }
+  60% { transform: scaleY(1); }
+  100% { transform: scaleY(1); }
+}
+@keyframes lp-bubble-in {
+  0%, 12% { opacity: 0; transform: translateY(14px) scale(0.96); }
+  24%, 88% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+.lp-anim-shake { animation: lp-shake 4.5s ease-in-out infinite; }
+.lp-anim-bubble { animation: lp-bubble-in 5s ease-in-out infinite; }
+.lp-anim-drift { animation: lp-drift 12s ease-in-out infinite; }
+.lp-anim-drift-rev { animation: lp-drift 14s ease-in-out infinite reverse; }
+.lp-anim-float-lg { animation: lp-float-lg 9s ease-in-out infinite; }
+.lp-anim-glow { animation: lp-glow 7s ease-in-out infinite; }
+.lp-anim-slot { animation: lp-slot-pop 2.4s ease-in-out infinite; }
+.lp-anim-shimmer {
+  background-size: 200% auto;
+  animation: lp-shimmer 3.2s linear infinite;
+}
+
+/* ------------------------- Demo de agendamento ------------------- */
+.lp-demo-label {
+  font-family: var(--lp-font-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lp-text-muted);
+}
+.lp-demo-ripple {
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: rgba(13, 148, 136, 0.35);
+  pointer-events: none;
+  animation: lp-demo-ripple 0.7s ease-out forwards;
+}
+@keyframes lp-demo-ripple {
+  from { transform: scale(1); opacity: 0.7; }
+  to { transform: scale(6); opacity: 0; }
+}
+.lp-demo-check { animation: lp-demo-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes lp-demo-pop {
+  from { transform: scale(0.2); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ------------------------- Spotlights (recursos) ----------------- */
+.lp-spot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: center;
+}
+.lp-spot + .lp-spot { margin-top: clamp(3.5rem, 7vw, 7rem); }
+.lp-spot-text { order: 0; }
+.lp-spot-visual { order: 1; display: flex; justify-content: center; }
+.lp-spot-rev .lp-spot-text { order: 1; }
+.lp-spot-rev .lp-spot-visual { order: 0; }
+@media (max-width: 860px) {
+  .lp-spot, .lp-spot-rev { grid-template-columns: 1fr; gap: 2rem; }
+  .lp-spot-text, .lp-spot-rev .lp-spot-text { order: 0 !important; }
+  .lp-spot-visual, .lp-spot-rev .lp-spot-visual { order: 1 !important; }
+}
+
+/* Tira inline "e mais" (sem cards) */
+.lp-more {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(1.2rem, 3vw, 2.4rem);
+}
+@media (max-width: 760px) { .lp-more { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 420px) { .lp-more { grid-template-columns: 1fr; } }
+
+/* ------------------------- Showcase 3D --------------------------- */
+.lp-showcase-stage {
+  position: relative;
+  margin-top: clamp(2.8rem, 5vw, 4.5rem);
+  min-height: 640px;
+}
+.lp-sc-window { position: absolute; left: 0; top: 5%; width: 64%; z-index: 2; }
+.lp-sc-phone { position: absolute; right: 1%; bottom: 0; width: 236px; z-index: 5; }
+.lp-sc-kpi { position: absolute; right: 3%; top: -1%; z-index: 6; width: 232px; }
+.lp-sc-appt { position: absolute; left: -3%; bottom: 20%; z-index: 6; width: 250px; }
+.lp-sc-toast { position: absolute; left: 30%; bottom: -3%; z-index: 6; }
+
+@media (max-width: 980px) {
+  .lp-showcase-stage {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+  }
+  .lp-sc-window { position: static; width: 100%; max-width: 560px; transform: none !important; }
+  .lp-sc-phone { position: static; width: 224px; transform: none !important; }
+  .lp-sc-kpi, .lp-sc-appt, .lp-sc-toast { display: none; }
+  .lp-window-3d { transform: none !important; }
+}
+
+/* ------------------------- Responsividade ------------------------ */
+.lp-h1 { font-size: clamp(2.6rem, 6vw, 4.7rem); }
+.lp-h2 { font-size: clamp(2.1rem, 4.4vw, 3.6rem); }
+.lp-h3 { font-size: clamp(1.25rem, 2vw, 1.6rem); }
+.lp-lead { font-size: clamp(1.05rem, 1.6vw, 1.3rem); }
+.lp-display-xl { font-size: clamp(3.2rem, 9vw, 7rem); font-weight: 700; letter-spacing: -0.03em; line-height: 0.95; }
+
+.lp-container {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+/* Navegação: alterna desktop/mobile (override de estilo inline via !important) */
+@media (max-width: 900px) {
+  .lp .lp-nav-links,
+  .lp .lp-nav-cta { display: none !important; }
+  .lp .lp-nav-burger { display: inline-flex !important; }
+}
+@media (min-width: 901px) {
+  .lp .lp-mobile-panel { display: none !important; }
+}
+
+/* Esconde a arte do hero em telas muito estreitas para não competir com o texto */
+@media (max-width: 560px) {
+  .lp-heroart { max-width: 340px !important; }
+}
+
+/* Acessibilidade: desliga movimento */
+@media (prefers-reduced-motion: reduce) {
+  .lp *,
+  .lp *::before,
+  .lp *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  .lp-reveal { opacity: 1; transform: none; }
+}
