@@ -569,7 +569,7 @@ export default function BookingClient({ business, customization, workingHours, p
       </div>
 
       {/* Content area with transitions */}
-      <div ref={contentRef} className={`w-full max-w-[680px] px-6 pb-16 mt-9 flex flex-col items-center ${containerStyle === 'glass' ? 'container-glass rounded-2xl mx-4 py-6' : containerStyle === 'frosted' ? 'container-frosted rounded-3xl mx-4 py-8' : ''}`} style={{ position: 'relative', zIndex: 1 }}>
+      <div ref={contentRef} className={`w-full max-w-[680px] px-6 pb-28 mt-9 flex flex-col items-center ${containerStyle === 'glass' ? 'container-glass rounded-2xl mx-4 py-6' : containerStyle === 'frosted' ? 'container-frosted rounded-3xl mx-4 py-8' : ''}`} style={{ position: 'relative', zIndex: 1 }}>
         <style>{`
           .scrollbar-none::-webkit-scrollbar { display: none; }
           @keyframes slideInLeft { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }

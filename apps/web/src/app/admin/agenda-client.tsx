@@ -140,7 +140,7 @@ function StatCards({ appointments }: { appointments: Appointment[] }) {
           <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Pendentes</span>
         </div>
         <p className="text-2xl font-bold text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums">{totalActive.length}</p>
-        <p className="text-[11px] text-text-subtle mt-0.5">aguardando confirmação</p>
+        <p className="text-[11px] text-text-subtle mt-0.5">em aberto · total</p>
       </div>
       <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-4 shadow-[var(--shadow-elevation-1)]">
         <div className="flex items-center gap-2 mb-1">
