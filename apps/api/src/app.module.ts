@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { QueueModule } from './queue/queue.module';
 import { TenantInterceptor } from './prisma/tenant.interceptor';
+import { LoggingInterceptor } from './common/logging.interceptor';
 import { AuthModule } from './auth/auth.module';
 import { BusinessModule } from './business/business.module';
 import { ProfessionalModule } from './professional/professional.module';
@@ -81,6 +82,12 @@ import { FeedbackModule } from './feedback/feedback.module';
     FeedbackModule,
   ],
   providers: [
+    // Ordem de execução: o de log roda por fora (mede a request inteira), o de
+    // tenant por dentro.
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantInterceptor,
