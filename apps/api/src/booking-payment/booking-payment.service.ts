@@ -408,7 +408,9 @@ export class BookingPaymentService {
    */
   private async expireUninitiatedHolds() {
     const cutoff = new Date(Date.now() - HOLD_TTL_MS);
-    const held = await this.prisma.raw.appointment.findMany({
+    // Cron cross-tenant: varre agendamentos de TODOS os negócios. Global de
+    // propósito → client `unsafe` (sem a rede de segurança de tenant).
+    const held = await this.prisma.unsafe.appointment.findMany({
       where: {
         status: 'scheduled',
         paymentStatus: 'unpaid',

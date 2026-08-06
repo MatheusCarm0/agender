@@ -15,4 +15,4 @@ export type {
   Client,
   Appointment,
 } from '@prisma/client';
-export { createTenantClient, setTenantContextProvider } from './tenant-extension';
+export { createTenantClient, TenantScopeError } from './tenant-extension';

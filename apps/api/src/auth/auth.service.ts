@@ -108,7 +108,8 @@ export class AuthService {
     // E-mail é único POR negócio (@@unique([businessId, email])) — o mesmo e-mail
     // pode existir em negócios diferentes. Buscamos todos os candidatos e
     // autenticamos contra cada um; o usuário entra no negócio cuja senha confere.
-    const users = await this.prisma.raw.user.findMany({
+    // Query global (sem contexto de tenant) → client `unsafe` de propósito.
+    const users = await this.prisma.unsafe.user.findMany({
       where: { email: dto.email },
       include: { business: true },
     });

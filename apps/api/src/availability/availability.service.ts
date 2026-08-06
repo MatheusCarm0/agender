@@ -94,7 +94,7 @@ export class AvailabilityService {
     const weekday = this.getWeekdayInTimezone(dateStr, timezone);
 
     const workingHours = await this.prisma.raw.workingHours.findMany({
-      where: { professionalId, weekday },
+      where: { businessId, professionalId, weekday },
     });
 
     if (workingHours.length === 0) return [];
