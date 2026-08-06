@@ -58,6 +58,7 @@ describe('AvailabilityService', () => {
         ? null
         : {
             durationOverride: overrides.durationOverride ?? null,
+            professional: { businessId: 'biz1' },
             service: overrides.service ?? {
               durationMin: 30,
               bufferBefore: 0,

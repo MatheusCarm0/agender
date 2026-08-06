@@ -63,6 +63,7 @@ describe('AppointmentService.create', () => {
   const profService = {
     durationOverride: null,
     priceOverride: null,
+    professional: { businessId: BIZ },
     service: { durationMin: 30, bufferBefore: 0, bufferAfter: 0, price: 50 },
   };
 
@@ -138,6 +139,7 @@ describe('AppointmentService.create', () => {
     prisma.raw.professionalService.findUnique.mockResolvedValue({
       durationOverride: 45,
       priceOverride: 80,
+      professional: { businessId: BIZ },
       service: { durationMin: 30, bufferBefore: 0, bufferAfter: 0, price: 50 },
     });
 
@@ -147,5 +149,16 @@ describe('AppointmentService.create', () => {
     expect(data.price).toBe(80);
     // fim = início + 45min
     expect(data.endAt.toISOString()).toBe('2099-01-05T12:45:00.000Z');
+  });
+
+  it('lança NotFound quando o profissional é de outro negócio (isolamento F-02)', async () => {
+    const { service, prisma } = makeService();
+    prisma.raw.professionalService.findUnique.mockResolvedValue({
+      ...profService,
+      professional: { businessId: 'outro-negocio' },
+    });
+    await expect(service.create(baseDto as any, BIZ)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
