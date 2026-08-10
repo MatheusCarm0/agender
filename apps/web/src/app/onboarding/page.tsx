@@ -4,41 +4,64 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
-import { AgenderLogo } from '@/components/logo';
 import { parseDecimalInput } from '@/lib/format';
+import { LpOnboardingShell } from '@/components/onboarding/lp-shell';
+import { Reveal } from '@/components/landing/reveal';
+import { Sparkle } from '@/components/landing/decor';
 
 const STEPS = [
   { id: 2, label: 'Logo' },
   { id: 3, label: 'Serviço' },
   { id: 4, label: 'Horários' },
   { id: 5, label: 'Equipe' },
-  { id: 6, label: 'Link pronto' },
 ];
+
+/* Botões e helpers reaproveitados de landing.css (.lp) */
+function PrimaryBtn(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return <button {...props} className="lp-btn lp-btn-primary" style={{ fontSize: 15, padding: '0.8rem 1.5rem', ...props.style }} />;
+}
+function SkipBtn(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lp-text-muted)', fontSize: 14, fontWeight: 600, fontFamily: 'var(--lp-font-display)', ...props.style }}
+    />
+  );
+}
+
+function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <h2 className="lp-display" style={{ fontSize: 'clamp(1.35rem, 3vw, 1.6rem)', marginBottom: 6 }}>{title}</h2>
+      <p style={{ color: 'var(--lp-text-muted)', fontSize: 14.5, margin: 0, lineHeight: 1.5 }}>{subtitle}</p>
+    </div>
+  );
+}
 
 function ProgressBar({ current }: { current: number }) {
   const index = STEPS.findIndex((s) => s.id === current);
+  const step = STEPS[index];
   return (
-    <div className="flex items-center mb-8">
-      {STEPS.map((step, i) => (
-        <div key={step.id} className={`flex items-center ${i < STEPS.length - 1 ? 'flex-1' : ''}`}>
+    <div style={{ marginBottom: 26 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
+        <span className="lp-eyebrow" style={{ fontSize: '0.66rem' }}>Passo {index + 1} de {STEPS.length}</span>
+        <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 600, fontSize: 13, color: 'var(--lp-teal-deep)' }}>{step?.label}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 6 }} role="progressbar" aria-valuenow={index + 1} aria-valuemin={1} aria-valuemax={STEPS.length}>
+        {STEPS.map((s, i) => (
           <div
-            className={`w-2.5 h-2.5 rounded-full transition-colors shrink-0 ${
-              i < index
-                ? 'bg-primary-default'
-                : i === index
-                ? 'bg-primary-default ring-4 ring-primary-default/20'
-                : 'bg-border-strong'
-            }`}
+            key={s.id}
+            style={{
+              height: 6,
+              flex: 1,
+              borderRadius: 999,
+              transition: 'background .3s ease',
+              background: i <= index ? 'linear-gradient(90deg, var(--lp-teal-bright), var(--lp-teal-deep))' : 'var(--lp-cream-2)',
+              boxShadow: i <= index ? '0 4px 12px -4px rgba(13,148,136,.6)' : 'none',
+            }}
           />
-          {i < STEPS.length - 1 && (
-            <div
-              className={`flex-1 h-0.5 mx-2 ${
-                i < index ? 'bg-primary-default' : 'bg-border-default'
-              }`}
-            />
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -51,14 +74,8 @@ function StepLogo({ token, onComplete, onSkip }: { token: string; onComplete: ()
 
   function handleFile(f: File | null) {
     if (!f) return;
-    if (!f.type.startsWith('image/')) {
-      setError('Selecione um arquivo de imagem.');
-      return;
-    }
-    if (f.size > 5 * 1024 * 1024) {
-      setError('Imagem deve ter no máximo 5MB.');
-      return;
-    }
+    if (!f.type.startsWith('image/')) { setError('Selecione um arquivo de imagem.'); return; }
+    if (f.size > 5 * 1024 * 1024) { setError('Imagem deve ter no máximo 5MB.'); return; }
     setError('');
     setFile(f);
     setPreview(URL.createObjectURL(f));
@@ -71,22 +88,12 @@ function StepLogo({ token, onComplete, onSkip }: { token: string; onComplete: ()
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/upload`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        },
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/upload`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
+      });
       if (!res.ok) throw new Error('Falha no upload');
       const data = await res.json();
-
-      await api('/business', {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify({ logoUrl: data.url }),
-      });
+      await api('/business', { method: 'PATCH', token, body: JSON.stringify({ logoUrl: data.url }) });
       onComplete();
     } catch {
       setError('Erro ao enviar a logo. Tente novamente.');
@@ -97,50 +104,47 @@ function StepLogo({ token, onComplete, onSkip }: { token: string; onComplete: ()
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-text-strong mb-1">Adicione sua logo</h2>
-      <p className="text-sm text-text-muted mb-6">Ela aparece na sua página de agendamento e no painel.</p>
+      <StepHeader title="Adicione sua logo" subtitle="Ela aparece na sua página de agendamento e no painel." />
 
       <div
-        className="border-2 border-dashed border-border-strong rounded-[var(--radius-md)] p-8 text-center hover:border-primary-default transition-colors cursor-pointer"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
         onClick={() => document.getElementById('logo-input')?.click()}
+        style={{
+          border: '2px dashed var(--lp-border-teal)',
+          borderRadius: 20,
+          padding: '2.2rem 1rem',
+          textAlign: 'center',
+          cursor: 'pointer',
+          background: 'rgba(240,253,250,.5)',
+          transition: 'border-color .2s ease, background .2s ease',
+        }}
       >
         {preview ? (
-          <img src={preview} alt="Preview" className="mx-auto w-24 h-24 object-contain rounded-[var(--radius-md)]" />
+          <img src={preview} alt="Preview" style={{ margin: '0 auto', width: 96, height: 96, objectFit: 'contain', borderRadius: 16 }} />
         ) : (
           <>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-3 text-text-subtle">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <p className="text-sm text-text-muted">Arraste ou clique para selecionar</p>
-            <p className="text-xs text-text-subtle mt-1">PNG, JPG ou SVG. Máx. 5MB.</p>
+            <span style={{ display: 'inline-grid', placeItems: 'center', width: 56, height: 56, borderRadius: 18, marginBottom: 12, background: 'linear-gradient(145deg, var(--lp-mint), var(--lp-teal-deep))', color: '#fff', boxShadow: 'inset 0 2px 5px rgba(255,255,255,.4), var(--lp-shadow-sm)' }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </span>
+            <p style={{ fontSize: 14.5, color: 'var(--lp-text)', fontWeight: 600, margin: 0 }}>Arraste ou clique para selecionar</p>
+            <p style={{ fontSize: 12.5, color: 'var(--lp-text-muted)', marginTop: 4 }}>PNG, JPG ou WebP. Máx. 5MB.</p>
           </>
         )}
-        <input
-          id="logo-input"
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => handleFile(e.target.files?.[0] || null)}
-        />
+        <input id="logo-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleFile(e.target.files?.[0] || null)} />
       </div>
 
-      {error && <p className="text-xs text-danger-text mt-2">{error}</p>}
+      {error && <p className="lp-alert lp-alert-error" style={{ marginTop: 12 }}>{error}</p>}
 
-      <div className="flex justify-between mt-6">
-        <button onClick={onSkip} className="h-9 px-4 text-sm text-text-default hover:bg-surface-subtle rounded-[var(--radius-sm)]">
-          Pular por agora
-        </button>
-        <button
-          onClick={handleUpload}
-          disabled={!file || uploading}
-          className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
-        >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 }}>
+        <SkipBtn onClick={onSkip}>Pular por agora</SkipBtn>
+        <PrimaryBtn onClick={handleUpload} disabled={!file || uploading} style={{ opacity: !file || uploading ? 0.55 : 1 }}>
           {uploading ? 'Enviando...' : 'Continuar'}
-        </button>
+        </PrimaryBtn>
       </div>
     </div>
   );
@@ -157,31 +161,17 @@ function StepService({ token, onComplete, onSkip }: { token: string; onComplete:
     setError('');
     try {
       const created = await api<{ id: string }>('/services', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({
-          name: form.name,
-          durationMin: Number(form.durationMin),
-          price: parseDecimalInput(form.price),
-        }),
+        method: 'POST', token,
+        body: JSON.stringify({ name: form.name, durationMin: Number(form.durationMin), price: parseDecimalInput(form.price) }),
       });
-      // Vincula o serviço aos profissionais existentes (no onboarding, o
-      // profissional do dono). Sem o vínculo a página pública nasce sem
-      // nenhum serviço agendável.
       try {
         const professionals = await api<{ id: string }[]>('/professionals', { token });
         await Promise.all(
           professionals.map((p) =>
-            api(`/services/${created.id}/professionals`, {
-              method: 'POST',
-              token,
-              body: JSON.stringify({ professionalId: p.id }),
-            }),
+            api(`/services/${created.id}/professionals`, { method: 'POST', token, body: JSON.stringify({ professionalId: p.id }) }),
           ),
         );
-      } catch {
-        // Vínculo é recuperável depois na tela de Serviços; não trava o wizard.
-      }
+      } catch { /* vínculo recuperável depois; não trava o wizard */ }
       onComplete();
     } catch {
       setError('Erro ao criar o serviço.');
@@ -190,63 +180,31 @@ function StepService({ token, onComplete, onSkip }: { token: string; onComplete:
     }
   }
 
-  const inputClass = "w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-default/20";
-
   return (
     <div>
-      <h2 className="text-xl font-semibold text-text-strong mb-1">Crie seu primeiro serviço</h2>
-      <p className="text-sm text-text-muted mb-6">O que você oferece? Você pode adicionar mais depois.</p>
+      <StepHeader title="Crie seu primeiro serviço" subtitle="O que você oferece? Você pode adicionar mais depois." />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label className="block text-xs font-medium text-text-muted mb-1">Nome do serviço</label>
-          <input
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            required
-            className={inputClass}
-            placeholder="Corte de cabelo"
-          />
+          <label className="lp-label">Nome do serviço</label>
+          <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required className="lp-input" placeholder="Corte de cabelo" />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Duração (min)</label>
-            <input
-              type="number"
-              value={form.durationMin}
-              onChange={(e) => setForm((f) => ({ ...f, durationMin: e.target.value }))}
-              required
-              min="5"
-              className={inputClass}
-            />
+            <label className="lp-label">Duração (min)</label>
+            <input type="number" value={form.durationMin} onChange={(e) => setForm((f) => ({ ...f, durationMin: e.target.value }))} required min="5" className="lp-input" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Preço (R$)</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={form.price}
-              onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-              required
-              className={inputClass}
-              placeholder="35,00"
-            />
+            <label className="lp-label">Preço (R$)</label>
+            <input type="text" inputMode="decimal" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} required className="lp-input" placeholder="35,00" />
           </div>
         </div>
 
-        {error && <p className="text-xs text-danger-text">{error}</p>}
+        {error && <p className="lp-alert lp-alert-error">{error}</p>}
 
-        <div className="flex justify-between pt-2">
-          <button type="button" onClick={onSkip} className="h-9 px-4 text-sm text-text-default hover:bg-surface-subtle rounded-[var(--radius-sm)]">
-            Pular por agora
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
-          >
-            {loading ? 'Salvando...' : 'Continuar'}
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+          <SkipBtn type="button" onClick={onSkip}>Pular por agora</SkipBtn>
+          <PrimaryBtn type="submit" disabled={loading} style={{ opacity: loading ? 0.55 : 1 }}>{loading ? 'Salvando...' : 'Continuar'}</PrimaryBtn>
         </div>
       </form>
     </div>
@@ -265,23 +223,14 @@ function StepWorkingHours({ token, onComplete, onSkip }: { token: string; onComp
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
   const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
   async function handleSubmit() {
     setLoading(true);
     setError('');
     try {
-      const entries = days.filter((d) => d.enabled).map((d) => ({
-        weekday: d.weekday,
-        startTime: d.start,
-        endTime: d.end,
-      }));
-      await api('/working-hours/bulk', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ entries }),
-      });
+      const entries = days.filter((d) => d.enabled).map((d) => ({ weekday: d.weekday, startTime: d.start, endTime: d.end }));
+      await api('/working-hours/bulk', { method: 'POST', token, body: JSON.stringify({ entries }) });
       onComplete();
     } catch {
       setError('Erro ao salvar horários.');
@@ -290,71 +239,43 @@ function StepWorkingHours({ token, onComplete, onSkip }: { token: string; onComp
     }
   }
 
-  const inputClass = "h-8 px-2 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none font-[family-name:var(--font-geist-mono)] tabular-nums w-20";
+  const timeInput: React.CSSProperties = {
+    height: 36, padding: '0 8px', fontSize: 14, borderRadius: 12, border: '1px solid var(--lp-border)',
+    background: '#fff', color: 'var(--lp-text-strong)', fontFamily: 'var(--lp-font-display)', width: 92,
+  };
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-text-strong mb-1">Defina seus horários</h2>
-      <p className="text-sm text-text-muted mb-6">Quando você atende? Edite ou desmarque os dias.</p>
+      <StepHeader title="Defina seus horários" subtitle="Quando você atende? Edite ou desmarque os dias." />
 
-      <div className="space-y-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {days.map((day, i) => (
-          <div key={day.weekday} className="flex items-center gap-3 py-1.5">
-            <label className="flex items-center gap-2 w-24 cursor-pointer">
+          <div key={day.weekday} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 9, width: 108, cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={day.enabled}
-                onChange={(e) => {
-                  const updated = [...days];
-                  updated[i] = { ...updated[i], enabled: e.target.checked };
-                  setDays(updated);
-                }}
-                className="accent-[var(--color-primary-default)]"
+                onChange={(e) => { const u = [...days]; u[i] = { ...u[i], enabled: e.target.checked }; setDays(u); }}
+                style={{ accentColor: 'var(--lp-teal)', width: 16, height: 16 }}
               />
-              <span className="text-sm text-text-default">{dayNames[day.weekday]}</span>
+              <span style={{ fontSize: 14, color: 'var(--lp-text-strong)', fontWeight: day.enabled ? 600 : 400 }}>{dayNames[day.weekday]}</span>
             </label>
             {day.enabled && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="time"
-                  value={day.start}
-                  onChange={(e) => {
-                    const updated = [...days];
-                    updated[i] = { ...updated[i], start: e.target.value };
-                    setDays(updated);
-                  }}
-                  className={inputClass}
-                />
-                <span className="text-text-muted text-sm">às</span>
-                <input
-                  type="time"
-                  value={day.end}
-                  onChange={(e) => {
-                    const updated = [...days];
-                    updated[i] = { ...updated[i], end: e.target.value };
-                    setDays(updated);
-                  }}
-                  className={inputClass}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="time" value={day.start} onChange={(e) => { const u = [...days]; u[i] = { ...u[i], start: e.target.value }; setDays(u); }} style={timeInput} />
+                <span style={{ color: 'var(--lp-text-muted)', fontSize: 14 }}>às</span>
+                <input type="time" value={day.end} onChange={(e) => { const u = [...days]; u[i] = { ...u[i], end: e.target.value }; setDays(u); }} style={timeInput} />
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {error && <p className="text-xs text-danger-text mt-3">{error}</p>}
+      {error && <p className="lp-alert lp-alert-error" style={{ marginTop: 12 }}>{error}</p>}
 
-      <div className="flex justify-between mt-6">
-        <button onClick={onSkip} className="h-9 px-4 text-sm text-text-default hover:bg-surface-subtle rounded-[var(--radius-sm)]">
-          Pular por agora
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
-        >
-          {loading ? 'Salvando...' : 'Continuar'}
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 }}>
+        <SkipBtn onClick={onSkip}>Pular por agora</SkipBtn>
+        <PrimaryBtn onClick={handleSubmit} disabled={loading} style={{ opacity: loading ? 0.55 : 1 }}>{loading ? 'Salvando...' : 'Continuar'}</PrimaryBtn>
       </div>
     </div>
   );
@@ -365,25 +286,16 @@ function StepTeam({ token, onComplete, onSkip }: { token: string; onComplete: ()
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  function addRow() {
-    setInvites((prev) => [...prev, { email: '', role: 'professional' }]);
-  }
+  function addRow() { setInvites((prev) => [...prev, { email: '', role: 'professional' }]); }
 
   async function handleSubmit() {
     const validInvites = invites.filter((inv) => inv.email.trim());
-    if (validInvites.length === 0) {
-      onSkip();
-      return;
-    }
+    if (validInvites.length === 0) { onSkip(); return; }
     setLoading(true);
     setError('');
     try {
       for (const inv of validInvites) {
-        await api('/staff/invites', {
-          method: 'POST',
-          token,
-          body: JSON.stringify({ email: inv.email, role: inv.role }),
-        });
+        await api('/staff/invites', { method: 'POST', token, body: JSON.stringify({ email: inv.email, role: inv.role }) });
       }
       onComplete();
     } catch {
@@ -393,35 +305,22 @@ function StepTeam({ token, onComplete, onSkip }: { token: string; onComplete: ()
     }
   }
 
-  const inputClass = "w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-default/20";
-
   return (
     <div>
-      <h2 className="text-xl font-semibold text-text-strong mb-1">Convide sua equipe</h2>
-      <p className="text-sm text-text-muted mb-6">Adicione quem trabalha com você. Eles receberão um e-mail de convite.</p>
+      <StepHeader title="Convide sua equipe" subtitle="Adicione quem trabalha com você. Eles receberão um convite por e-mail." />
 
-      <div className="space-y-3">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {invites.map((inv, i) => (
-          <div key={i} className="flex gap-3">
+          <div key={i} style={{ display: 'flex', gap: 10 }}>
             <input
-              type="email"
-              value={inv.email}
-              onChange={(e) => {
-                const updated = [...invites];
-                updated[i] = { ...updated[i], email: e.target.value };
-                setInvites(updated);
-              }}
-              className={inputClass}
-              placeholder="email@exemplo.com"
+              type="email" value={inv.email}
+              onChange={(e) => { const u = [...invites]; u[i] = { ...u[i], email: e.target.value }; setInvites(u); }}
+              className="lp-input" placeholder="email@exemplo.com" style={{ flex: 1 }}
             />
             <select
               value={inv.role}
-              onChange={(e) => {
-                const updated = [...invites];
-                updated[i] = { ...updated[i], role: e.target.value };
-                setInvites(updated);
-              }}
-              className="h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong"
+              onChange={(e) => { const u = [...invites]; u[i] = { ...u[i], role: e.target.value }; setInvites(u); }}
+              className="lp-input" style={{ width: 150, flex: 'none' }}
             >
               <option value="professional">Profissional</option>
               <option value="admin">Administrador</option>
@@ -431,23 +330,15 @@ function StepTeam({ token, onComplete, onSkip }: { token: string; onComplete: ()
         ))}
       </div>
 
-      <button onClick={addRow} className="mt-3 text-sm text-primary-default hover:text-primary-hover font-medium">
+      <button onClick={addRow} className="lp-link" style={{ marginTop: 12, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--lp-font-display)', fontSize: 14 }}>
         + Adicionar outro
       </button>
 
-      {error && <p className="text-xs text-danger-text mt-3">{error}</p>}
+      {error && <p className="lp-alert lp-alert-error" style={{ marginTop: 12 }}>{error}</p>}
 
-      <div className="flex justify-between mt-6">
-        <button onClick={onSkip} className="h-9 px-4 text-sm text-text-default hover:bg-surface-subtle rounded-[var(--radius-sm)]">
-          Pular por agora
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
-        >
-          {loading ? 'Enviando...' : 'Continuar'}
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 }}>
+        <SkipBtn onClick={onSkip}>Pular por agora</SkipBtn>
+        <PrimaryBtn onClick={handleSubmit} disabled={loading} style={{ opacity: loading ? 0.55 : 1 }}>{loading ? 'Enviando...' : 'Continuar'}</PrimaryBtn>
       </div>
     </div>
   );
@@ -464,31 +355,36 @@ function StepLinkReady({ slug, onComplete }: { slug: string; onComplete: () => v
   }
 
   return (
-    <div className="text-center">
-      <div className="w-16 h-16 bg-success-bg rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-success-fg">
+    <div style={{ textAlign: 'center', position: 'relative' }}>
+      <Sparkle top={-6} left="26%" size={22} color="#fbbf24" className="lp-anim-float-lg" />
+      <Sparkle top={10} right="24%" size={16} color="#5eead4" className="lp-anim-drift" />
+
+      <span
+        className="lp-anim-pulse lp-demo-check"
+        style={{ display: 'inline-grid', placeItems: 'center', width: 74, height: 74, borderRadius: 999, margin: '0 auto 18px', background: 'linear-gradient(145deg, var(--lp-mint), var(--lp-teal-deep))', color: '#fff', boxShadow: 'inset 0 2px 6px rgba(255,255,255,.45), var(--lp-shadow-teal)' }}
+      >
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 6L9 17l-5-5" />
         </svg>
-      </div>
-      <h2 className="text-xl font-semibold text-text-strong mb-1">Sua página está pronta!</h2>
-      <p className="text-sm text-text-muted mb-6">Compartilhe este link com seus clientes para que eles agendem.</p>
+      </span>
 
-      <div className="flex items-center gap-2 justify-center bg-surface-subtle border border-border-default rounded-[var(--radius-md)] px-4 py-3 max-w-md mx-auto">
-        <span className="text-sm font-[family-name:var(--font-geist-mono)] text-text-strong truncate">{publicUrl}</span>
-        <button
-          onClick={copyLink}
-          className="shrink-0 h-8 px-3 text-xs font-medium bg-primary-default text-primary-fg rounded-[var(--radius-sm)] hover:bg-primary-hover"
-        >
+      <h2 className="lp-display" style={{ fontSize: 'clamp(1.5rem, 3.4vw, 1.9rem)', marginBottom: 8 }}>
+        Sua página está <span className="lp-grad-text">pronta!</span>
+      </h2>
+      <p style={{ color: 'var(--lp-text-muted)', fontSize: 15, margin: '0 auto 24px', maxWidth: 380 }}>
+        Compartilhe este link com seus clientes para que eles agendem.
+      </p>
+
+      <div className="lp-glass" style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', padding: '10px 10px 10px 16px', borderRadius: 999, maxWidth: 420, margin: '0 auto', border: '1px solid var(--lp-border-teal)' }}>
+        <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 600, fontSize: 14, color: 'var(--lp-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{publicUrl}</span>
+        <button onClick={copyLink} className="lp-btn lp-btn-primary" style={{ flex: 'none', fontSize: 13, padding: '0.55rem 1.1rem' }}>
           {copied ? 'Copiado!' : 'Copiar'}
         </button>
       </div>
 
-      <button
-        onClick={onComplete}
-        className="mt-8 h-9 px-6 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover"
-      >
-        Ir para o painel
-      </button>
+      <div style={{ marginTop: 28 }}>
+        <PrimaryBtn onClick={onComplete} style={{ fontSize: 15, padding: '0.85rem 1.8rem' }}>Ir para o painel</PrimaryBtn>
+      </div>
     </div>
   );
 }
@@ -503,10 +399,7 @@ export default function OnboardingPage() {
     if (!token) return;
     try {
       const status = await api<{ onboardingStep: number; completed: boolean }>('/onboarding/status', { token });
-      if (status.completed || status.onboardingStep > 6) {
-        router.replace('/admin');
-        return;
-      }
+      if (status.completed || status.onboardingStep > 6) { router.replace('/admin'); return; }
       setCurrentStep(Math.max(status.onboardingStep, 2));
     } catch {
       setCurrentStep(2);
@@ -516,10 +409,7 @@ export default function OnboardingPage() {
   }, [token, router]);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login');
-      return;
-    }
+    if (!authLoading && !user) { router.replace('/login'); return; }
     fetchStatus();
   }, [authLoading, user, fetchStatus, router]);
 
@@ -527,40 +417,23 @@ export default function OnboardingPage() {
     if (!token || currentStep === null) return;
     try {
       const res = await api<{ onboardingStep: number; completed: boolean }>('/onboarding/step', {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify({ step: currentStep, action }),
+        method: 'PATCH', token, body: JSON.stringify({ step: currentStep, action }),
       });
-      if (res.completed || res.onboardingStep > 7) {
-        await refreshUser();
-        router.replace('/admin');
-      } else {
-        setCurrentStep(res.onboardingStep);
-      }
+      if (res.completed || res.onboardingStep > 7) { await refreshUser(); router.replace('/admin'); }
+      else setCurrentStep(res.onboardingStep);
     } catch {
       setCurrentStep((currentStep || 2) + 1);
     }
   }
 
-  function handleComplete() {
-    advance('complete');
-  }
-
-  function handleSkip() {
-    advance('skip');
-  }
+  const handleComplete = () => advance('complete');
+  const handleSkip = () => advance('skip');
 
   async function handleFinish() {
     if (token && currentStep !== null) {
       try {
-        await api('/onboarding/step', {
-          method: 'PATCH',
-          token,
-          body: JSON.stringify({ step: currentStep, action: 'complete' }),
-        });
-      } catch {
-        // continue to panel
-      }
+        await api('/onboarding/step', { method: 'PATCH', token, body: JSON.stringify({ step: currentStep, action: 'complete' }) });
+      } catch { /* segue para o painel */ }
     }
     await refreshUser();
     router.replace('/admin');
@@ -568,29 +441,33 @@ export default function OnboardingPage() {
 
   if (authLoading || loading || currentStep === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-app">
-        <div className="w-8 h-8 border-2 border-primary-default border-t-transparent rounded-full animate-spin" />
+      <div className="lp lp-mesh" style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center' }}>
+        <div style={{ width: 34, height: 34, border: '3px solid var(--lp-mint-soft)', borderTopColor: 'var(--lp-teal-deep)', borderRadius: '999px', animation: 'lp-spin-slow .8s linear infinite' }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-app px-4 py-8">
-      <div className="w-full max-w-lg">
-        <div className="flex justify-center mb-6">
-          <AgenderLogo />
+    <LpOnboardingShell>
+      {currentStep < 6 && (
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <p className="lp-eyebrow" style={{ marginBottom: 6 }}>Configuração inicial</p>
+          <h1 className="lp-display" style={{ fontSize: 'clamp(1.5rem, 3.6vw, 2rem)' }}>
+            Vamos preparar a <span className="lp-grad-text">{user!.business.name}</span>
+          </h1>
+          <p style={{ color: 'var(--lp-text-muted)', fontSize: 14.5, marginTop: 6 }}>Alguns passos rápidos — pule o que quiser e ajuste depois.</p>
         </div>
+      )}
 
-        <div className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-8 shadow-[var(--shadow-elevation-1)]">
-          <ProgressBar current={currentStep} />
+      {currentStep < 6 && <ProgressBar current={currentStep} />}
 
-          {currentStep === 2 && <StepLogo token={token!} onComplete={handleComplete} onSkip={handleSkip} />}
-          {currentStep === 3 && <StepService token={token!} onComplete={handleComplete} onSkip={handleSkip} />}
-          {currentStep === 4 && <StepWorkingHours token={token!} onComplete={handleComplete} onSkip={handleSkip} />}
-          {currentStep === 5 && <StepTeam token={token!} onComplete={handleComplete} onSkip={handleSkip} />}
-          {currentStep === 6 && <StepLinkReady slug={user!.business.slug} onComplete={handleFinish} />}
-        </div>
-      </div>
-    </div>
+      <Reveal key={currentStep} delay={40}>
+        {currentStep === 2 && <StepLogo token={token!} onComplete={handleComplete} onSkip={handleSkip} />}
+        {currentStep === 3 && <StepService token={token!} onComplete={handleComplete} onSkip={handleSkip} />}
+        {currentStep === 4 && <StepWorkingHours token={token!} onComplete={handleComplete} onSkip={handleSkip} />}
+        {currentStep === 5 && <StepTeam token={token!} onComplete={handleComplete} onSkip={handleSkip} />}
+        {currentStep === 6 && <StepLinkReady slug={user!.business.slug} onComplete={handleFinish} />}
+      </Reveal>
+    </LpOnboardingShell>
   );
 }

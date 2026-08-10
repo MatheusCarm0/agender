@@ -131,12 +131,53 @@ manualmente (dispensar é diferente de pular: dispensar tira do checklist para s
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/onboarding/status` | Retorna `onboardingStep`, `onboardingCompletedAt`, itens pendentes do checklist. |
+| `GET` | `/onboarding/status` | Retorna `onboardingStep`, `onboardingCompletedAt`, itens pendentes do checklist (nível **negócio** — fluxo do dono). |
 | `PATCH` | `/onboarding/step` | Avança/pula um passo (`{ step, action: 'complete' \| 'skip' }`). |
 | `PATCH` | `/onboarding/dismiss` | Remove um item específico do checklist permanentemente (`{ item }`). |
+| `GET` | `/onboarding/me` | Estado de onboarding do **membro** logado: `{ role, onboardedAt, professionalId, needsOnboarding }`. |
+| `POST` | `/onboarding/me/complete` | Marca `User.onboardedAt` — conclui o fluxo por papel de `/bem-vindo`. |
 
 Os passos 2–5 em si **não ganham endpoint próprio** — continuam usando os endpoints das fases
 correspondentes; `PATCH /onboarding/step` só é chamado depois, para registrar avanço/pulo.
+
+---
+
+## Onboarding por papel (membros convidados)
+
+O onboarding do **negócio** (passos acima) é do **dono**. Quem entra por convite — `admin`,
+`professional`, `receptionist` — não passa por ele: tem o próprio fluxo curto em **`/bem-vindo`**,
+disparado logo após aceitar o convite (ou no primeiro login, enquanto `User.onboardedAt` for nulo).
+
+Estado por membro (Prisma, em `User`):
+
+```prisma
+onboardedAt DateTime? @map("onboarded_at") // nulo até concluir o fluxo por papel
+```
+
+Roteamento (front): o shell do admin manda o dono para `/onboarding` (negócio incompleto) e todo
+membro com `onboardedAt` nulo para `/bem-vindo`; a página de aceite (`/convite/[token]`) leva a
+`/bem-vindo` ao criar a conta.
+
+Fluxos (todos seguem `estilo-admin.md`, responsivos, com tela de boas-vindas nomeando pessoa +
+negócio e conclusão "Tudo certo!"):
+
+| Papel | Passos |
+|---|---|
+| `professional` | Boas-vindas → **foto de perfil** (opcional) → **próprios horários** → pronto. |
+| `receptionist` | Boas-vindas → orientação do que pode fazer (agenda de todos, clientes, catálogo) → pronto. |
+| `admin` | Boas-vindas → orientação de gestão (equipe/acessos, financeiro, agenda) → pronto. |
+
+O profissional edita o próprio perfil e horários por **endpoints self-service** (não é `owner`/`admin`,
+então usa rotas `/me` restritas ao `Professional` vinculado ao usuário logado):
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `PATCH` | `/professionals/me` | Atualiza nome/bio/foto do próprio profissional (nunca comissão nem status). |
+| `POST` | `/working-hours/me/bulk` | Substitui os próprios horários (apaga e recria numa transação). |
+
+Personalização **completa** da página pública (cores, capa, tema) **não** entra em nenhum onboarding —
+fica nas Configurações, para ser feita com calma. O onboarding pega só o essencial (logo do dono, foto
+do profissional).
 
 ---
 
@@ -165,6 +206,10 @@ dispensados.
 - [ ] Painel mostra checklist apenas dos itens pulados, com link direto para cada um.
 - [ ] Dispensar um item do checklist remove-o permanentemente (não reaparece no próximo login).
 - [ ] Onboarding completo (todos os passos feitos ou dispensados) faz o card de checklist sumir.
+- [x] Membro convidado (admin/profissional/recepção) é levado a `/bem-vindo` com fluxo próprio do papel, e não ao onboarding do negócio.
+- [x] Profissional define foto e horários pelo próprio fluxo (endpoints `/me`), sem depender de owner/admin.
+- [x] Concluir o fluxo por papel grava `User.onboardedAt`; abrir o painel de novo não repete o onboarding.
+- [x] As telas de `/bem-vindo` seguem o `estilo-admin.md` e são responsivas (verificado até 375px).
 
 ---
 

@@ -54,6 +54,16 @@ export class WorkingHoursController {
     return this.workingHoursService.createBulk(user.userId, body.entries);
   }
 
+  // Self-service: o profissional define/atualiza os próprios horários (substitui
+  // os existentes). Escopo restrito ao Professional vinculado ao usuário logado.
+  @Post('me/bulk')
+  async replaceOwnBulk(
+    @CurrentUser() user: RequestUser,
+    @Body() body: { entries: Array<{ weekday: number; startTime: string; endTime: string }> },
+  ) {
+    return this.workingHoursService.replaceOwnBulk(user.userId, body.entries);
+  }
+
   @Delete(':id')
   @Roles('owner', 'admin')
   async remove(@Param('id') id: string) {

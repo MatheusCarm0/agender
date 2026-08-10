@@ -145,7 +145,14 @@ export class AuthService {
     });
 
     return {
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        professionalId: user.professionalId,
+        onboardedAt: user.onboardedAt,
+      },
       business: {
         id: user.business.id,
         slug: user.business.slug,
@@ -204,6 +211,8 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
+      professionalId: user.professionalId,
+      onboardedAt: user.onboardedAt,
       business: {
         id: user.business.id,
         slug: user.business.slug,
@@ -233,6 +242,8 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
+      professionalId: user.professionalId,
+      onboardedAt: user.onboardedAt,
       business: {
         id: user.business.id,
         slug: user.business.slug,

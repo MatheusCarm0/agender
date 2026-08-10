@@ -32,7 +32,7 @@ export default function AcceptInvitePage() {
       localStorage.setItem('auth_token', res.accessToken);
       localStorage.setItem('refresh_token', res.refreshToken);
       setSuccess(true);
-      setTimeout(() => { window.location.href = '/admin'; }, 1500);
+      setTimeout(() => { window.location.href = '/bem-vindo'; }, 1200);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Convite inválido ou expirado');
     } finally {

@@ -307,8 +307,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (!loading && user && !user.business.onboardingCompletedAt && user.business.onboardingStep && user.business.onboardingStep <= 6) {
+    // Onboarding do negócio é do dono. Membros convidados (admin, profissional,
+    // recepção) não passam por ele — têm o próprio fluxo por papel em /bem-vindo.
+    if (
+      !loading &&
+      user &&
+      user.role === 'owner' &&
+      !user.business.onboardingCompletedAt &&
+      user.business.onboardingStep &&
+      user.business.onboardingStep <= 6
+    ) {
       router.replace('/onboarding');
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!loading && user && user.role !== 'owner' && !user.onboardedAt) {
+      router.replace('/bem-vindo');
     }
   }, [user, loading, router]);
 

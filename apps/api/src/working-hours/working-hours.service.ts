@@ -88,6 +88,41 @@ export class WorkingHoursService {
     return this.findByProfessional(user.professionalId);
   }
 
+  async replaceOwnBulk(
+    userId: string,
+    entries: Array<{ weekday: number; startTime: string; endTime: string }>,
+  ) {
+    const businessId = this.getBusinessId();
+
+    const user = await this.prisma.raw.user.findUnique({
+      where: { id: userId },
+      select: { professionalId: true },
+    });
+    if (!user?.professionalId) {
+      throw new NotFoundException('No professional linked to user');
+    }
+    const professionalId = user.professionalId;
+
+    // Substitui por completo: apaga os horários atuais e grava os novos numa
+    // transação, para o profissional não ficar com dias duplicados ao reeditar.
+    await this.prisma.raw.$transaction([
+      this.prisma.raw.workingHours.deleteMany({
+        where: { businessId, professionalId },
+      }),
+      this.prisma.raw.workingHours.createMany({
+        data: entries.map((entry) => ({
+          businessId,
+          professionalId,
+          weekday: entry.weekday,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+        })),
+      }),
+    ]);
+
+    return this.findByProfessional(professionalId);
+  }
+
   async remove(id: string) {
     const businessId = this.getBusinessId();
     const record = await this.prisma.raw.workingHours.findFirst({

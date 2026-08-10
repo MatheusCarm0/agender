@@ -42,7 +42,6 @@ export class BusinessService {
         throw new ConflictException('Subdomain already taken');
       }
     }
-
     // Cobrança no agendamento é Profissional/Pro (plan/plan-limits.ts).
     if (
       dto.bookingPaymentPolicy &&

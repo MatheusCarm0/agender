@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, UseGuards } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -17,6 +17,16 @@ export class OnboardingController {
   @Get('status')
   async getStatus(@CurrentUser() user: RequestUser) {
     return this.onboardingService.getStatus(user.businessId);
+  }
+
+  @Get('me')
+  async getMemberStatus(@CurrentUser() user: RequestUser) {
+    return this.onboardingService.getMemberStatus(user.userId);
+  }
+
+  @Post('me/complete')
+  async completeMember(@CurrentUser() user: RequestUser) {
+    return this.onboardingService.completeMember(user.userId);
   }
 
   @Patch('step')

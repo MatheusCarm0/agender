@@ -109,6 +109,32 @@ export class ProfessionalService {
     });
   }
 
+  async updateOwn(userId: string, dto: UpdateProfessionalDto) {
+    const businessId = this.getBusinessId();
+    const user = await this.prisma.raw.user.findUnique({
+      where: { id: userId },
+      select: { professionalId: true },
+    });
+    if (!user?.professionalId) {
+      throw new NotFoundException('No professional linked to user');
+    }
+    const professional = await this.prisma.raw.professional.findFirst({
+      where: { id: user.professionalId, businessId },
+    });
+    if (!professional) throw new NotFoundException('Professional not found');
+
+    // Self-service edita só o próprio perfil visível — nunca comissão nem
+    // status ativo (isso é gestão de owner/admin).
+    return this.prisma.raw.professional.update({
+      where: { id: professional.id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.bio !== undefined ? { bio: dto.bio } : {}),
+        ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl } : {}),
+      },
+    });
+  }
+
   async remove(id: string) {
     const professional = await this.findById(id);
     return this.prisma.raw.professional.delete({

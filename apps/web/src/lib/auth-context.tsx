@@ -16,6 +16,8 @@ interface User {
   name: string;
   email: string;
   role: string;
+  professionalId?: string | null;
+  onboardedAt?: string | null;
   business: {
     id: string;
     slug: string;

@@ -14,6 +14,13 @@ import { UpdateProfessionalDto } from './dto/update-professional.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+
+interface RequestUser {
+  userId: string;
+  businessId: string;
+  role: string;
+}
 
 @Controller('professionals')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -23,6 +30,16 @@ export class ProfessionalController {
   @Get()
   async findAll() {
     return this.professionalService.findAll();
+  }
+
+  // Self-service: o profissional edita o próprio perfil (foto/bio) sem precisar
+  // de owner/admin. Escopo restrito ao Professional vinculado ao usuário logado.
+  @Patch('me')
+  async updateOwn(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: UpdateProfessionalDto,
+  ) {
+    return this.professionalService.updateOwn(user.userId, dto);
   }
 
   @Get(':id')

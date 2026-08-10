@@ -73,6 +73,30 @@ export class OnboardingService {
     return this.getStatus(businessId);
   }
 
+  async getMemberStatus(userId: string) {
+    const user = await this.prisma.raw.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { role: true, onboardedAt: true, professionalId: true },
+    });
+
+    return {
+      role: user.role,
+      onboardedAt: user.onboardedAt,
+      professionalId: user.professionalId,
+      // O dono usa o onboarding do negócio (getStatus); membros convidados
+      // usam este fluxo por papel. Só precisa concluir quem ainda não concluiu.
+      needsOnboarding: user.role !== 'owner' && user.onboardedAt === null,
+    };
+  }
+
+  async completeMember(userId: string) {
+    await this.prisma.raw.user.update({
+      where: { id: userId },
+      data: { onboardedAt: new Date() },
+    });
+    return this.getMemberStatus(userId);
+  }
+
   async dismissItem(businessId: string, item: string) {
     const validItems = Object.values(STEP_NAMES);
     if (!validItems.includes(item)) {
