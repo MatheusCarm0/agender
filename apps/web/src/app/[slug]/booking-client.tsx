@@ -732,36 +732,7 @@ export default function BookingClient({ business, customization, workingHours, p
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
               Meus agendamentos
             </a>
-
-            {/* Prévia de serviços — foco da página é o agendamento. */}
-            {business.acceptingBookings !== false && (() => {
-              const byService = new Map<string, { id: string; name: string; durationMin: number; price: number }>();
-              business.professionals.forEach((p) => p.services.forEach((s) => {
-                const ex = byService.get(s.id);
-                if (!ex || s.price < ex.price) byService.set(s.id, s);
-              }));
-              const preview = [...byService.values()].slice(0, 6);
-              if (preview.length === 0) return null;
-              return (
-                <div className="pt-4 stagger-item">
-                  <p className="text-[11px] font-medium uppercase tracking-wider mb-1" style={{ opacity: 0.4 }}>Serviços</p>
-                  <div>
-                    {preview.map((s, idx) => (
-                      <button key={s.id} type="button" onClick={() => navigate('select')}
-                        className="w-full flex items-center justify-between gap-3 py-3 text-left transition-opacity hover:opacity-70"
-                        style={{ borderBottom: idx < preview.length - 1 ? `1px solid ${text}0d` : 'none' }}>
-                        <span className="min-w-0">
-                          <span className="text-sm font-medium block truncate" style={{ color: text }}>{s.name}</span>
-                          <span className="text-xs" style={{ opacity: 0.45 }}>{s.durationMin} min</span>
-                        </span>
-                        <span className="text-sm font-semibold shrink-0 tabular-nums" style={{ color: accent, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(s.price)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
+            
             {/* Gallery — carrossel lateral (full-bleed) com lightbox */}
             {gallery && gallery.length > 0 && (
               <div className="pt-5 -mx-6 stagger-item relative group">

@@ -276,16 +276,6 @@ export default function LandingPage() {
         >
           {/* coluna texto */}
           <div style={{ maxWidth: 560, position: 'relative', zIndex: 3 }}>
-            <Reveal>
-              <span className="lp-pill">
-                <span className="lp-pill-dot">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                    <path d="m5 12 4.5 4.5L19 7" />
-                  </svg>
-                </span>
-                7 dias grátis · sem cartão
-              </span>
-            </Reveal>
 
             <Reveal delay={60}>
               <h1 className="lp-display lp-h1" style={{ marginTop: 22, marginBottom: 0, position: 'relative', zIndex: 3 }}>
@@ -311,17 +301,6 @@ export default function LandingPage() {
                 <a href="#exemplos" className="lp-btn lp-btn-ghost" style={{ fontSize: 17, padding: '1.05rem 1.7rem' }}>
                   Ver por dentro
                 </a>
-              </div>
-            </Reveal>
-
-            <Reveal delay={240}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 22px', marginTop: 26, color: 'var(--lp-text-muted)', fontSize: 14 }}>
-                {['Sem instalar nada', 'Cliente marca sem login', 'Cancele quando quiser'].map((t) => (
-                  <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--lp-teal)' }} />
-                    {t}
-                  </span>
-                ))}
               </div>
             </Reveal>
           </div>
@@ -371,7 +350,7 @@ export default function LandingPage() {
             <Reveal>
               <div className="lp-spot">
                 <div className="lp-spot-text">
-                  <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>01 — Núcleo</span>
+                  <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>Núcleo</span>
                   <h3 className="lp-display" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', margin: '10px 0 14px' }}>Agenda que <span className="lp-grad-anim">nunca dá encontro</span>.</h3>
                   <p style={{ margin: 0, color: 'var(--lp-text-muted)', fontSize: 'clamp(1rem,1.5vw,1.15rem)', lineHeight: 1.65, maxWidth: 460 }}>
                     Trava de horário de verdade: dois clientes jamais caem no mesmo slot — nem quando todo mundo marca no mesmo minuto. Adeus, dor de cabeça no balcão.
@@ -385,7 +364,7 @@ export default function LandingPage() {
             <Reveal>
               <div className="lp-spot lp-spot-rev">
                 <div className="lp-spot-text">
-                  <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>02 — Retenção</span>
+                  <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>Retenção</span>
                   <h3 className="lp-display" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', margin: '10px 0 14px' }}>Lembretes que <span className="lp-grad-anim">trazem o cliente</span>.</h3>
                   <p style={{ margin: 0, color: 'var(--lp-text-muted)', fontSize: 'clamp(1rem,1.5vw,1.15rem)', lineHeight: 1.65, maxWidth: 460 }}>
                     WhatsApp e e-mail automáticos antes do horário. O cliente lembra, confirma e aparece — e você não digita uma mensagem sequer.
@@ -399,7 +378,7 @@ export default function LandingPage() {
             <Reveal>
               <div className="lp-spot">
                 <div className="lp-spot-text">
-                  <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>03 — Dinheiro</span>
+                  <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>Dinheiro</span>
                   <h3 className="lp-display" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', margin: '10px 0 14px' }}>Receba antes, no PIX. <span className="lp-grad-anim">E veja tudo</span>.</h3>
                   <p style={{ margin: 0, color: 'var(--lp-text-muted)', fontSize: 'clamp(1rem,1.5vw,1.15rem)', lineHeight: 1.65, maxWidth: 460 }}>
                     Cobre no ato do agendamento e reduza o furo de agenda. Depois, um financeiro que você entende de bater o olho — receita, faltas e desempenho por profissional.
