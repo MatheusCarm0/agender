@@ -266,7 +266,7 @@ function DayCalendar({
                     <div className="text-[11px] font-medium font-[family-name:var(--font-geist-mono)] tabular-nums leading-tight">
                       {s.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    <div className="text-xs font-medium leading-tight truncate">{a.service.name}</div>
+                    <div className="text-xs font-medium leading-tight truncate">{a.service.name} - {a.professional.name}</div>
                     {height > 44 && <div className="text-[11px] leading-tight truncate opacity-80">{a.client.name}</div>}
                   </button>
                 );
