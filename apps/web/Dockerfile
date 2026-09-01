@@ -5,7 +5,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
 COPY apps/web/package.json apps/web/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 COPY apps/web/ apps/web/
 

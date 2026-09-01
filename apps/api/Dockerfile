@@ -7,10 +7,9 @@ COPY packages/database/package.json packages/database/
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 COPY packages/ packages/
-COPY apps/api/ apps/api/
 
 RUN pnpm --filter @agenda/database db:generate
 RUN pnpm --filter @agenda/database build
