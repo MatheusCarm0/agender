@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/toast';
+import { useTheme } from '@/lib/theme-context';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -22,7 +23,7 @@ export default function SettingsPage() {
   const [savingSubdomain, setSavingSubdomain] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const { toggleTheme, theme } = useTheme();
 
   useEffect(() => {
     if (!user || !token) return;
@@ -43,24 +44,6 @@ export default function SettingsPage() {
       })
       .catch(() => setBusinessForm({ name: user.business.name, logoUrl: '', subdomain: '' }));
   }, [user, token]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('admin_theme') as 'light' | 'dark' | null;
-    if (saved) {
-      setTheme(saved);
-      document.documentElement.setAttribute('data-theme', saved);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
-  }, []);
-
-  function toggleTheme() {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    localStorage.setItem('admin_theme', next);
-    document.documentElement.setAttribute('data-theme', next);
-  }
 
   async function handleLogoUpload(file: File) {
     if (!token) return;

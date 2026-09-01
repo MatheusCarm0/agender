@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { AgenderLogo } from '@/components/logo';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { prefetchForRoute } from '@/lib/prefetch-cache';
+import { useTheme } from '@/lib/theme-context';
 
 function IconCalendar() {
   return (
@@ -291,6 +292,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const menuRef = useRef<HTMLDivElement>(null);
   const [businessLogoUrl, setBusinessLogoUrl] = useState('');
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  const { theme } = useTheme();
   const prevPathname = useRef(pathname);
 
   useEffect(() => {
@@ -394,7 +396,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }`}
       >
         <div className="h-14 flex items-center gap-3 px-5 border-b border-border-default">
-          <AgenderLogo />
+          <AgenderLogo color={theme}/>
         </div>
         <nav className="flex-1 py-3 px-2 overflow-y-auto" aria-label="Menu principal">
           {NAV_GROUPS.map((group) => {

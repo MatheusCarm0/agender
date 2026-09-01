@@ -39,17 +39,14 @@ export const metadata: Metadata = {
 
 const STEPS = [
   {
-    n: '01',
     title: 'Monte sua agenda',
     text: 'Cadastre serviços, profissionais e horários de trabalho. Um assistente guia você em poucos minutos.',
   },
   {
-    n: '02',
     title: 'Compartilhe seu link',
     text: 'Coloque na bio do Instagram, no WhatsApp e no Google. O cliente abre e marca — sem app, sem login.',
   },
   {
-    n: '03',
     title: 'Receba agendamentos',
     text: 'Os clientes marcam sozinhos, 24 horas por dia. Você só aparece na hora de atender.',
   },
@@ -314,26 +311,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== FAIXA DE SEGMENTOS ====================== */}
-      <div style={{ position: 'relative', padding: '2rem 0 1rem', borderTop: '1px solid var(--lp-border)', borderBottom: '1px solid var(--lp-border)', background: 'rgba(255,255,255,.5)' }}>
-        <p style={{ textAlign: 'center', margin: '0 0 1.4rem', fontSize: 13.5, color: 'var(--lp-text-muted)', fontFamily: 'var(--lp-font-display)', letterSpacing: '.02em' }}>
-          Feito para todo negócio que trabalha com hora marcada
-        </p>
-        <div className="lp-marquee-mask" style={{ overflow: 'hidden' }}>
-          <div className="lp-marquee">
-            {[...SEGMENTS, ...SEGMENTS].map((s, i) => (
-              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap', fontFamily: 'var(--lp-font-display)', fontWeight: 600, fontSize: 18, color: 'var(--lp-text-strong)', opacity: 0.72 }}>
-                <span style={{ width: 7, height: 7, borderRadius: 999, background: 'linear-gradient(135deg,#14b8a6,#8b5cf6)' }} />
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* ========================== RECURSOS ========================== */}
       <Section id="recursos" className="lp-grain">
-        <Blob variant="violet" size={200} top={20} right="2%" style={{ opacity: 0.12, filter: 'blur(36px)' }} />
+        <Blob variant="violet" size={200} top={5} right="2%" style={{ opacity: 0.12, filter: 'blur(36px)' }} />
         <Blob variant="teal" size={160} bottom={0} left="-3%" style={{ opacity: 0.1, filter: 'blur(36px)' }} />
         <div className="lp-container" style={{ position: 'relative' }}>
           <div style={{ maxWidth: 780 }}>
@@ -439,18 +419,6 @@ export default function LandingPage() {
                   className="lp-glass"
                   style={{ padding: '30px 26px', height: '100%', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)' }}
                 >
-                  <span
-                    className="lp-display"
-                    style={{
-                      fontSize: 44,
-                      background: 'linear-gradient(135deg,#5eead4,#a78bfa)',
-                      WebkitBackgroundClip: 'text',
-                      backgroundClip: 'text',
-                      color: 'transparent',
-                    }}
-                  >
-                    {s.n}
-                  </span>
                   <h3 className="lp-display lp-h3" style={{ marginTop: 8, marginBottom: 8, color: '#fff' }}>
                     {s.title}
                   </h3>

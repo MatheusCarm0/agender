@@ -13,11 +13,12 @@ interface AgenderLogoProps {
 }
 
 export function AgenderLogo({
-  color = "light",
+  color,
   width = 120,
   height = 40,
   className,
 }: AgenderLogoProps) {
+  console.log('logo: ', color)
   return (
     <Image
       src={color === "dark" ? logoDark : logoLight}
