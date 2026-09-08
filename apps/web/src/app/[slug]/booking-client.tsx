@@ -1533,7 +1533,7 @@ function generateDates(pageOffset: number): {
                     <div
                       className={
                         layout === "cards"
-                          ? "grid gap-2 grid-cols-2"
+                          ? "grid gap-2 grid-cols-1 sm:grid-cols-2"
                           : "space-y-2"
                       }
                     >

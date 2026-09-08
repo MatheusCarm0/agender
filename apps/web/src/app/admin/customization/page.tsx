@@ -213,6 +213,10 @@ function fontFamily(font: string): string {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// O backend aceita apenas estas extensões (upload.controller.ts), até 5 MB.
+// SVG e ICO não são aceitos — manter o seletor alinhado evita uploads que falham.
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp';
+const IMAGE_FORMATS_HINT = 'JPG, PNG ou WebP · até 5 MB';
 const inputClass = "w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong placeholder:text-text-subtle focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default";
 
 function SectionCard({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
@@ -745,7 +749,8 @@ export default function CustomizationPage() {
                       ) : (
                         <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border-strong rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-subtle transition-colors">
                           <span className="text-xs text-text-muted">{uploadingCover ? 'Enviando...' : 'Clique para enviar uma imagem de fundo'}</span>
-                          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBackgroundImageUpload(f); }} />
+                          <span className="text-[11px] text-text-subtle mt-1">{IMAGE_FORMATS_HINT}</span>
+                          <input type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBackgroundImageUpload(f); }} />
                         </label>
                       )}
                     </div>
@@ -769,6 +774,7 @@ export default function CustomizationPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-text-muted mb-2">Layout dos serviços</label>
+                    <p className="text-[11px] text-text-subtle mb-2">Como os serviços aparecem na etapa de escolha do agendamento. Em <strong className="font-medium text-text-muted">Lista</strong>, um por linha com o preço à direita; em <strong className="font-medium text-text-muted">Cards</strong>, em grade de duas colunas com o preço abaixo do nome.</p>
                     <div className="flex gap-2">
                       {([{ value: 'list' as const, label: 'Lista' }, { value: 'cards' as const, label: 'Cards' }]).map((lo) => (
                         <button key={lo.value} type="button" onClick={() => updateTheme({ layout: lo.value })}
@@ -830,11 +836,11 @@ export default function CustomizationPage() {
                       {canEdit && (
                         <label className="h-8 px-3 text-xs font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle flex items-center cursor-pointer">
                           {uploadingLogo ? 'Enviando...' : businessLogoUrl ? 'Trocar logo' : 'Enviar logo'}
-                          <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); }} />
+                          <input type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); }} />
                         </label>
                       )}
                     </div>
-                    <p className="text-[11px] text-text-subtle mt-1.5">Aparece na página de agendamento e no painel.</p>
+                    <p className="text-[11px] text-text-subtle mt-1.5">Aparece na página de agendamento e no painel. {IMAGE_FORMATS_HINT}.</p>
                   </div>
                   <div>
                     <label htmlFor="cust-headline" className="block text-xs font-medium text-text-muted mb-1">Título da página</label>
@@ -854,6 +860,7 @@ export default function CustomizationPage() {
 
               <SectionCard title="Favicon">
                 <p className="text-xs text-text-muted mb-3">O ícone que aparece na aba do navegador. Use uma imagem quadrada (idealmente 64×64 ou maior).</p>
+                <p className="text-[11px] text-text-subtle mb-3">{IMAGE_FORMATS_HINT}. Para um ícone quadrado nítido, prefira PNG.</p>
                 <div className="flex items-center gap-4">
                   {data.faviconUrl ? (
                     <div className="relative">
@@ -867,15 +874,15 @@ export default function CustomizationPage() {
                       ) : (
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-subtle"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                       )}
-                      <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/x-icon" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFaviconUpload(f); }} />
+                      <input type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFaviconUpload(f); }} />
                     </label>
                   )}
-                  <p className="text-[11px] text-text-subtle">PNG, JPG, SVG ou ICO.</p>
+                  <p className="text-[11px] text-text-subtle">{IMAGE_FORMATS_HINT}.</p>
                 </div>
               </SectionCard>
 
               <SectionCard title="Imagem de capa">
-                <p className="text-xs text-text-muted mb-3">Faixa no topo da página, atrás da logo. Não é usada quando o fundo da página é uma imagem.</p>
+                <p className="text-xs text-text-muted mb-3">Faixa no topo da página, atrás da logo. Não é usada quando o fundo da página é uma imagem. {IMAGE_FORMATS_HINT}.</p>
                 {theme.coverUrl ? (
                   <div className="relative">
                     <img src={theme.coverUrl} alt="Capa" className="w-full h-32 object-cover rounded-[var(--radius-sm)] border border-border-default" />
@@ -884,7 +891,7 @@ export default function CustomizationPage() {
                 ) : (
                   <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border-strong rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-subtle transition-colors">
                     <span className="text-xs text-text-muted">{uploadingCover ? 'Enviando...' : 'Clique para enviar uma imagem de capa'}</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f); }} />
+                    <input type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f); }} />
                   </label>
                 )}
               </SectionCard>
@@ -893,15 +900,16 @@ export default function CustomizationPage() {
                 canEdit && (data.gallery?.length || 0) < 6 ? (
                   <label className="h-8 px-3 text-xs font-medium border border-border-strong text-text-default rounded-[var(--radius-sm)] hover:bg-surface-subtle flex items-center cursor-pointer">
                     {uploadingGallery ? 'Enviando...' : 'Adicionar'}
-                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGalleryUpload(f); }} />
+                    <input type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGalleryUpload(f); }} />
                   </label>
                 ) : undefined
               }>
-                <p className="text-xs text-text-muted mb-3">Até 6 fotos do seu espaço ou trabalho. Aparecem na página pública.</p>
+                <p className="text-base text-text-muted">Até 6 fotos do seu espaço ou trabalho. Aparecem na página pública.</p>
+                <p className='text-xs text-text-subtle mb-3'>Formatos permitidos: {IMAGE_FORMATS_HINT}.</p>
                 {(data.gallery?.length || 0) === 0 ? (
                   <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border-strong rounded-[var(--radius-sm)] cursor-pointer hover:bg-surface-subtle transition-colors">
                     <span className="text-xs text-text-muted">{uploadingGallery ? 'Enviando...' : 'Clique para adicionar fotos'}</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGalleryUpload(f); }} />
+                    <input type="file" accept={IMAGE_ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleGalleryUpload(f); }} />
                   </label>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
