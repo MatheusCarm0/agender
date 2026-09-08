@@ -158,7 +158,7 @@ export default function FidelityPage() {
     }
   }
 
-  if (!planAllows(user?.business.plan, 'pro')) {
+  if (!planAllows(user?.business.plan, 'pro', user?.business.planStatus)) {
     return (
       <div>
         <h1 className="text-2xl font-semibold text-text-strong">Clube de fidelidade</h1>
