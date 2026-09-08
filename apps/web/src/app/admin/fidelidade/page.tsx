@@ -25,6 +25,11 @@ interface Client {
   phone: string;
 }
 
+interface Service {
+  id: string;
+  name: string;
+}
+
 interface ClientMembership {
   id: string;
   clientId: string;
@@ -40,6 +45,16 @@ interface ClientMembership {
 
 const CYCLE_LABELS: Record<string, string> = { monthly: 'Mensal', quarterly: 'Trimestral', yearly: 'Anual' };
 
+// serviceIds é gravado como string JSON (dupla codificação histórica do backend).
+function parseServiceIds(raw: string): string[] {
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function FidelityPage() {
   const { token, user } = useAuth();
   const { toast } = useToast();
@@ -48,11 +63,12 @@ export default function FidelityPage() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [memberships, setMemberships] = useState<ClientMembership[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [planForm, setPlanForm] = useState({
-    name: '', price: '', billingCycle: 'monthly', usageLimitType: 'unlimited', usageLimit: '',
+    name: '', price: '', billingCycle: 'monthly', usageLimitType: 'unlimited', usageLimit: '', serviceIds: [] as string[],
   });
   const [savingPlan, setSavingPlan] = useState(false);
 
@@ -70,14 +86,16 @@ export default function FidelityPage() {
   async function loadData(silent = false) {
     if (!silent) setLoading(true);
     try {
-      const [p, m, c] = await Promise.all([
+      const [p, m, c, s] = await Promise.all([
         api<MembershipPlan[]>('/membership-plans', { token: token! }),
         api<ClientMembership[]>('/client-memberships', { token: token! }),
         api<Client[]>('/clients', { token: token! }),
+        api<Service[]>('/services', { token: token! }).catch(() => []),
       ]);
       setPlans(p);
       setMemberships(m);
       setClients(c);
+      setServices(s);
     } catch {
       toast('Não foi possível carregar os dados de fidelidade', 'error');
     }
@@ -97,10 +115,11 @@ export default function FidelityPage() {
           billingCycle: planForm.billingCycle,
           usageLimitType: planForm.usageLimitType,
           usageLimit: planForm.usageLimitType === 'limited' ? Number(planForm.usageLimit) : undefined,
+          serviceIds: planForm.serviceIds,
         }),
       });
       setShowPlanForm(false);
-      setPlanForm({ name: '', price: '', billingCycle: 'monthly', usageLimitType: 'unlimited', usageLimit: '' });
+      setPlanForm({ name: '', price: '', billingCycle: 'monthly', usageLimitType: 'unlimited', usageLimit: '', serviceIds: [] });
       toast('Plano criado com sucesso', 'success');
       await loadData(true);
     } catch (err: any) {
@@ -251,6 +270,32 @@ export default function FidelityPage() {
                     </div>
                   )}
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">Serviços incluídos</label>
+                  <p className="text-[11px] text-text-subtle mb-2">Marque os serviços cobertos por este plano. Deixe tudo desmarcado para valer em <strong className="font-medium text-text-muted">todos</strong> os serviços.</p>
+                  {services.length === 0 ? (
+                    <p className="text-xs text-text-subtle">Nenhum serviço cadastrado.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {services.map((s) => {
+                        const checked = planForm.serviceIds.includes(s.id);
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setPlanForm((f) => ({
+                              ...f,
+                              serviceIds: checked ? f.serviceIds.filter((id) => id !== s.id) : [...f.serviceIds, s.id],
+                            }))}
+                            className={`h-8 px-3 text-xs font-medium rounded-[var(--radius-pill)] border transition-colors ${checked ? 'border-primary-default bg-primary-tint-bg text-primary-tint-text' : 'border-border-strong text-text-default hover:bg-surface-subtle'}`}
+                          >
+                            {checked ? '✓ ' : ''}{s.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <button type="submit" disabled={savingPlan} className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50">
                     {savingPlan ? 'Criando...' : 'Criar'}
@@ -299,6 +344,15 @@ export default function FidelityPage() {
                   <p className="text-xs text-text-muted">
                     {p.usageLimitType === 'unlimited' ? 'Uso ilimitado' : `${p.usageLimit} usos por ciclo`}
                   </p>
+                  {(() => {
+                    const ids = parseServiceIds(p.serviceIds);
+                    const names = ids.map((id) => services.find((s) => s.id === id)?.name).filter(Boolean);
+                    return (
+                      <p className="text-[11px] text-text-subtle mt-2 pt-2 border-t border-border-default">
+                        {names.length === 0 ? 'Vale para todos os serviços' : `Serviços: ${names.join(', ')}`}
+                      </p>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
