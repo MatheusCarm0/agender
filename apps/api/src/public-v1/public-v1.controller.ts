@@ -26,6 +26,7 @@ import { PreviewCouponDto } from '../public/dto/preview-coupon.dto';
 import { capabilitiesFor } from '../plan/plan-limits';
 import { StartOtpDto } from '../client-auth/dto/start-otp.dto';
 import { VerifyOtpDto } from '../client-auth/dto/verify-otp.dto';
+import { RequestMembershipDto } from '../public/dto/request-membership.dto';
 import { BookingPaymentService } from '../booking-payment/booking-payment.service';
 import { CreateBookingPaymentDto } from '../booking-payment/dto/create-booking-payment.dto';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
@@ -372,6 +373,51 @@ export class PublicV1Controller {
       appointmentId,
       businessId,
     );
+    return { ok: true };
+  }
+
+  // --- Clube de fidelidade (cliente) ---
+
+  // Planos disponíveis para assinatura. Público (não exige login) para o cliente
+  // ver a oferta antes de entrar. Vazio quando o plano do negócio não inclui o
+  // clube — a página simplesmente não anuncia o recurso.
+  @Get(':slug/membership-plans')
+  async getMembershipPlans(@Param('slug') slug: string) {
+    const business = await this.prisma.raw.business.findUnique({
+      where: { slug },
+    });
+    if (!business) throw new NotFoundException('Business not found');
+    if (!capabilitiesFor(business.plan, business.planStatus).memberships) {
+      return [];
+    }
+    return this.membershipService.findActivePlansForClient(business.id);
+  }
+
+  @Get(':slug/me/memberships')
+  @UseGuards(ClientAuthGuard)
+  async getMyMemberships(@Req() req: any) {
+    const { clientId, businessId } = req.clientUser;
+    return this.membershipService.findClientMemberships(businessId, clientId);
+  }
+
+  // Cliente solicita a assinatura de um plano. Cria a matrícula pendente; a
+  // ativação segue manual pelo negócio (registrar pagamento) — não há cobrança
+  // online do clube ainda.
+  @Post(':slug/me/memberships')
+  @UseGuards(ClientAuthGuard)
+  async requestMyMembership(
+    @Param('slug') slug: string,
+    @Body() dto: RequestMembershipDto,
+    @Req() req: any,
+  ) {
+    const { clientId, businessId } = req.clientUser;
+    const business = await this.prisma.raw.business.findUnique({
+      where: { id: businessId },
+    });
+    if (!business || !capabilitiesFor(business.plan, business.planStatus).memberships) {
+      throw new NotFoundException('Clube de fidelidade indisponível.');
+    }
+    await this.membershipService.requestMembership(businessId, clientId, dto.planId);
     return { ok: true };
   }
 }
