@@ -414,7 +414,7 @@ export default function LandingPage() {
             }}
           >
             {STEPS.map((s, i) => (
-              <Reveal key={s.n} delay={i * 100}>
+              <Reveal key={i} delay={i * 100}>
                 <div
                   className="lp-glass"
                   style={{ padding: '30px 26px', height: '100%', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)' }}
