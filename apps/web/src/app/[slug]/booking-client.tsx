@@ -112,7 +112,7 @@ function fontFamily(font: string): string {
 
 function btnRadius(style?: string): string {
   if (style === "pill") return "999px";
-  if (style === "square") return "4px";
+  if (style === "square") return "0px";
   return "8px";
 }
 
@@ -147,6 +147,27 @@ function bgStyle(
     };
   }
   return { backgroundColor: bg.value || "#f9fafb" };
+}
+
+// Fundo do efeito "gradiente animado": monta um gradiente multi-parada e o
+// dimensiona a 400% para que a animação de background-position produza
+// movimento visível. Usa as paradas do gradiente do tema quando existir;
+// senão sintetiza a partir das cores da paleta. O background-size vai inline
+// (longhand) de propósito — o shorthand `background` reiniciaria o size a auto.
+function animatedBgStyle(
+  bg: Customization["theme"]["background"] | undefined,
+  solid: string,
+  primary: string,
+  surface: string,
+): React.CSSProperties {
+  const stops =
+    bg?.type === "gradient" && bg.gradient
+      ? [bg.gradient.from, bg.gradient.to, bg.gradient.from]
+      : [solid, primary, surface, solid];
+  return {
+    backgroundImage: `linear-gradient(-45deg, ${stops.join(", ")})`,
+    backgroundSize: "400% 400%",
+  };
 }
 
 const DAYS_TO_SHOW = 13;
@@ -834,15 +855,52 @@ function generateDates(pageOffset: number): {
 
   return (
     <div
-      className={`min-h-screen flex flex-col items-center relative ${backgroundEffect === "dots" ? "bg-effect-dots" : backgroundEffect === "grid" ? "bg-effect-grid" : backgroundEffect === "noise" ? "bg-effect-noise" : backgroundEffect === "animated-gradient" ? "bg-effect-animated-gradient" : ""}`}
+      className="min-h-screen flex flex-col items-center relative"
       style={{
-        ...(bgTheme
-          ? bgStyle(bgTheme, overlayOpacity)
-          : { backgroundColor: bg }),
         color: text,
-        fontFamily: fontFamily(customization?.theme?.font || "inter"),
+        fontFamily: fontFamily(cust?.theme?.font || "inter"),
+        // Contexto de empilhamento próprio: mantém as camadas de fundo
+        // (z-index:-1) contidas, sem cair atrás do fundo do body.
+        isolation: "isolate",
       }}
     >
+      {/* Camada de fundo — separada do conteúdo para que os efeitos não colidam
+          com o estilo inline dos containers. O gradiente animado precisa do
+          background-size a 400%; texturas (dots/grid/noise) precisam pintar
+          sobre qualquer tipo de fundo, inclusive gradiente e imagem. */}
+      <div
+        aria-hidden
+        className={
+          backgroundEffect === "animated-gradient"
+            ? "bg-effect-animated-gradient"
+            : ""
+        }
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: -1,
+          ...(backgroundEffect === "animated-gradient"
+            ? animatedBgStyle(bgTheme, bg, primary, surface)
+            : bgTheme
+              ? bgStyle(bgTheme, overlayOpacity)
+              : { backgroundColor: bg }),
+        }}
+      />
+      {(backgroundEffect === "dots" ||
+        backgroundEffect === "grid" ||
+        backgroundEffect === "noise") && (
+        <div
+          aria-hidden
+          className={`bg-effect-${backgroundEffect}`}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: -1,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {/* Cover */}
       {coverUrl && bgTheme?.type !== "image" && (
         <div
