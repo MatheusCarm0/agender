@@ -269,7 +269,7 @@ export function HeroArt() {
           <IconTile name="bell" tone="amber" size={32} />
           <div style={{ lineHeight: 1.15 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--lp-text-strong)' }}>Lembrete enviado</div>
-            <div style={{ fontSize: 10.5, color: 'var(--lp-text-muted)' }}>WhatsApp · 24h antes</div>
+            <div style={{ fontSize: 10.5, color: 'var(--lp-text-muted)' }}>E-mail · 24h antes</div>
           </div>
         </div>
       </div>

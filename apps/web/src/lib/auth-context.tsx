@@ -36,6 +36,7 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  registerStart: (email: string) => Promise<{ devCode?: string }>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -46,6 +47,7 @@ interface RegisterData {
   ownerName: string;
   email: string;
   password: string;
+  code: string;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -123,6 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ ...res.user, business: res.business });
   }, []);
 
+  const registerStart = useCallback(async (email: string) => {
+    return api<{ devCode?: string }>('/auth/register/start', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }, []);
+
   const register = useCallback(async (data: RegisterData) => {
     const res = await api<{
       accessToken: string;
@@ -160,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, registerStart, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

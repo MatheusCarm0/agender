@@ -1,4 +1,4 @@
-import { IsString, IsEmail, MinLength } from 'class-validator';
+import { IsString, IsEmail, MinLength, Length } from 'class-validator';
 
 export class RegisterBusinessDto {
   @IsString()
@@ -15,4 +15,9 @@ export class RegisterBusinessDto {
   @IsString()
   @MinLength(8)
   password!: string;
+
+  // Código de 6 dígitos enviado por e-mail em POST /auth/register/start.
+  @IsString()
+  @Length(6, 6)
+  code!: string;
 }

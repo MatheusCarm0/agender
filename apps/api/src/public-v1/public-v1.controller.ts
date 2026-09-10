@@ -329,7 +329,7 @@ export class PublicV1Controller {
     });
     if (!business) throw new NotFoundException('Business not found');
 
-    return this.clientAuthService.startOtp(business.id, dto.phone);
+    return this.clientAuthService.startOtp(business.id, dto.email);
   }
 
   @Post(':slug/auth/otp/verify')
@@ -339,7 +339,7 @@ export class PublicV1Controller {
     });
     if (!business) throw new NotFoundException('Business not found');
 
-    return this.clientAuthService.verifyOtp(business.id, dto.phone, dto.code);
+    return this.clientAuthService.verifyOtp(business.id, dto.email, dto.code);
   }
 
   // --- Authenticated client endpoints ---

@@ -29,6 +29,14 @@ export class NotificationService {
     );
   }
 
+  async enqueueRegisterOtp(email: string, code: string) {
+    await this.queue.add(
+      'register_otp',
+      { email, code },
+      { jobId: `reg-otp-${Date.now()}`, removeOnComplete: true },
+    );
+  }
+
   async enqueuePasswordReset(
     userId: string,
     email: string,

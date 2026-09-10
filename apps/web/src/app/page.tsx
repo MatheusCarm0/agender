@@ -347,7 +347,7 @@ export default function LandingPage() {
                   <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>Retenção</span>
                   <h3 className="lp-display" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', margin: '10px 0 14px' }}>Lembretes que <span className="lp-grad-anim">trazem o cliente</span>.</h3>
                   <p style={{ margin: 0, color: 'var(--lp-text-muted)', fontSize: 'clamp(1rem,1.5vw,1.15rem)', lineHeight: 1.65, maxWidth: 460 }}>
-                    WhatsApp e e-mail automáticos antes do horário. O cliente lembra, confirma e aparece — e você não digita uma mensagem sequer.
+                    Lembretes por e-mail automáticos antes do horário. O cliente lembra, confirma e aparece — e você não digita uma mensagem sequer.
                   </p>
                 </div>
                 <div className="lp-spot-visual"><VisualReminder /></div>
@@ -456,7 +456,7 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={160}>
             <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 12, marginTop: 32 }}>
-              {['Agenda aberta 24h', 'Zero WhatsApp manual', 'Menos no-show', 'Pago no PIX'].map((t) => (
+              {['Agenda aberta 24h', 'Lembretes automáticos', 'Menos no-show', 'Pago no PIX'].map((t) => (
                 <span key={t} style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 600, fontSize: 14.5, color: '#fff', padding: '9px 16px', borderRadius: 999, border: '1px solid rgba(255,255,255,.4)', background: 'rgba(255,255,255,.12)', backdropFilter: 'blur(6px)' }}>
                   {t}
                 </span>

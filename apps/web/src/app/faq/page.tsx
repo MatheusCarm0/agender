@@ -76,7 +76,7 @@ const SECTIONS: Section[] = [
     items: [
       {
         q: 'Meus clientes recebem lembrete?',
-        a: 'Sim. A plataforma envia confirmação e lembrete do agendamento por e-mail e/ou WhatsApp (conforme o plano e a configuração), o que ajuda a reduzir faltas.',
+        a: 'Sim. A plataforma envia confirmação e lembrete do agendamento por e-mail, o que ajuda a reduzir faltas.',
       },
     ],
   },
