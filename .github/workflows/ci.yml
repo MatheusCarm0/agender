@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
   pull_request:
-    branches: [main]
+    branches: [dev]
 
 jobs:
   build-and-test:
@@ -48,7 +48,7 @@ jobs:
       - run: pnpm --filter @agenda/database db:generate
       - run: pnpm --filter @agenda/database build
       - run: pnpm --filter @agenda/shared build
-      - run: pnpm --filter @agenda/database db:migrate -- --name ci
+      - run: pnpm --filter @agenda/database db:migrate:deploy
         env:
           DATABASE_URL: mysql://root:root@localhost:3306/agenda
       - run: pnpm build
