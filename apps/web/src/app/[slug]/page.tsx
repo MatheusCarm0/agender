@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import BookingClient from './booking-client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -66,6 +67,10 @@ const DEFAULT_COLORS = {
   text: '#1C1917',
 };
 
+export async function generateStaticParams() {
+  return [{ slug: 'agender' }];
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   try {
@@ -97,24 +102,39 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PublicBookingPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { slug } = await params;
-  const sp = await searchParams;
-  const preview = sp?.preview === '1';
 
   let business: Business;
   try {
     const res = await fetch(`${API_URL}/public/v1/${slug}`, {
       cache: 'no-store',
     });
-    if (!res.ok) return notFound();
-    business = await res.json();
+    if (!res.ok) {
+      business = {
+        id: 'fallback',
+        slug,
+        name: 'Agendamento',
+        timezone: 'America/Sao_Paulo',
+        customization: null,
+        workingHours: [],
+        professionals: [],
+      };
+    } else {
+      business = await res.json();
+    }
   } catch {
-    return notFound();
+    business = {
+      id: 'fallback',
+      slug,
+      name: 'Agendamento',
+      timezone: 'America/Sao_Paulo',
+      customization: null,
+      workingHours: [],
+      professionals: [],
+    };
   }
 
   const colors = business.customization?.theme?.colors || DEFAULT_COLORS;
@@ -131,12 +151,14 @@ export default async function PublicBookingPage({
 
   return (
     <div style={themeVars}>
-      <BookingClient
-        business={business}
-        customization={business.customization}
-        workingHours={business.workingHours}
-        preview={preview}
-      />
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Carregando...</div>}>
+        <BookingClient
+          business={business}
+          customization={business.customization}
+          workingHours={business.workingHours}
+          preview={false}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -25,15 +25,19 @@ interface BusinessLite {
   } | null;
 }
 
+export async function generateStaticParams() {
+  return [{ slug: 'agender' }];
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   try {
     const res = await fetch(`${API_URL}/public/v1/${slug}`, { cache: 'no-store' });
-    if (!res.ok) return {};
+    if (!res.ok) return { title: 'Meus agendamentos' };
     const business: BusinessLite = await res.json();
     return { title: `Meus agendamentos · ${business.customization?.headline || business.name}` };
   } catch {
-    return {};
+    return { title: 'Meus agendamentos' };
   }
 }
 
@@ -47,10 +51,22 @@ export default async function AccountPage({
   let business: BusinessLite;
   try {
     const res = await fetch(`${API_URL}/public/v1/${slug}`, { cache: 'no-store' });
-    if (!res.ok) return notFound();
-    business = await res.json();
+    if (!res.ok) {
+      // Fallback seguro para build estático se a API não responder
+      business = {
+        slug,
+        name: 'Agendamento',
+        customization: null,
+      };
+    } else {
+      business = await res.json();
+    }
   } catch {
-    return notFound();
+    business = {
+      slug,
+      name: 'Agendamento',
+      customization: null,
+    };
   }
 
   const colors = business.customization?.theme?.colors || DEFAULT_COLORS;
