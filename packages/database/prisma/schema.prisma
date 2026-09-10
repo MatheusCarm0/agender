@@ -58,7 +58,8 @@ enum CampaignStatus {
 
 enum NotificationChannel {
   email
-  whatsapp
+  sms
+  whatsapp // legado: mantido para linhas históricas; não usado em novos envios
 }
 
 enum NotificationType {

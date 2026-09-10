@@ -6,6 +6,7 @@ import { Resend } from 'resend';
 import { PrismaService } from '../prisma/prisma.service';
 import { NOTIFICATION_QUEUE } from '../queue/queue.module';
 import { emailLayout, emailButton, emailInfoBox, emailText } from './email-template';
+import { SmsService } from './sms/sms.service';
 
 const FROM_EMAIL = 'Agender <onboarding@resend.dev>';
 
@@ -25,6 +26,7 @@ export class NotificationProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly sms: SmsService,
   ) {
     super();
     const apiKey = this.config.get<string>('RESEND_API_KEY');
@@ -189,14 +191,14 @@ export class NotificationProcessor extends WorkerHost {
     const sent = client.email ? await this.sendEmail(to, subject, html) : false;
     const failureReason = client.email
       ? 'Falha ao enviar o e-mail (verifique o domínio/endereço no Resend).'
-      : 'Cliente sem e-mail; WhatsApp ainda não configurado.';
+      : 'Cliente sem e-mail cadastrado para notificação de agendamento.';
 
     await this.prisma.raw.notificationLog.upsert({
       where: { referenceId_type: { referenceId: appointmentId, type } },
       create: {
         businessId,
         clientId: client.id,
-        channel: client.email ? 'email' : 'whatsapp',
+        channel: 'email',
         type,
         status: sent ? 'sent' : 'failed',
         payload: { appointmentId, to, subject },
@@ -231,7 +233,7 @@ export class NotificationProcessor extends WorkerHost {
       create: {
         businessId,
         clientId: client.id,
-        channel: client.email ? 'email' : 'whatsapp',
+        channel: 'email',
         type: 'membership_expiring',
         status: sent ? 'sent' : 'failed',
         payload: { membershipId, to },
@@ -243,10 +245,11 @@ export class NotificationProcessor extends WorkerHost {
   }
 
   /**
-   * Entrega o código OTP de login do cliente ("meus agendamentos"). O e-mail é o
-   * canal já configurado (Resend); WhatsApp/SMS é o próximo canal (depende das
-   * credenciais Meta Cloud API — ver docs/notificacoes.md). Sem e-mail e sem
-   * WhatsApp configurado, registramos o motivo em vez de falhar silenciosamente.
+   * Entrega o código OTP de login do cliente ("meus agendamentos"). O cliente se
+   * identifica pelo telefone, então o **SMS é o canal primário** (Twilio, ver
+   * docs/notificacoes.md) e sempre há um número para onde enviar. O e-mail é
+   * fallback quando o SMS não pôde ser enviado e o cliente tem e-mail. Sem
+   * nenhum canal disponível, registramos o motivo em vez de falhar em silêncio.
    */
   private async processClientOtp(job: Job) {
     const { clientId, businessId, code } = job.data;
@@ -257,14 +260,26 @@ export class NotificationProcessor extends WorkerHost {
     });
     if (!client) return;
 
+    const businessName = (client as any).business?.name ?? 'Agender';
+
+    // Canal primário: SMS para o telefone de login.
+    if (client.phone) {
+      const smsBody = `${businessName}: seu código de acesso é ${code}. Expira em 5 minutos.`;
+      const sent = await this.sms.send(client.phone, smsBody);
+      if (sent) return;
+      this.logger.warn(
+        `SMS de OTP falhou para cliente ${clientId}; tentando e-mail se disponível.`,
+      );
+    }
+
+    // Fallback: e-mail (Resend), quando o cliente tiver e-mail cadastrado.
     if (!client.email) {
       this.logger.warn(
-        `OTP do cliente ${clientId} não entregue: cliente sem e-mail e WhatsApp ainda não configurado.`,
+        `OTP do cliente ${clientId} não entregue: SMS indisponível e cliente sem e-mail.`,
       );
       return;
     }
 
-    const businessName = (client as any).business?.name ?? 'Agender';
     const subject = `Seu código de acesso - ${businessName}`;
     const html = emailLayout(
       'Seu código de acesso',

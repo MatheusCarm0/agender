@@ -70,9 +70,9 @@ export class ClientAuthService {
       },
     });
 
-    // Entrega assíncrona pelo worker de notificação: e-mail (canal configurado)
-    // quando o cliente tem e-mail; WhatsApp/SMS entra quando as credenciais Meta
-    // forem plugadas (ver docs/notificacoes.md). Fora de produção também
+    // Entrega assíncrona pelo worker de notificação: SMS é o canal primário
+    // (o cliente se identifica pelo telefone), com e-mail como fallback quando
+    // o SMS não pôde ser enviado — ver docs/notificacoes.md. Fora de produção
     // devolvemos o código na resposta para permitir o fluxo E2E em dev/testes.
     const isProd = this.config.get<string>('NODE_ENV') === 'production';
     await this.notifications.enqueueClientOtp(client.id, businessId, code);
@@ -84,12 +84,9 @@ export class ClientAuthService {
       this.logger.log(`[OTP] business=${businessId} phone=${phone} code=${code}`);
     }
 
-    const viaEmail = !!client.email;
     return {
-      message: viaEmail
-        ? 'Enviamos um código de acesso para o seu e-mail.'
-        : 'Código enviado.',
-      channel: viaEmail ? 'email' : 'whatsapp',
+      message: 'Enviamos um código de acesso por SMS para o seu telefone.',
+      channel: 'sms' as const,
       expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
       ...(isProd ? {} : { devCode: code }),
     };
