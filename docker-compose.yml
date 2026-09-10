@@ -60,19 +60,33 @@ services:
     volumes:
       - ./apps/web/src:/app/apps/web/src
 
+  # Mesma imagem/código da API, iniciada em modo worker: consome a fila BullMQ
+  # e roda os @Cron (é o ÚNICO processo que os roda). A API só enfileira.
   worker:
     build:
       context: .
-      dockerfile: apps/worker/Dockerfile
+      dockerfile: apps/api/Dockerfile
+    command: ["pnpm", "--filter", "@agenda/api", "dev:worker"]
     environment:
+      PROCESS_ROLE: worker
       DATABASE_URL: mysql://agenda:agenda@mysql:3306/agenda
       REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: troque-em-producao
+      JWT_REFRESH_SECRET: troque-em-producao
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 7d
       NODE_ENV: development
+      # Para o worker ENTREGAR e-mails de verdade (e não só simular), defina
+      # RESEND_API_KEY e MAIL_FROM aqui — é este processo que envia. Ver
+      # docs/notificacoes.md.
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./packages:/app/packages
 
 volumes:
   mysql_data:

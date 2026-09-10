@@ -3,8 +3,9 @@ import { BookingPaymentService } from './booking-payment.service';
 import { NotificationModule } from '../notification/notification.module';
 import { AvailabilityModule } from '../availability/availability.module';
 
-// ScheduleModule.forRoot() já é chamado no PlanModule; um único forRoot cobre
-// os @Cron de todos os providers da app, então não repetimos aqui.
+// ScheduleModule.forRoot() é registrado uma única vez no AppModule, apenas no
+// processo worker (ver common/process-role.ts). O @Cron de BookingPaymentService
+// fica inerte na API e só dispara no worker.
 @Module({
   imports: [NotificationModule, AvailabilityModule],
   providers: [BookingPaymentService],
