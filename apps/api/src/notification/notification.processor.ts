@@ -8,7 +8,10 @@ import { NOTIFICATION_QUEUE } from '../queue/queue.module';
 import { emailLayout, emailButton, emailInfoBox, emailText } from './email-template';
 import { SmsService } from './sms/sms.service';
 
-const FROM_EMAIL = 'Agender <onboarding@resend.dev>';
+// Remetente padrão: sandbox do Resend, que SÓ entrega no e-mail do dono da
+// conta. Para enviar a clientes, verifique um domínio em resend.com/domains e
+// defina MAIL_FROM (ex.: "Agender <nao-responda@seudominio.com>").
+const DEFAULT_FROM_EMAIL = 'Agender <onboarding@resend.dev>';
 
 function escapeHtml(value: string): string {
   return value
@@ -22,6 +25,7 @@ function escapeHtml(value: string): string {
 export class NotificationProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationProcessor.name);
   private readonly resend: Resend | null;
+  private readonly fromEmail: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,8 +35,13 @@ export class NotificationProcessor extends WorkerHost {
     super();
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     this.resend = apiKey ? new Resend(apiKey) : null;
+    this.fromEmail = this.config.get<string>('MAIL_FROM') || DEFAULT_FROM_EMAIL;
     if (!this.resend) {
       this.logger.warn('RESEND_API_KEY not set — emails will be logged only');
+    } else if (this.fromEmail === DEFAULT_FROM_EMAIL) {
+      this.logger.warn(
+        'MAIL_FROM não definido — usando o sandbox do Resend (onboarding@resend.dev), que só entrega no e-mail do dono da conta. Verifique um domínio e defina MAIL_FROM para enviar a clientes.',
+      );
     }
   }
 
@@ -108,7 +117,7 @@ export class NotificationProcessor extends WorkerHost {
 
     try {
       const { error } = await this.resend.emails.send({
-        from: FROM_EMAIL,
+        from: this.fromEmail,
         to,
         subject,
         html,
@@ -124,6 +133,35 @@ export class NotificationProcessor extends WorkerHost {
     } catch (err: any) {
       this.logger.error(`Resend exception: ${err.message}`);
       return false;
+    }
+  }
+
+  /**
+   * Variante do envio que devolve o resultado detalhado (em vez de só bool),
+   * para caminhos que precisam **falhar alto** — como o OTP, onde uma entrega
+   * silenciosamente falha deixa o cliente sem acessar a conta.
+   */
+  private async sendEmailResult(
+    to: string,
+    subject: string,
+    html: string,
+  ): Promise<{ ok: boolean; simulated?: boolean; error?: string }> {
+    if (!this.resend) {
+      this.logger.log(`[SIMULATED EMAIL] To: ${to} | Subject: ${subject}`);
+      return { ok: false, simulated: true };
+    }
+    try {
+      const { error } = await this.resend.emails.send({
+        from: this.fromEmail,
+        to,
+        subject,
+        html,
+      });
+      if (error) return { ok: false, error: JSON.stringify(error) };
+      this.logger.log(`Email sent to ${to}: ${subject}`);
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, error: err.message };
     }
   }
 
@@ -245,11 +283,12 @@ export class NotificationProcessor extends WorkerHost {
   }
 
   /**
-   * Entrega o código OTP de login do cliente ("meus agendamentos"). O cliente se
-   * identifica pelo telefone, então o **SMS é o canal primário** (Twilio, ver
-   * docs/notificacoes.md) e sempre há um número para onde enviar. O e-mail é
-   * fallback quando o SMS não pôde ser enviado e o cliente tem e-mail. Sem
-   * nenhum canal disponível, registramos o motivo em vez de falhar em silêncio.
+   * Entrega o código OTP de login do cliente ("meus agendamentos"). No **beta o
+   * único canal é e-mail**. O SMS (Twilio) é scaffolding para uma feature
+   * pós-beta: fica desligado por padrão e só é usado quando `SMS_ENABLED=true` —
+   * aí vira o canal primário para o telefone de login, com e-mail como fallback.
+   * Ver docs/notificacoes.md. Sem canal disponível, registramos o motivo em vez
+   * de falhar em silêncio.
    */
   private async processClientOtp(job: Job) {
     const { clientId, businessId, code } = job.data;
@@ -262,20 +301,21 @@ export class NotificationProcessor extends WorkerHost {
 
     const businessName = (client as any).business?.name ?? 'Agender';
 
-    // Canal primário: SMS para o telefone de login.
-    if (client.phone) {
+    // Pós-beta (SMS_ENABLED=true): SMS como canal primário para o telefone.
+    const smsEnabled = this.config.get<string>('SMS_ENABLED') === 'true';
+    if (smsEnabled && client.phone) {
       const smsBody = `${businessName}: seu código de acesso é ${code}. Expira em 5 minutos.`;
       const sent = await this.sms.send(client.phone, smsBody);
       if (sent) return;
       this.logger.warn(
-        `SMS de OTP falhou para cliente ${clientId}; tentando e-mail se disponível.`,
+        `SMS de OTP falhou para cliente ${clientId}; tentando e-mail.`,
       );
     }
 
-    // Fallback: e-mail (Resend), quando o cliente tiver e-mail cadastrado.
+    // Beta: e-mail é o único canal. Sem e-mail cadastrado, não há como entregar.
     if (!client.email) {
       this.logger.warn(
-        `OTP do cliente ${clientId} não entregue: SMS indisponível e cliente sem e-mail.`,
+        `OTP do cliente ${clientId} não entregue: cliente sem e-mail cadastrado.`,
       );
       return;
     }
@@ -295,7 +335,20 @@ export class NotificationProcessor extends WorkerHost {
       `Enviado por <strong style="color:#78716C;">${escapeHtml(businessName)}</strong> via Agender.`,
     );
 
-    await this.sendEmail(client.email, subject, html);
+    // Falhar alto: se o e-mail não sair de verdade (Resend não configurado ou
+    // erro no envio), lançamos — o job vai para 'failed' com o motivo e pode
+    // ser reprocessado, em vez de o cliente ficar sem o código em silêncio.
+    const result = await this.sendEmailResult(client.email, subject, html);
+    if (result.simulated) {
+      throw new Error(
+        `OTP não enviado para ${client.email}: RESEND_API_KEY ausente no processo (modo simulado). from=${this.fromEmail}`,
+      );
+    }
+    if (!result.ok) {
+      throw new Error(
+        `OTP: Resend falhou para ${client.email} (from=${this.fromEmail}): ${result.error}`,
+      );
+    }
   }
 
   /**

@@ -284,12 +284,15 @@ export class AuthService {
       resetUrl,
     );
 
-    // Fora de produção devolvemos o token para permitir o fluxo E2E sem e-mail
-    // configurado. Em produção o token nunca vai na resposta (evita bypass).
+    // Atalho de dev: devolvemos o token na resposta apenas quando NÃO há e-mail
+    // configurado (sem RESEND_API_KEY), para permitir o fluxo E2E local sem
+    // envio real. Com Resend ligado, o link vai só por e-mail; em produção o
+    // token nunca vai na resposta (evita bypass).
     const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    const emailConfigured = !!this.config.get<string>('RESEND_API_KEY');
     return {
       message: 'If the email exists, a reset link was sent',
-      ...(isProd ? {} : { token }),
+      ...(isProd || emailConfigured ? {} : { token }),
     };
   }
 

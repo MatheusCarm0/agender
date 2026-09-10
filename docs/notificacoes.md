@@ -18,44 +18,58 @@ A ideia original (lembretes/OTP por WhatsApp) foi **descontinuada**. Motivos:
   e expõem o número a **bloqueio por spam** — especialmente perigoso num número
   compartilhado disparando para clientes de vários tenants.
 
-A estratégia segura adotada distribui as mensagens por tipo:
+**No beta, o canal único é o e-mail** — toda verificação, todo código (OTP) e toda comunicação
+com o cliente final saem por e-mail. Notificações por telefone (SMS) são uma **feature pós-beta**;
+o código do provedor já existe como scaffolding, mas fica **desligado** até lá.
 
-| Uso | Canal | Provedor | Situação |
+| Uso | Canal (beta) | Provedor | Situação |
 |---|---|---|---|
-| Verificação / OTP de login do cliente | **SMS** | Twilio (REST API) | implementado |
+| Verificação / OTP de login do cliente | **E-mail** | Resend | implementado |
 | Notificação transacional (confirmação, lembrete, cancelamento, assinatura) | **E-mail** | Resend | implementado |
 | Campanhas promocionais / reengajamento | **E-mail** | Resend | implementado |
-| Notificações de engajamento (fidelidade etc.) | **Push in-app** | app do clube (futuro) | não iniciado |
+| Verificação / OTP por telefone | SMS | Twilio | scaffolding pronto, **desligado** (pós-beta) |
+| Notificações de engajamento (fidelidade etc.) | Push in-app | app do clube | não iniciado (pós-beta) |
 
-SMS é **transacional e de baixo volume** (só OTP), então não sofre o bloqueio por spam que
-o WhatsApp sofre em disparo em massa. Promoção em massa vai por e-mail, canal barato e sem
-risco de bloqueio de número.
+O e-mail é barato, sem burocracia e sem risco de bloqueio de número — por isso concentra tudo no
+beta. SMS entra depois como canal transacional de baixo volume (só OTP), quando fizer sentido
+investir no provedor e no registro de remetente para o Brasil.
 
 ---
 
-## SMS (Twilio)
+## OTP do cliente (e-mail no beta)
+
+- O cliente da área "meus agendamentos" (`/[slug]/conta`) **se identifica pelo e-mail** e recebe o
+  código **por e-mail** (o login por telefone foi descontinuado no beta).
+- **E-mail e telefone são obrigatórios no cadastro** (validados no agendamento público — DTO
+  `CreatePublicAppointmentDto` + formulário), então todo cliente novo tem e-mail para logar e receber
+  o código. Clientes legados sem e-mail (anteriores à regra) não conseguem logar por e-mail.
+- Fluxo: `ClientAuthService.startOtp(businessId, email)` busca o cliente por `businessId + email`
+  (findFirst; e-mail não é único por tenant, o mais recente responde), gera o código (hash +
+  expiração de 5 min em `ClientOtp`, com rate limit por e-mail) e enfileira; o worker
+  (`NotificationProcessor.processClientOtp`) envia por e-mail (Resend). A resposta traz `channel: 'email'`.
+- Fora de produção, a resposta do endpoint inclui `devCode` para permitir teste sem envio real.
+
+---
+
+## SMS (Twilio) — scaffolding pós-beta, desligado
 
 - **Provedor:** `SmsService` em `apps/api/src/notification/sms/sms.service.ts`, uma abstração
   fina sobre a REST API do Twilio (acessada via `fetch`, sem SDK). Trocar por outro provedor
   (ex.: Zenvia) é reescrever só esse arquivo — a regra de negócio nunca fala com o Twilio.
-- **Variáveis de ambiente** (no `.env` da raiz do projeto):
+- **Desligado por padrão.** O worker só usa SMS quando `SMS_ENABLED=true`; sem isso, o OTP vai
+  por e-mail. Quando ligado, o SMS vira o canal primário do OTP (telefone de login) com e-mail
+  de fallback.
+- **Variáveis de ambiente** (no `.env` da raiz do projeto), necessárias ao ligar:
+  - `SMS_ENABLED=true`
   - `TWILIO_ACCOUNT_SID`
   - `TWILIO_AUTH_TOKEN`
   - `TWILIO_FROM_NUMBER` (número/sender em E.164, ex.: `+5511999999999`)
-- **Sem credenciais → modo simulado:** o envio cai em log (igual ao Resend sem
-  `RESEND_API_KEY`). Assim o fluxo E2E de OTP roda em dev/testes com o `devCode` sem custo,
-  e o Twilio só entra de fato em produção.
+- **Sem credenciais → modo simulado:** mesmo com `SMS_ENABLED=true`, sem as chaves do Twilio o
+  envio cai em log (igual ao Resend sem `RESEND_API_KEY`).
 - **Formato:** números são normalizados para E.164 (`SmsService.toE164`), assumindo Brasil
   (`+55`) quando não há código de país. Ajustar a heurística se abrir para outros países.
-
-### OTP do cliente
-
-- O cliente da área "meus agendamentos" (`/[slug]/conta`) se identifica pelo **telefone**,
-  então o **SMS é o canal primário** — sempre há um número de destino.
-- Fluxo: `ClientAuthService.startOtp` gera o código (hash + expiração de 5 min em `ClientOtp`,
-  com rate limit) e enfileira; o worker (`NotificationProcessor.processClientOtp`) envia por
-  SMS, com **e-mail como fallback** quando o SMS falha e o cliente tem e-mail cadastrado.
-- Fora de produção, a resposta do endpoint inclui `devCode` para permitir teste sem SMS real.
+- **Nota Brasil:** entregar SMS em número `+55` exige registro de remetente (regras da Anatel);
+  avaliar Twilio vs. provedor nacional (ex.: Zenvia) na hora de ligar.
 
 ---
 

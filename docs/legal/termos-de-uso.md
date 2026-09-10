@@ -81,7 +81,7 @@ Esta é a divisão de responsabilidade sobre dados pessoais:
 Você concorda em **não**:
 
 - usar a plataforma para fins ilícitos, enganosos ou que violem direitos de terceiros;
-- inserir dados de pessoas sem base legal, ou enviar comunicações (e-mail/SMS) sem
+- inserir dados de pessoas sem base legal, ou enviar comunicações (e-mail) sem
   respaldo legal ou em desacordo com as políticas dos provedores de mensagem;
 - tentar burlar limites técnicos, sobrecarregar, sondar ou comprometer a segurança (incluindo
   contornar limites de requisição das rotas públicas);

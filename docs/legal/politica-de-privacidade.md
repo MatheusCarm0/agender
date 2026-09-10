@@ -76,7 +76,7 @@ negócios que **não** insiram dados de saúde ou outros sensíveis em campos li
 | Criar e operar a conta do negócio; prestar o serviço contratado | Execução de contrato (art. 7º, V) |
 | Agendar horários e gerenciar a agenda do cliente final | Execução de contrato / a mando do Controlador (o negócio) |
 | Enviar confirmações e lembretes (e-mail) do agendamento | Execução de contrato / legítimo interesse do negócio em reduzir faltas |
-| Enviar código de verificação por SMS (acesso do cliente à área "meus agendamentos") | Execução de contrato / segurança do acesso |
+| Enviar código de verificação por e-mail (acesso do cliente à área "meus agendamentos") | Execução de contrato / segurança do acesso |
 | Processar pagamentos (assinatura e agendamento) | Execução de contrato; cumprimento de obrigação legal (fiscal) |
 | Segurança, prevenção a fraude e abuso (rate limit, logs) | Legítimo interesse (art. 7º, IX) |
 | Cumprir obrigações legais/fiscais e responder autoridades | Obrigação legal (art. 7º, II) |
@@ -95,8 +95,7 @@ operar o serviço, que tratam os dados como Operadores/suboperadores sob contrat
 | Prestador | Finalidade | Dados envolvidos |
 |---|---|---|
 | **Mercado Pago** | Processamento de pagamentos (assinatura, agendamento) | Dados de transação, e-mail, documento |
-| **{{PROVEDOR_EMAIL}}** (ex.: Resend) | Envio de e-mails transacionais | Nome, e-mail |
-| **Twilio** | Envio de SMS de verificação (código de acesso) | Nome, telefone |
+| **{{PROVEDOR_EMAIL}}** (ex.: Resend) | Envio de e-mails transacionais e código de verificação | Nome, e-mail |
 | **{{PROVEDOR_HOSPEDAGEM}}** | Hospedagem e infraestrutura | Todos os dados, em repouso e trânsito |
 
 Também podemos compartilhar por **obrigação legal** ou ordem de autoridade competente.

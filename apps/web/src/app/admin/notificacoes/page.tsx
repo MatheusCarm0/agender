@@ -8,7 +8,7 @@ import { useToast } from '@/components/toast';
 
 interface NotificationLog {
   id: string;
-  channel: 'email' | 'sms' | 'whatsapp';
+  channel: string;
   type: string;
   status: 'pending' | 'sent' | 'failed';
   payload: any;
@@ -38,8 +38,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 const CHANNEL_LABELS: Record<string, string> = {
   email: 'E-mail',
-  sms: 'SMS',
-  whatsapp: 'WhatsApp',
 };
 
 export default function NotificationsPage() {
@@ -96,7 +94,7 @@ export default function NotificationsPage() {
               {logs.map((log) => (
                 <tr key={log.id} className="border-b border-border-default hover:bg-surface-subtle">
                   <td className="px-4 py-3 font-medium text-text-strong">{TYPE_LABELS[log.type] || log.type}</td>
-                  <td className="px-4 py-3 text-text-default">{CHANNEL_LABELS[log.channel] ?? log.channel}</td>
+                  <td className="px-4 py-3 text-text-default">{CHANNEL_LABELS[log.channel] ?? 'E-mail'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_COLORS[log.status] || ''}`}>
                       {STATUS_LABELS[log.status] || log.status}

@@ -1,4 +1,10 @@
-import { IsString, IsDateString, IsOptional, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsDateString,
+  IsOptional,
+  IsBoolean,
+  IsEmail,
+} from 'class-validator';
 
 export class CreatePublicAppointmentDto {
   @IsString()
@@ -13,9 +19,9 @@ export class CreatePublicAppointmentDto {
   @IsString()
   clientPhone!: string;
 
-  @IsOptional()
-  @IsString()
-  clientEmail?: string;
+  // E-mail é obrigatório: é o canal de entrega de código/notificação no beta.
+  @IsEmail()
+  clientEmail!: string;
 
   @IsDateString()
   startAt!: string;

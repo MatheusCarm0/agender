@@ -14,7 +14,7 @@ Este projeto é documentado em etapas. A ordem de leitura para o Claude Code é:
 2. `01-fundacao.md` — setup do monorepo, Docker, auth, modelo multi-tenant base.
 3. `02-mvp.md` — serviços, profissionais, horários, página pública, agendamento.
 4. `03-diferenciacao.md` — personalização (Linktree), financeiro, fechar agenda.
-5. `04-retencao.md` — notificações (SMS/e-mail), subdomínios.
+5. `04-retencao.md` — notificações (e-mail; SMS pós-beta), subdomínios.
 6. `05-monetizacao.md` — PIX/depósito, domínio próprio, multi-unidade.
 7. `06-hardening.md` — réplicas, cache, métricas, alertas.
 
@@ -236,7 +236,7 @@ Gerenciador de workspace (pnpm/turborepo) a definir na Fundação.
 | Fundação | `01-fundacao.md` | Monorepo, Docker, auth multi-tenant, modelo `business/user/professional`. |
 | MVP | `02-mvp.md` | Serviços, horários, página pública básica, agendamento com anti-conflito, agenda "minha" vs "todas". |
 | Diferenciação | `03-diferenciacao.md` | Personalização Linktree, relatório financeiro, fechar agenda, base de clientes. |
-| Retenção | `04-retencao.md` | Notificações (SMS/e-mail), subdomínios, cupons, clube de fidelidade, identidade do cliente (OTP) como base para o futuro app mobile. |
+| Retenção | `04-retencao.md` | Notificações (e-mail; SMS pós-beta), subdomínios, cupons, clube de fidelidade, identidade do cliente (OTP) como base para o futuro app mobile. |
 | Monetização | `05-monetizacao.md` | **Em andamento.** Modelo de planos (teste de 7 dias → Básico/Profissional/Pro) e campanhas de disparo pagas já detalhados; PIX/depósito, domínio próprio e multi-unidade a especificar depois. |
 | Hardening | `06-hardening.md` | Réplicas, cache agressivo, métricas, alertas, observabilidade. |
 

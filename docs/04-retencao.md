@@ -19,7 +19,7 @@ sem redesenho, a base de login do app mobile.
 ## Escopo
 
 **Dentro:**
-- Notificações assíncronas (e-mail; SMS para OTP): lembrete de agendamento, confirmação, cancelamento.
+- Notificações assíncronas (e-mail no beta; SMS pós-beta): lembrete de agendamento, confirmação, cancelamento.
 - Subdomínio por tenant (`{slug}.app.com`), além do path já existente.
 - Cupons de desconto aplicáveis no agendamento.
 - Clube de fidelidade (planos de assinatura com uso limitado ou ilimitado por ciclo).
@@ -213,9 +213,10 @@ efetivamente cobrado é `price - discountAmount`. Se coberto por fidelidade ilim
 
 - Disparadas **sempre pelo worker** (BullMQ), nunca no caminho da request HTTP (decisão firme do
   contexto geral). O `AppointmentModule` só **enfileira** o job; o worker consome e chama o provedor.
-- Provedores: e-mail (Resend) e SMS (Twilio, só para OTP). WhatsApp foi descontinuado — ver
-  `notificacoes.md`. Abstrair atrás de uma interface (`NotificationProvider`) para trocar de
-  provedor sem tocar em regra de negócio.
+- Provedores: e-mail (Resend) é o canal do beta. SMS (Twilio) é scaffolding **desligado**
+  (feature pós-beta, atrás de `SMS_ENABLED`); WhatsApp foi descontinuado — ver `notificacoes.md`.
+  Abstrair atrás de uma interface (`NotificationProvider`) para trocar de provedor sem tocar em
+  regra de negócio.
 - Gatilhos: confirmação ao criar, lembrete configurável (ex.: 24h e 2h antes), aviso ao cancelar,
   aviso de fidelidade prestes a vencer.
 - Cada envio grava um `NotificationLog` (idempotente por `appointmentId + type`, evita duplicar lembrete
@@ -274,7 +275,7 @@ efetivamente cobrado é `price - discountAmount`. Se coberto por fidelidade ilim
 Fluxo:
 
 1. `POST /public/v1/{slug}/auth/otp/start` — recebe telefone, gera código de 6 dígitos, grava
-   `ClientOtp` (hash do código, expiração curta, ex. 5 min), envia via SMS (e-mail como fallback) pelo worker.
+   `ClientOtp` (hash do código, expiração curta, ex. 5 min), envia por e-mail pelo worker (SMS pós-beta).
 2. `POST /public/v1/{slug}/auth/otp/verify` — recebe telefone + código; valida contra o `ClientOtp`
    não consumido e não expirado; limita tentativas (`attempts`); em caso de sucesso, marca `consumedAt`,
    marca `Client.phoneVerifiedAt`, emite **JWT de cliente** (access curto + refresh), escopado a

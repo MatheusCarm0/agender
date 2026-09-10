@@ -39,9 +39,7 @@ const STATUS_LABELS: Record<string, { label: string; dot: string; bg: string; te
 };
 
 const CHANNEL_LABELS: Record<string, string> = {
-  whatsapp: 'WhatsApp',
   email: 'E-mail',
-  both: 'WhatsApp + E-mail',
 };
 
 function UpsellCard() {
@@ -317,7 +315,7 @@ export default function CampaignsPage() {
                 return (
                   <tr key={c.id} className="border-b border-border-default last:border-0 hover:bg-surface-subtle transition-colors h-11">
                     <td className="px-4 py-2 text-sm text-text-strong">{c.name}</td>
-                    <td className="px-4 py-2 text-sm text-text-default">{CHANNEL_LABELS[c.channel] ?? c.channel}</td>
+                    <td className="px-4 py-2 text-sm text-text-default">{CHANNEL_LABELS[c.channel] ?? 'E-mail'}</td>
                     <td className="px-4 py-2">
                       <span
                         className="inline-flex items-center gap-1.5 h-[22px] px-2 rounded-full text-xs font-medium"
