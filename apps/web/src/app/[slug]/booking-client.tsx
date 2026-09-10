@@ -1998,7 +1998,7 @@ function generateDates(pageOffset: number): {
                     style={{ accentColor: primary }}
                   />
                   <span className="text-xs" style={{ opacity: 0.6 }}>
-                    Aceito receber promoções e novidades por WhatsApp ou e-mail
+                    Aceito receber promoções e novidades por e-mail
                   </span>
                 </label>
                 {error && (

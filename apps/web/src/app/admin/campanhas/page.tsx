@@ -57,7 +57,7 @@ function UpsellCard() {
         Campanhas de disparo
       </h2>
       <p className="text-sm text-text-muted mt-2 max-w-sm mx-auto">
-        Envie promoções, mensagens de reengajamento e ofertas especiais para seus clientes via WhatsApp ou e-mail.
+        Envie promoções, mensagens de reengajamento e ofertas especiais para seus clientes por e-mail.
       </p>
       <p className="text-sm text-text-muted mt-3">
         Disponível nos planos <strong>Profissional</strong> e <strong>Pro</strong>.
@@ -84,7 +84,7 @@ export default function CampaignsPage() {
 
   const [form, setForm] = useState({
     name: '',
-    channel: 'whatsapp',
+    channel: 'email',
     messageText: '',
     emailSubject: '',
     scheduledFor: '',
@@ -130,7 +130,7 @@ export default function CampaignsPage() {
       });
       toast('Campanha criada', 'success');
       setShowCreate(false);
-      setForm({ name: '', channel: 'whatsapp', messageText: '', emailSubject: '', scheduledFor: '' });
+      setForm({ name: '', channel: 'email', messageText: '', emailSubject: '', scheduledFor: '' });
       loadCampaigns();
     } catch {
       toast('Erro ao criar campanha', 'error');
@@ -243,19 +243,6 @@ export default function CampaignsPage() {
                 className="w-full h-9 px-3 border border-border-strong rounded-[var(--radius-sm)] text-sm text-text-default bg-surface-card focus:outline-none focus:border-primary-default focus:ring-1 focus:ring-primary-default"
                 placeholder="Ex.: Promoção de inverno"
               />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-text-muted mb-1">Canal</label>
-              <select
-                value={form.channel}
-                onChange={(e) => setForm({ ...form, channel: e.target.value })}
-                className="w-full h-9 px-3 border border-border-strong rounded-[var(--radius-sm)] text-sm text-text-default bg-surface-card focus:outline-none focus:border-primary-default focus:ring-1 focus:ring-primary-default"
-              >
-                <option value="whatsapp">WhatsApp</option>
-                <option value="email">E-mail</option>
-                <option value="both">WhatsApp + E-mail</option>
-              </select>
             </div>
 
             <div>
