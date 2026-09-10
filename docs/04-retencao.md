@@ -19,7 +19,7 @@ sem redesenho, a base de login do app mobile.
 ## Escopo
 
 **Dentro:**
-- Notificações assíncronas (e-mail e WhatsApp): lembrete de agendamento, confirmação, cancelamento.
+- Notificações assíncronas (e-mail; SMS para OTP): lembrete de agendamento, confirmação, cancelamento.
 - Subdomínio por tenant (`{slug}.app.com`), além do path já existente.
 - Cupons de desconto aplicáveis no agendamento.
 - Clube de fidelidade (planos de assinatura com uso limitado ou ilimitado por ciclo).
@@ -87,7 +87,7 @@ OTP. Mesmo par access/refresh do padrão de auth já usado no admin (Fundação)
 ### Notificações
 
 ```prisma
-enum NotificationChannel { email whatsapp }
+enum NotificationChannel { email sms whatsapp } // whatsapp = legado; ver notificacoes.md
 enum NotificationType    { booking_reminder booking_confirmation booking_cancelled membership_expiring }
 enum NotificationStatus  { pending sent failed }
 
@@ -213,8 +213,9 @@ efetivamente cobrado é `price - discountAmount`. Se coberto por fidelidade ilim
 
 - Disparadas **sempre pelo worker** (BullMQ), nunca no caminho da request HTTP (decisão firme do
   contexto geral). O `AppointmentModule` só **enfileira** o job; o worker consome e chama o provedor.
-- Provedores: e-mail (ex. Resend/SendGrid) e WhatsApp (ex. API oficial da Meta ou um BSP). Abstrair
-  atrás de uma interface (`NotificationProvider`) para trocar de provedor sem tocar em regra de negócio.
+- Provedores: e-mail (Resend) e SMS (Twilio, só para OTP). WhatsApp foi descontinuado — ver
+  `notificacoes.md`. Abstrair atrás de uma interface (`NotificationProvider`) para trocar de
+  provedor sem tocar em regra de negócio.
 - Gatilhos: confirmação ao criar, lembrete configurável (ex.: 24h e 2h antes), aviso ao cancelar,
   aviso de fidelidade prestes a vencer.
 - Cada envio grava um `NotificationLog` (idempotente por `appointmentId + type`, evita duplicar lembrete
@@ -273,7 +274,7 @@ efetivamente cobrado é `price - discountAmount`. Se coberto por fidelidade ilim
 Fluxo:
 
 1. `POST /public/v1/{slug}/auth/otp/start` — recebe telefone, gera código de 6 dígitos, grava
-   `ClientOtp` (hash do código, expiração curta, ex. 5 min), envia via WhatsApp/SMS pelo worker.
+   `ClientOtp` (hash do código, expiração curta, ex. 5 min), envia via SMS (e-mail como fallback) pelo worker.
 2. `POST /public/v1/{slug}/auth/otp/verify` — recebe telefone + código; valida contra o `ClientOtp`
    não consumido e não expirado; limita tentativas (`attempts`); em caso de sucesso, marca `consumedAt`,
    marca `Client.phoneVerifiedAt`, emite **JWT de cliente** (access curto + refresh), escopado a
@@ -303,7 +304,7 @@ Rate limit agressivo no `otp/start` (por telefone e por IP) — é superfície c
 
 ## Critérios de aceite
 
-- [x] Cliente recebe lembrete e confirmação por e-mail/WhatsApp via worker (nunca no caminho da request).
+- [x] Cliente recebe lembrete e confirmação por e-mail via worker (nunca no caminho da request).
 - [x] Reenvio de job de notificação não duplica envio (idempotência por `appointmentId + type`).
 - [ ] Negócio acessível tanto por `app.com/{slug}` quanto por `{subdomain}.app.com`.
 - [x] Cupom válido aplica desconto correto; cupom expirado/esgotado/além do limite por cliente é rejeitado.
@@ -325,5 +326,5 @@ Rate limit agressivo no `otp/start` (por telefone e por IP) — é superfície c
 - ❌ Reenviar notificação em retry de job sem checar `NotificationLog` → spam de lembrete duplicado.
 - ❌ Criar endpoint “só para o app” fora do namespace público versionado → quebra a promessa de extensibilidade.
 - ❌ Misturar token de cliente com token de admin/staff no mesmo guard → escopos diferentes, guards diferentes.
-- ❌ OTP sem rate limit ou sem expiração curta → abuso de SMS/WhatsApp e força bruta de código.
+- ❌ OTP sem rate limit ou sem expiração curta → abuso de SMS e força bruta de código.
 - ❌ Automatizar cobrança de fidelidade nesta fase → pagamento automático é escopo da Fase 5; aqui é manual.
