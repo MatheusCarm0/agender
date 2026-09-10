@@ -20,6 +20,9 @@ import { LoginDto } from './dto/login.dto';
 const DUMMY_PASSWORD_HASH =
   '$argon2id$v=19$m=65536,t=3,p=4$Oh5GYErc2U/Iwub70XxOaA$N7npysEVydQVe3lFEOUxv+ZsY+M46hgTcqOiPj1DiB0';
 
+const REGISTER_CODE_EXPIRY_MINUTES = 10;
+const REGISTER_CODE_MAX_ATTEMPTS = 5;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -29,7 +32,65 @@ export class AuthService {
     private readonly notifications: NotificationService,
   ) {}
 
+  /**
+   * Passo 1 do cadastro: valida o e-mail (formato no DTO + unicidade global) e
+   * envia um código de confirmação por e-mail. A conta só é criada no passo 2
+   * (registerBusiness), que exige esse código. Não cria nada além do registro
+   * de verificação.
+   */
+  async registerStart(email: string) {
+    const normalized = email.trim().toLowerCase();
+
+    const existingUser = await this.prisma.raw.user.findFirst({
+      where: { email: normalized },
+    });
+    if (existingUser) {
+      throw new ConflictException('Já existe uma conta com este e-mail.');
+    }
+
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+    // Invalida códigos anteriores não consumidos deste e-mail.
+    await this.prisma.raw.emailVerification.updateMany({
+      where: { email: normalized, purpose: 'register', consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
+    await this.prisma.raw.emailVerification.create({
+      data: {
+        email: normalized,
+        code: codeHash,
+        purpose: 'register',
+        expiresAt: new Date(Date.now() + REGISTER_CODE_EXPIRY_MINUTES * 60 * 1000),
+      },
+    });
+
+    await this.notifications.enqueueRegisterOtp(normalized, code);
+
+    // devCode só fora de produção e sem e-mail configurado (permite E2E local).
+    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    const emailConfigured = !!this.config.get<string>('RESEND_API_KEY');
+    return {
+      message: 'Enviamos um código de confirmação para o seu e-mail.',
+      expiresInSeconds: REGISTER_CODE_EXPIRY_MINUTES * 60,
+      ...(isProd || emailConfigured ? {} : { devCode: code }),
+    };
+  }
+
   async registerBusiness(dto: RegisterBusinessDto) {
+    const email = dto.email.trim().toLowerCase();
+
+    // Unicidade global: não permitir nova conta com um e-mail já usado.
+    const existingUser = await this.prisma.raw.user.findFirst({
+      where: { email },
+    });
+    if (existingUser) {
+      throw new ConflictException('Já existe uma conta com este e-mail.');
+    }
+
+    // Exige o código de confirmação enviado em POST /auth/register/start.
+    await this.consumeRegisterCode(email, dto.code);
+
     const slug = await this.generateUniqueSlug(dto.businessName);
 
     const existingBusiness = await this.prisma.raw.business.findUnique({
@@ -58,7 +119,7 @@ export class AuthService {
         users: {
           create: {
             name: dto.ownerName,
-            email: dto.email,
+            email,
             passwordHash,
             role: 'owner',
           },
@@ -321,6 +382,43 @@ export class AuthService {
     ]);
 
     return { message: 'Password updated' };
+  }
+
+  /**
+   * Valida e consome o código de confirmação de cadastro para um e-mail.
+   * Lança se não houver código válido, se estourar as tentativas ou se o código
+   * estiver incorreto. Em sucesso, marca o registro como consumido.
+   */
+  private async consumeRegisterCode(email: string, code: string) {
+    const record = await this.prisma.raw.emailVerification.findFirst({
+      where: {
+        email,
+        purpose: 'register',
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!record) {
+      throw new BadRequestException(
+        'Código inválido ou expirado. Solicite um novo código.',
+      );
+    }
+    if (record.attempts >= REGISTER_CODE_MAX_ATTEMPTS) {
+      throw new BadRequestException('Muitas tentativas. Solicite um novo código.');
+    }
+    await this.prisma.raw.emailVerification.update({
+      where: { id: record.id },
+      data: { attempts: { increment: 1 } },
+    });
+    const hash = crypto.createHash('sha256').update(code).digest('hex');
+    if (hash !== record.code) {
+      throw new BadRequestException('Código incorreto.');
+    }
+    await this.prisma.raw.emailVerification.update({
+      where: { id: record.id },
+      data: { consumedAt: new Date() },
+    });
   }
 
   private async generateTokens(payload: {

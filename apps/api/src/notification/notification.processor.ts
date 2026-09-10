@@ -73,6 +73,10 @@ export class NotificationProcessor extends WorkerHost {
       return this.processClientOtp(job);
     }
 
+    if (type === 'register_otp') {
+      return this.processRegisterOtp(job);
+    }
+
     const referenceId = appointmentId || membershipId;
 
     const existing = await this.prisma.raw.notificationLog.findUnique({
@@ -347,6 +351,41 @@ export class NotificationProcessor extends WorkerHost {
     if (!result.ok) {
       throw new Error(
         `OTP: Resend falhou para ${client.email} (from=${this.fromEmail}): ${result.error}`,
+      );
+    }
+  }
+
+  /**
+   * Código de confirmação de e-mail do cadastro de conta (dono). Falha alto se
+   * o e-mail não sair de verdade — o cadastro depende dele.
+   */
+  private async processRegisterOtp(job: Job) {
+    const { email, code } = job.data as { email: string; code: string };
+
+    const subject = 'Seu código de confirmação - Agender';
+    const html = emailLayout(
+      'Confirme seu e-mail',
+      [
+        emailText(
+          'Use o código abaixo para concluir a criação da sua conta no Agender:',
+        ),
+        emailInfoBox([{ label: 'Código', value: escapeHtml(String(code)) }]),
+        emailText(
+          'O código expira em 10 minutos. Se você não solicitou este cadastro, ignore este e-mail.',
+        ),
+      ].join(''),
+      'Enviado por <strong style="color:#78716C;">Agender</strong>.',
+    );
+
+    const result = await this.sendEmailResult(email, subject, html);
+    if (result.simulated) {
+      throw new Error(
+        `Confirmação de cadastro não enviada para ${email}: RESEND_API_KEY ausente (modo simulado). from=${this.fromEmail}`,
+      );
+    }
+    if (!result.ok) {
+      throw new Error(
+        `Confirmação de cadastro: Resend falhou para ${email} (from=${this.fromEmail}): ${result.error}`,
       );
     }
   }
