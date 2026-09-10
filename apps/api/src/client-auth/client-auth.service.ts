@@ -33,8 +33,9 @@ export class ClientAuthService {
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
-  async startOtp(businessId: string, phone: string) {
-    const rateLimitKey = `otp-rate:${businessId}:${phone}`;
+  async startOtp(businessId: string, email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const rateLimitKey = `otp-rate:${businessId}:${normalizedEmail}`;
     const current = await this.redis.incr(rateLimitKey);
     if (current === 1) {
       await this.redis.expire(rateLimitKey, RATE_LIMIT_WINDOW);
@@ -43,16 +44,20 @@ export class ClientAuthService {
       throw new HttpException('Too many OTP requests. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
     }
 
-    const client = await this.prisma.raw.client.findUnique({
-      where: { businessId_phone: { businessId, phone } },
+    // Login por e-mail. E-mail não é único por tenant no schema (único é
+    // businessId+phone), então usamos findFirst; se houver mais de um cadastro
+    // com o mesmo e-mail, o mais recente responde.
+    const client = await this.prisma.raw.client.findFirst({
+      where: { businessId, email: normalizedEmail },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!client) {
-      // Não revela se o telefone tem conta (evita enumeração de clientes do
+      // Não revela se o e-mail tem conta (evita enumeração de clientes do
       // tenant). O rate limit acima já contou a tentativa. Responde igual ao
       // caminho de sucesso, sem enfileirar nada.
       return {
-        message: 'Se houver uma conta com este telefone, enviamos um código de acesso.',
+        message: 'Se houver uma conta com este e-mail, enviamos um código de acesso.',
         channel: 'unknown' as const,
         expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
       };
@@ -70,10 +75,10 @@ export class ClientAuthService {
       },
     });
 
-    // Entrega assíncrona pelo worker de notificação: SMS é o canal primário
-    // (o cliente se identifica pelo telefone), com e-mail como fallback quando
-    // o SMS não pôde ser enviado — ver docs/notificacoes.md. Fora de produção
-    // devolvemos o código na resposta para permitir o fluxo E2E em dev/testes.
+    // Entrega assíncrona pelo worker de notificação. No beta o canal é **e-mail**
+    // (SMS é feature pós-beta, atrás de SMS_ENABLED no worker — ver
+    // docs/notificacoes.md). Fora de produção devolvemos o código na resposta
+    // para permitir o fluxo E2E em dev/testes.
     const isProd = this.config.get<string>('NODE_ENV') === 'production';
     await this.notifications.enqueueClientOtp(client.id, businessId, code);
 
@@ -81,24 +86,30 @@ export class ClientAuthService {
     if (isProd) {
       this.logger.log(`[OTP] solicitado para cliente=${client.id}`);
     } else {
-      this.logger.log(`[OTP] business=${businessId} phone=${phone} code=${code}`);
+      this.logger.log(`[OTP] business=${businessId} email=${normalizedEmail} code=${code}`);
     }
 
+    // devCode só quando NÃO há e-mail configurado (sem RESEND_API_KEY): permite
+    // o fluxo E2E local sem envio real. Com Resend ligado, o código vai só por
+    // e-mail; em produção nunca vai na resposta.
+    const emailConfigured = !!this.config.get<string>('RESEND_API_KEY');
     return {
-      message: 'Enviamos um código de acesso por SMS para o seu telefone.',
-      channel: 'sms' as const,
+      message: 'Enviamos um código de acesso para o seu e-mail.',
+      channel: 'email' as const,
       expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
-      ...(isProd ? {} : { devCode: code }),
+      ...(isProd || emailConfigured ? {} : { devCode: code }),
     };
   }
 
-  async verifyOtp(businessId: string, phone: string, code: string) {
-    const client = await this.prisma.raw.client.findUnique({
-      where: { businessId_phone: { businessId, phone } },
+  async verifyOtp(businessId: string, email: string, code: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const client = await this.prisma.raw.client.findFirst({
+      where: { businessId, email: normalizedEmail },
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!client) {
-      throw new UnauthorizedException('Telefone ou código inválido.');
+      throw new UnauthorizedException('E-mail ou código inválido.');
     }
 
     const otp = await this.prisma.raw.clientOtp.findFirst({
@@ -135,11 +146,6 @@ export class ClientAuthService {
     await this.prisma.raw.clientOtp.update({
       where: { id: otp.id },
       data: { consumedAt: new Date() },
-    });
-
-    await this.prisma.raw.client.update({
-      where: { id: client.id },
-      data: { phoneVerifiedAt: new Date() },
     });
 
     const tokens = await this.generateClientTokens(client.id, businessId);
