@@ -4,7 +4,10 @@ export class CreateCampaignDto {
   @IsString()
   name!: string;
 
-  @IsIn(['whatsapp', 'email', 'both'])
+  // Campanhas promocionais são entregues por e-mail. WhatsApp foi descontinuado
+  // (risco de bloqueio de número); notificações de engajamento migrarão para
+  // push in-app. Ver docs/notificacoes.md.
+  @IsIn(['email'])
   channel!: string;
 
   @IsString()

@@ -58,7 +58,8 @@ enum CampaignStatus {
 
 enum NotificationChannel {
   email
-  whatsapp
+  sms
+  whatsapp // legado: mantido para linhas históricas; não usado em novos envios
 }
 
 enum NotificationType {
@@ -366,6 +367,22 @@ model ClientOtp {
   @@index([clientId])
   @@index([businessId, createdAt])
   @@map("client_otps")
+}
+
+// Verificação de e-mail no cadastro de conta (dono). Guardado antes de existir
+// user/business — por isso não referencia tenant. Código com hash + expiração.
+model EmailVerification {
+  id         String    @id @default(cuid())
+  email      String
+  code       String
+  purpose    String    @default("register")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([email, createdAt])
+  @@map("email_verifications")
 }
 
 model NotificationLog {

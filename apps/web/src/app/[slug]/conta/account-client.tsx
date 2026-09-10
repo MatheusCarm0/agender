@@ -19,7 +19,7 @@ interface Appointment {
   professionalName: string;
 }
 
-type Step = 'phone' | 'code' | 'list';
+type Step = 'email' | 'code' | 'list';
 
 const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
   scheduled: { label: 'Agendado', dot: '#2563EB', bg: '#EFF6FF', text: '#1D4ED8' },
@@ -44,21 +44,14 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
-function formatPhone(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
-
 export default function AccountClient({
   slug, businessName, logoUrl, colors, font, buttonRadius,
 }: {
   slug: string; businessName: string; logoUrl?: string; colors: Colors; font: string; buttonRadius: string;
 }) {
   const tokenKey = `agender-client-token-${slug}`;
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState<Step>('email');
+  const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState('');
   const [token, setToken] = useState<string | null>(null);
@@ -104,14 +97,14 @@ export default function AccountClient({
 
   async function startOtp(e: React.FormEvent) {
     e.preventDefault();
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10) { setError('Informe um telefone válido.'); return; }
+    const normalizedEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) { setError('Informe um e-mail válido.'); return; }
     setLoading(true); setError(''); setDevCode('');
     try {
       const res = await fetch(`${API_URL}/public/v1/${slug}/auth/otp/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: digits }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Não foi possível enviar o código.');
@@ -125,14 +118,13 @@ export default function AccountClient({
 
   async function verifyOtp(e: React.FormEvent) {
     e.preventDefault();
-    const digits = phone.replace(/\D/g, '');
     if (code.length !== 6) { setError('O código tem 6 dígitos.'); return; }
     setLoading(true); setError('');
     try {
       const res = await fetch(`${API_URL}/public/v1/${slug}/auth/otp/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: digits, code }),
+        body: JSON.stringify({ email: email.trim(), code }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || 'Código incorreto.');
@@ -149,7 +141,7 @@ export default function AccountClient({
 
   function logout() {
     localStorage.removeItem(tokenKey);
-    setToken(null); setStep('phone'); setPhone(''); setCode(''); setDevCode('');
+    setToken(null); setStep('email'); setEmail(''); setCode(''); setDevCode('');
     setAppointments([]); setClientName('');
   }
 
@@ -259,13 +251,13 @@ export default function AccountClient({
           <div className="space-y-3">
             {[1, 2].map((i) => <div key={i} className="h-24 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.text}08` }} />)}
           </div>
-        ) : step === 'phone' ? (
+        ) : step === 'email' ? (
           <form onSubmit={startOtp} className="border p-6 space-y-4" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
             <div>
-              <label htmlFor="otp-phone" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu telefone</label>
-              <input id="otp-phone" autoComplete="tel" value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} placeholder="(11) 99999-9999" inputMode="numeric" autoFocus
+              <label htmlFor="otp-email" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Seu e-mail</label>
+              <input id="otp-email" autoComplete="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@exemplo.com" autoFocus
                 className="w-full h-11 px-3 text-sm border focus:outline-none" style={inputStyle} />
-              <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Enviaremos um código de confirmação.</p>
+              <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Enviaremos um código de confirmação por e-mail.</p>
             </div>
             {error && <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>{error}</p>}
             <button type="submit" disabled={loading} className="w-full h-11 font-semibold text-sm disabled:opacity-50 transition-colors"
@@ -279,7 +271,7 @@ export default function AccountClient({
               <label htmlFor="otp-code" className="block text-xs font-medium mb-1" style={{ opacity: 0.6 }}>Código de 6 dígitos</label>
               <input id="otp-code" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" inputMode="numeric" autoFocus
                 className="w-full h-12 px-3 text-center text-xl tracking-[0.4em] border focus:outline-none tabular-nums" style={{ ...inputStyle, fontVariantNumeric: 'tabular-nums' }} />
-              <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Enviado para {phone}. Válido por 5 minutos.</p>
+              <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Enviamos um código de acesso para o seu e-mail. Válido por 5 minutos.</p>
               {devCode && (
                 <p className="text-[11px] mt-2 px-2 py-1.5 rounded" style={{ backgroundColor: `${colors.primary}12`, color: accent }}>
                   Ambiente de teste — seu código é <strong>{devCode}</strong>
@@ -291,8 +283,8 @@ export default function AccountClient({
               style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
-            <button type="button" onClick={() => { setStep('phone'); setCode(''); setError(''); }} className="w-full text-xs transition-opacity hover:opacity-70" style={{ opacity: 0.5 }}>
-              Usar outro telefone
+            <button type="button" onClick={() => { setStep('email'); setCode(''); setError(''); }} className="w-full text-xs transition-opacity hover:opacity-70" style={{ opacity: 0.5 }}>
+              Usar outro e-mail
             </button>
           </form>
         ) : (

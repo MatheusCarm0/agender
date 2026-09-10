@@ -13,7 +13,7 @@ const ITEMS = [
   },
   {
     q: 'Como funciona o lembrete que reduz o no-show?',
-    a: 'A cada agendamento, o sistema dispara lembretes automáticos por WhatsApp e e-mail antes do horário — reduzindo faltas sem você precisar mandar mensagem manualmente.',
+    a: 'A cada agendamento, o sistema dispara lembretes automáticos por e-mail antes do horário — reduzindo faltas sem você precisar mandar mensagem manualmente.',
   },
   {
     q: 'Consigo receber pagamento na hora de agendar?',

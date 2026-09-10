@@ -13,10 +13,10 @@
 ## Objetivo
 
 Permitir que **cada negócio (tenant)** crie suas próprias campanhas de disparo de mensagem
-(WhatsApp e/ou e-mail) para a base de clientes — promoções, "sentimos sua falta", aniversário —
+(por e-mail) para a base de clientes — promoções, "sentimos sua falta", aniversário —
 como uma **funcionalidade dos planos Profissional e Pro**, tanto para cobrir o custo real do envio
-(categoria `marketing` da Meta, a mais cara — ver `notificacoes.md`) quanto para monetizar a
-diferenciação do produto. Junto disso, esta fase formaliza o **modelo comercial de planos**: sem
+quanto para monetizar a diferenciação do produto. (WhatsApp foi descontinuado — ver
+`notificacoes.md`.) Junto disso, esta fase formaliza o **modelo comercial de planos**: sem
 plano gratuito permanente — todo negócio novo começa com um **teste de 7 dias** e precisa escolher
 entre Básico, Profissional ou Pro para continuar depois disso.
 
@@ -28,10 +28,10 @@ entre Básico, Profissional ou Pro para continuar depois disso.
 - Modelo de planos do negócio: **teste de 7 dias** → **Básico** / **Profissional** / **Pro**, com a
   criação de campanhas exclusiva de Profissional/Pro.
 - Comportamento de expiração do teste sem plano escolhido.
-- Criação, agendamento e envio de campanhas (WhatsApp e/ou e-mail) para um público filtrado.
+- Criação, agendamento e envio de campanhas (por e-mail) para um público filtrado.
 - Estimativa de custo **antes** de confirmar o envio.
 - Controle de cota mensal incluída no plano + excedente.
-- Opt-in de marketing do cliente (obrigatório para WhatsApp categoria `marketing`).
+- Opt-in de marketing do cliente (obrigatório por LGPD para envio promocional).
 - Upsell no admin para quem está no teste ou no plano Básico.
 
 **Fora (ainda não detalhado — pendente do restante da Fase 5):**
@@ -112,9 +112,8 @@ Regra de comportamento quando `trialEndsAt` passa e `planStatus` continua `trial
 
 ## Opt-in de marketing (novo campo em `Client`)
 
-Mensagem `utility` (lembrete/confirmação) já é uma consequência esperada de agendar — não precisa
-de opt-in separado. Mensagem `marketing` (campanha) **precisa**, tanto por política da Meta quanto
-por boa prática (LGPD):
+Notificação transacional (lembrete/confirmação) já é uma consequência esperada de agendar — não
+precisa de opt-in separado. Campanha promocional **precisa** de opt-in explícito (LGPD):
 
 ```prisma
 // adicionar em Client:
@@ -130,7 +129,7 @@ pré-marcado) ou manualmente pelo admin. Campanha **nunca** envia para cliente s
 ## Prisma — entidades de campanha
 
 ```prisma
-enum CampaignChannel { whatsapp email both }
+enum CampaignChannel { whatsapp email both } // só `email` é usado; whatsapp/both são legado
 enum CampaignStatus  { draft scheduled sending sent failed cancelled }
 
 model Campaign {
@@ -285,9 +284,7 @@ para a tela "Escolha um plano para continuar" (ver "Fim do teste" acima), que é
 - ❌ Deixar o teste expirar silenciosamente sem aviso prévio — negócio perde acesso sem entender por quê.
 - ❌ Apagar ou bloquear agendamentos já existentes quando o teste expira — só bloqueia **novos** agendamentos e o admin.
 - ❌ Recalcular `campaignSendsIncluded` de um ciclo já iniciado quando o plano muda no meio do mês — usar o snapshot.
-- ❌ Enviar campanha para cliente sem opt-in de marketing — viola política da Meta e LGPD.
-- ❌ Confundir template `utility` (lembrete) com `marketing` (campanha) — categorias diferentes,
-  custo muito diferente (ver `notificacoes.md`).
+- ❌ Enviar campanha para cliente sem opt-in de marketing — viola a LGPD.
 - ❌ Disparar sem mostrar estimativa de custo antes — negócio não pode ser surpreendido pela fatura.
 - ❌ Deixar o filtro de público como query livre — abre brecha de acesso a dado fora do escopo do
   tenant ou de campos sensíveis. Filtro é uma lista fechada de critérios validados.
