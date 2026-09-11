@@ -71,14 +71,17 @@ services:
       redis:
         condition: service_healthy
 
-  web-build:
+  # Frontend Next em modo servidor (SSR). As páginas públicas por tenant são
+  # dinâmicas — servidas pelo Node do Next, com o nginx fazendo proxy reverso.
+  web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    volumes:
-      - frontend_dist:/frontend-dist
-    command: >
-      sh -c "cp -r /app/apps/web/out/* /frontend-dist/"
+    restart: unless-stopped
+    expose:
+      - "3000"
+    depends_on:
+      - api
 
   nginx:
     image: nginx:alpine
@@ -86,13 +89,11 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-      - web-build
+      - web
     ports:
       - "80:80"
     volumes:
-      - frontend_dist:/usr/share/nginx/html:ro
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
   mysql_data:
-  frontend_dist:
