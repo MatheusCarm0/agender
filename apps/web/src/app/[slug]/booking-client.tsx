@@ -727,6 +727,11 @@ export default function BookingClient({
       setError("Telefone deve ter pelo menos 10 dígitos");
       return;
     }
+    const email = clientForm.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Informe um e-mail válido");
+      return;
+    }
     setBooking(true);
     setError("");
     const idempotencyKey = crypto.randomUUID();
@@ -745,7 +750,7 @@ export default function BookingClient({
             startAt: selectedSlot.startAt,
             clientName: clientForm.name,
             clientPhone: phone,
-            ...(clientForm.email ? { clientEmail: clientForm.email } : {}),
+            clientEmail: email,
             ...(couponCode.trim() ? { couponCode: couponCode.trim() } : {}),
             ...(clientForm.marketingOptIn ? { marketingOptIn: true } : {}),
           }),
@@ -1979,7 +1984,7 @@ function generateDates(pageOffset: number): {
                     className="block text-xs font-medium mb-1"
                     style={{ opacity: 0.6 }}
                   >
-                    E-mail (opcional)
+                    E-mail
                   </label>
                   <input
                     id="book-email"
@@ -1989,6 +1994,7 @@ function generateDates(pageOffset: number): {
                     onChange={(e) =>
                       setClientForm((f) => ({ ...f, email: e.target.value }))
                     }
+                    required
                     className="w-full h-11 px-3 text-sm border focus:outline-none focus:ring-2"
                     style={{
                       backgroundColor: surface,
@@ -2067,7 +2073,7 @@ function generateDates(pageOffset: number): {
                     style={{ accentColor: primary }}
                   />
                   <span className="text-xs" style={{ opacity: 0.6 }}>
-                    Aceito receber promoções e novidades por WhatsApp ou e-mail
+                    Aceito receber promoções e novidades por e-mail
                   </span>
                 </label>
                 {error && (

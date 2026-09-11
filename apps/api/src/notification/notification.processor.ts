@@ -6,8 +6,12 @@ import { Resend } from 'resend';
 import { PrismaService } from '../prisma/prisma.service';
 import { NOTIFICATION_QUEUE } from '../queue/queue.module';
 import { emailLayout, emailButton, emailInfoBox, emailText } from './email-template';
+import { SmsService } from './sms/sms.service';
 
-const FROM_EMAIL = 'Agender <onboarding@resend.dev>';
+// Remetente padrão: sandbox do Resend, que SÓ entrega no e-mail do dono da
+// conta. Para enviar a clientes, verifique um domínio em resend.com/domains e
+// defina MAIL_FROM (ex.: "Agender <nao-responda@seudominio.com>").
+const DEFAULT_FROM_EMAIL = 'Agender <onboarding@resend.dev>';
 
 function escapeHtml(value: string): string {
   return value
@@ -21,16 +25,23 @@ function escapeHtml(value: string): string {
 export class NotificationProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationProcessor.name);
   private readonly resend: Resend | null;
+  private readonly fromEmail: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly sms: SmsService,
   ) {
     super();
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     this.resend = apiKey ? new Resend(apiKey) : null;
+    this.fromEmail = this.config.get<string>('MAIL_FROM') || DEFAULT_FROM_EMAIL;
     if (!this.resend) {
       this.logger.warn('RESEND_API_KEY not set — emails will be logged only');
+    } else if (this.fromEmail === DEFAULT_FROM_EMAIL) {
+      this.logger.warn(
+        'MAIL_FROM não definido — usando o sandbox do Resend (onboarding@resend.dev), que só entrega no e-mail do dono da conta. Verifique um domínio e defina MAIL_FROM para enviar a clientes.',
+      );
     }
   }
 
@@ -60,6 +71,10 @@ export class NotificationProcessor extends WorkerHost {
 
     if (type === 'client_otp') {
       return this.processClientOtp(job);
+    }
+
+    if (type === 'register_otp') {
+      return this.processRegisterOtp(job);
     }
 
     const referenceId = appointmentId || membershipId;
@@ -106,7 +121,7 @@ export class NotificationProcessor extends WorkerHost {
 
     try {
       const { error } = await this.resend.emails.send({
-        from: FROM_EMAIL,
+        from: this.fromEmail,
         to,
         subject,
         html,
@@ -122,6 +137,35 @@ export class NotificationProcessor extends WorkerHost {
     } catch (err: any) {
       this.logger.error(`Resend exception: ${err.message}`);
       return false;
+    }
+  }
+
+  /**
+   * Variante do envio que devolve o resultado detalhado (em vez de só bool),
+   * para caminhos que precisam **falhar alto** — como o OTP, onde uma entrega
+   * silenciosamente falha deixa o cliente sem acessar a conta.
+   */
+  private async sendEmailResult(
+    to: string,
+    subject: string,
+    html: string,
+  ): Promise<{ ok: boolean; simulated?: boolean; error?: string }> {
+    if (!this.resend) {
+      this.logger.log(`[SIMULATED EMAIL] To: ${to} | Subject: ${subject}`);
+      return { ok: false, simulated: true };
+    }
+    try {
+      const { error } = await this.resend.emails.send({
+        from: this.fromEmail,
+        to,
+        subject,
+        html,
+      });
+      if (error) return { ok: false, error: JSON.stringify(error) };
+      this.logger.log(`Email sent to ${to}: ${subject}`);
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, error: err.message };
     }
   }
 
@@ -189,14 +233,14 @@ export class NotificationProcessor extends WorkerHost {
     const sent = client.email ? await this.sendEmail(to, subject, html) : false;
     const failureReason = client.email
       ? 'Falha ao enviar o e-mail (verifique o domínio/endereço no Resend).'
-      : 'Cliente sem e-mail; WhatsApp ainda não configurado.';
+      : 'Cliente sem e-mail cadastrado para notificação de agendamento.';
 
     await this.prisma.raw.notificationLog.upsert({
       where: { referenceId_type: { referenceId: appointmentId, type } },
       create: {
         businessId,
         clientId: client.id,
-        channel: client.email ? 'email' : 'whatsapp',
+        channel: 'email',
         type,
         status: sent ? 'sent' : 'failed',
         payload: { appointmentId, to, subject },
@@ -231,7 +275,7 @@ export class NotificationProcessor extends WorkerHost {
       create: {
         businessId,
         clientId: client.id,
-        channel: client.email ? 'email' : 'whatsapp',
+        channel: 'email',
         type: 'membership_expiring',
         status: sent ? 'sent' : 'failed',
         payload: { membershipId, to },
@@ -243,10 +287,12 @@ export class NotificationProcessor extends WorkerHost {
   }
 
   /**
-   * Entrega o código OTP de login do cliente ("meus agendamentos"). O e-mail é o
-   * canal já configurado (Resend); WhatsApp/SMS é o próximo canal (depende das
-   * credenciais Meta Cloud API — ver docs/notificacoes.md). Sem e-mail e sem
-   * WhatsApp configurado, registramos o motivo em vez de falhar silenciosamente.
+   * Entrega o código OTP de login do cliente ("meus agendamentos"). No **beta o
+   * único canal é e-mail**. O SMS (Twilio) é scaffolding para uma feature
+   * pós-beta: fica desligado por padrão e só é usado quando `SMS_ENABLED=true` —
+   * aí vira o canal primário para o telefone de login, com e-mail como fallback.
+   * Ver docs/notificacoes.md. Sem canal disponível, registramos o motivo em vez
+   * de falhar em silêncio.
    */
   private async processClientOtp(job: Job) {
     const { clientId, businessId, code } = job.data;
@@ -257,14 +303,27 @@ export class NotificationProcessor extends WorkerHost {
     });
     if (!client) return;
 
+    const businessName = (client as any).business?.name ?? 'Agender';
+
+    // Pós-beta (SMS_ENABLED=true): SMS como canal primário para o telefone.
+    const smsEnabled = this.config.get<string>('SMS_ENABLED') === 'true';
+    if (smsEnabled && client.phone) {
+      const smsBody = `${businessName}: seu código de acesso é ${code}. Expira em 5 minutos.`;
+      const sent = await this.sms.send(client.phone, smsBody);
+      if (sent) return;
+      this.logger.warn(
+        `SMS de OTP falhou para cliente ${clientId}; tentando e-mail.`,
+      );
+    }
+
+    // Beta: e-mail é o único canal. Sem e-mail cadastrado, não há como entregar.
     if (!client.email) {
       this.logger.warn(
-        `OTP do cliente ${clientId} não entregue: cliente sem e-mail e WhatsApp ainda não configurado.`,
+        `OTP do cliente ${clientId} não entregue: cliente sem e-mail cadastrado.`,
       );
       return;
     }
 
-    const businessName = (client as any).business?.name ?? 'Agender';
     const subject = `Seu código de acesso - ${businessName}`;
     const html = emailLayout(
       'Seu código de acesso',
@@ -280,7 +339,55 @@ export class NotificationProcessor extends WorkerHost {
       `Enviado por <strong style="color:#78716C;">${escapeHtml(businessName)}</strong> via Agender.`,
     );
 
-    await this.sendEmail(client.email, subject, html);
+    // Falhar alto: se o e-mail não sair de verdade (Resend não configurado ou
+    // erro no envio), lançamos — o job vai para 'failed' com o motivo e pode
+    // ser reprocessado, em vez de o cliente ficar sem o código em silêncio.
+    const result = await this.sendEmailResult(client.email, subject, html);
+    if (result.simulated) {
+      throw new Error(
+        `OTP não enviado para ${client.email}: RESEND_API_KEY ausente no processo (modo simulado). from=${this.fromEmail}`,
+      );
+    }
+    if (!result.ok) {
+      throw new Error(
+        `OTP: Resend falhou para ${client.email} (from=${this.fromEmail}): ${result.error}`,
+      );
+    }
+  }
+
+  /**
+   * Código de confirmação de e-mail do cadastro de conta (dono). Falha alto se
+   * o e-mail não sair de verdade — o cadastro depende dele.
+   */
+  private async processRegisterOtp(job: Job) {
+    const { email, code } = job.data as { email: string; code: string };
+
+    const subject = 'Seu código de confirmação - Agender';
+    const html = emailLayout(
+      'Confirme seu e-mail',
+      [
+        emailText(
+          'Use o código abaixo para concluir a criação da sua conta no Agender:',
+        ),
+        emailInfoBox([{ label: 'Código', value: escapeHtml(String(code)) }]),
+        emailText(
+          'O código expira em 10 minutos. Se você não solicitou este cadastro, ignore este e-mail.',
+        ),
+      ].join(''),
+      'Enviado por <strong style="color:#78716C;">Agender</strong>.',
+    );
+
+    const result = await this.sendEmailResult(email, subject, html);
+    if (result.simulated) {
+      throw new Error(
+        `Confirmação de cadastro não enviada para ${email}: RESEND_API_KEY ausente (modo simulado). from=${this.fromEmail}`,
+      );
+    }
+    if (!result.ok) {
+      throw new Error(
+        `Confirmação de cadastro: Resend falhou para ${email} (from=${this.fromEmail}): ${result.error}`,
+      );
+    }
   }
 
   /**
@@ -304,7 +411,7 @@ export class NotificationProcessor extends WorkerHost {
         ),
         emailButton(resetUrl, 'Criar nova senha'),
         emailText(
-          'O link expira em 1 hora. Se você não solicitou, ignore este e-mail — sua senha atual continua válida.',
+          'O link expira em 1 hora. Se você não solicitou, ignore este e-mail; sua senha atual continua válida.',
         ),
       ].join(''),
       'Enviado por <strong style="color:#78716C;">Agender</strong>.',
@@ -361,7 +468,7 @@ export class NotificationProcessor extends WorkerHost {
       this.config.get<string>('FEEDBACK_EMAIL') || 'suporte@agender.app';
     const kindLabel =
       kind === 'bug' ? 'Problema' : kind === 'idea' ? 'Ideia' : 'Outro';
-    const subject = `[Feedback] ${kindLabel} — ${businessName ?? businessId}`;
+    const subject = `[Feedback] ${kindLabel}: ${businessName ?? businessId}`;
 
     const html = emailLayout(
       `Novo feedback: ${kindLabel}`,

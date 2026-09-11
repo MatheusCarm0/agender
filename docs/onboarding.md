@@ -49,10 +49,18 @@ dois endpoints que o sustentam.
 
 ## Passo 1 — Cadastro
 
-Formulário: nome do negócio, nome do dono, e-mail, senha. Ao enviar, chama
-`POST /auth/register-business` (já especificado na Fundação), que cria `business` + `user` owner
-e retorna os tokens. A pessoa já está autenticada ao sair desta tela — os passos seguintes rodam
-**dentro** do painel (autenticado), não numa área pública.
+Formulário: nome do negócio, nome do dono, e-mail, senha. O cadastro é em **dois passos com
+confirmação de e-mail**:
+
+1. `POST /auth/register/start` (`{ email }`): valida o formato, **rejeita se já existe conta com
+   aquele e-mail** (unicidade global, `409`) e envia um **código de 6 dígitos** por e-mail
+   (hash + expiração de 10 min em `email_verifications`; entrega pelo worker com `MAIL_FROM`).
+2. `POST /auth/register-business` passa a exigir `code`: revalida a unicidade, confere o código
+   (com limite de tentativas) e só então cria `business` + `user` owner, retornando os tokens.
+
+Na tela, isso vira: preencher os dados → **"Continuar"** (dispara o código) → digitar o código →
+**"Criar conta"** (com "Reenviar código" e "Editar dados"). A pessoa já está autenticada ao sair —
+os passos seguintes rodam **dentro** do painel (autenticado), não numa área pública.
 
 Esta é a única tela do wizard que **não** segue `estilo-admin.md` integralmente — é a tela de
 entrada do produto, antes de haver "negócio" para estilizar. Usa os mesmos tokens de cor/tipografia,

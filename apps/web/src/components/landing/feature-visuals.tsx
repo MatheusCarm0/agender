@@ -44,7 +44,7 @@ export function VisualConflict() {
   );
 }
 
-/* Lembrete automático estilo WhatsApp */
+/* Lembrete automático por e-mail */
 export function VisualReminder() {
   return (
     <Panel>
@@ -52,7 +52,7 @@ export function VisualReminder() {
         <IconTile name="bell" tone="lime" size={34} />
         <div style={{ lineHeight: 1.2 }}>
           <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--lp-text-strong)' }}>Lembrete automático</div>
-          <div style={{ fontSize: 11.5, color: 'var(--lp-text-muted)' }}>WhatsApp · 24h antes</div>
+          <div style={{ fontSize: 11.5, color: 'var(--lp-text-muted)' }}>E-mail · 24h antes</div>
         </div>
       </div>
       <div className="lp-anim-bubble" style={{ maxWidth: '86%', padding: '11px 13px', borderRadius: '4px 16px 16px 16px', background: 'linear-gradient(135deg,#dcfce7,#bbf7d0)', border: '1px solid #86efac' }}>

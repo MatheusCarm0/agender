@@ -2,6 +2,7 @@ services:
   mysql:
     image: mysql:8.0
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-character-set-client-handshake
+    restart: unless-stopped
     ports:
       - "3306:3306"
     environment:
@@ -18,8 +19,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -29,50 +29,105 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    ports:
-      - "3001:3001"
+    restart: unless-stopped
+    expose:
+      - "3001"
     environment:
-      DATABASE_URL: mysql://agenda:agenda@mysql:3306/agenda
+      # charset=utf8mb4 explícito: garante que a conexão negocie UTF-8 completo
+      # (acentos/emoji) independentemente do locale do container.
+      DATABASE_URL: mysql://agenda:agenda@mysql:3306/agenda?charset=utf8mb4
       REDIS_URL: redis://redis:6379
-      JWT_ACCESS_SECRET: troque-em-producao
-      JWT_REFRESH_SECRET: troque-em-producao
+      JWT_ACCESS_SECRET: "super-secret-access-token-key-2026-secure"
+      JWT_REFRESH_SECRET: "super-secret-refresh-token-key-2026-secure"
       JWT_ACCESS_TTL: 15m
       JWT_REFRESH_TTL: 7d
-      NODE_ENV: development
+      NODE_ENV: production
+      # Config sensível vem do .env da raiz (interpolação do compose), nunca
+      # hardcoded. Defina no .env para habilitar notificações/pagamento. Vazio =
+      # recurso desligado com degradação graciosa (o código já trata a ausência).
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      APP_URL: ${APP_URL:-}
+      WEB_URL: ${WEB_URL:-}
+      APP_WEB_URL: ${APP_WEB_URL:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Upload de imagens (R2/S3). Sem estas, cai no disco efêmero do container.
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_REGION: ${S3_REGION:-auto}
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      ONLINE_PAYMENTS_ENABLED: ${ONLINE_PAYMENTS_ENABLED:-false}
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./apps/api/src:/app/apps/api/src
-      - ./packages:/app/packages
 
+  # Mesma imagem/código da API, iniciada em modo worker: consome a fila BullMQ
+  # e roda os @Cron (é o ÚNICO processo que os roda). A API só enfileira.
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    command: ["pnpm", "--filter", "@agenda/api", "start:worker"]
+    environment:
+      PROCESS_ROLE: worker
+      DATABASE_URL: mysql://agenda:agenda@mysql:3306/agenda?charset=utf8mb4
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: "super-secret-access-token-key-2026-secure"
+      JWT_REFRESH_SECRET: "super-secret-refresh-token-key-2026-secure"
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 7d
+      NODE_ENV: production
+      # O worker é quem ENTREGA e-mails e roda os crons: precisa das mesmas chaves.
+      # Todas vêm do .env da raiz (interpolação); vazio = recurso desligado.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      APP_URL: ${APP_URL:-}
+      WEB_URL: ${WEB_URL:-}
+      APP_WEB_URL: ${APP_WEB_URL:-}
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      ONLINE_PAYMENTS_ENABLED: ${ONLINE_PAYMENTS_ENABLED:-false}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Frontend Next em modo servidor (SSR). As páginas públicas por tenant são
+  # dinâmicas — servidas pelo Node do Next, com o nginx fazendo proxy reverso.
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    ports:
-      - "3000:3000"
+    restart: unless-stopped
+    expose:
+      - "3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
-      NODE_ENV: development
-    volumes:
-      - ./apps/web/src:/app/apps/web/src
-
-  worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-    environment:
-      DATABASE_URL: mysql://agenda:agenda@mysql:3306/agenda
-      REDIS_URL: redis://redis:6379
-      NODE_ENV: development
+      # SSR (server-side) usa esta URL interna absoluta para falar com a API.
+      # O browser continua usando NEXT_PUBLIC_API_URL=/api (proxy do nginx).
+      API_INTERNAL_URL: http://api:3001
     depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - api
+
+  nginx:
+    image: nginx:alpine
+    container_name: agenda-nginx
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
   mysql_data:

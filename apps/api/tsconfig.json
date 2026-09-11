@@ -14,7 +14,12 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@agenda/database": ["../../packages/database/dist"],
+      "@agenda/database/*": ["../../packages/database/dist/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

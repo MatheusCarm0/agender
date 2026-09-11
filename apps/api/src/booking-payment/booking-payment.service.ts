@@ -17,6 +17,7 @@ import {
 } from '../payment/payment-provider.interface';
 import { estimateFee, estimateNet } from '../payment/fees';
 import { capabilitiesFor } from '../plan/plan-limits';
+import { ONLINE_PAYMENTS_ENABLED } from '../common/payments-flag';
 import { NotificationService } from '../notification/notification.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { CreateBookingPaymentDto } from './dto/create-booking-payment.dto';
@@ -84,9 +85,11 @@ export class BookingPaymentService {
       appointment.discountAmount,
     );
 
-    // Plano sem pagamento online (ex.: downgrade com a política ainda setada)
-    // ⇒ nunca exigir pagamento (plan/plan-limits.ts).
-    const paymentsAllowed = capabilitiesFor(b.plan, b.planStatus).onlinePayments;
+    // Cobrança online desligada no beta (kill-switch global) OU plano sem
+    // pagamento online (ex.: downgrade com a política ainda setada) ⇒ nunca
+    // exigir pagamento.
+    const paymentsAllowed =
+      ONLINE_PAYMENTS_ENABLED && capabilitiesFor(b.plan, b.planStatus).onlinePayments;
 
     return {
       required: paymentsAllowed && b.bookingPaymentPolicy !== 'none' && amount > 0,
@@ -110,6 +113,14 @@ export class BookingPaymentService {
     appointmentId: string,
     dto: CreateBookingPaymentDto,
   ) {
+    // Cobrança online desligada no beta: nunca inicia cobrança, mesmo que um
+    // negócio tenha bookingPaymentPolicy != none gravado (ver common/payments-flag.ts).
+    if (!ONLINE_PAYMENTS_ENABLED) {
+      throw new BadRequestException(
+        'A cobrança online está temporariamente indisponível. O agendamento segue sem pagamento antecipado.',
+      );
+    }
+
     const appointment = await this.prisma.raw.appointment.findFirst({
       where: { id: appointmentId, businessId },
       include: { business: true, client: true, service: true, bookingPayment: true },

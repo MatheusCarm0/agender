@@ -12,6 +12,7 @@ import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterBusinessDto } from './dto/register-business.dto';
+import { RegisterStartDto } from './dto/register-start.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { PasswordResetStartDto } from './dto/password-reset-start.dto';
@@ -28,6 +29,12 @@ interface RequestUser {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('register/start')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async registerStart(@Body() dto: RegisterStartDto) {
+    return this.authService.registerStart(dto.email);
+  }
 
   @Post('register-business')
   @Throttle({ default: { limit: 5, ttl: 60000 } })

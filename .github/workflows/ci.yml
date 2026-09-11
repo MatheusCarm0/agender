@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
   pull_request:
-    branches: [main]
+    branches: [dev]
 
 jobs:
   build-and-test:
@@ -35,9 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A versão do pnpm vem do campo "packageManager" no package.json
+      # (pnpm@9.15.4). Não repetir "version" aqui — action-setup@v4 recusa
+      # versões duplicadas (ERR_PNPM_BAD_PM_VERSION).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -48,7 +49,7 @@ jobs:
       - run: pnpm --filter @agenda/database db:generate
       - run: pnpm --filter @agenda/database build
       - run: pnpm --filter @agenda/shared build
-      - run: pnpm --filter @agenda/database db:migrate -- --name ci
+      - run: pnpm --filter @agenda/database db:migrate:deploy
         env:
           DATABASE_URL: mysql://root:root@localhost:3306/agenda
       - run: pnpm build
