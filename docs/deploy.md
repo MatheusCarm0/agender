@@ -104,7 +104,9 @@ JWT_ACCESS_SECRET=COLE_UM_VALOR_ALEATORIO_LONGO
 JWT_REFRESH_SECRET=COLE_OUTRO_VALOR_ALEATORIO_LONGO
 
 # --- URLs públicas (troque pelo seu domínio, com https) ---
-APP_URL=https://seunegocio.com.br
+# APP_URL = base da API (fica atrás de /api no proxy) — monta a URL do webhook do MP.
+APP_URL=https://seunegocio.com.br/api
+# WEB_URL / APP_WEB_URL = base do site (páginas do cliente, links de convite/e-mail).
 WEB_URL=https://seunegocio.com.br
 APP_WEB_URL=https://seunegocio.com.br
 CORS_ORIGINS=https://seunegocio.com.br
@@ -167,7 +169,7 @@ nano Caddyfile
 ```
 seunegocio.com.br, www.seunegocio.com.br {
     encode gzip
-    handle /api/* {
+    handle_path /api/* {
         reverse_proxy api:3001
     }
     handle {
@@ -175,6 +177,10 @@ seunegocio.com.br, www.seunegocio.com.br {
     }
 }
 ```
+
+> ⚠️ Use `handle_path` (não `handle`) na linha do `/api/*`: o `handle_path` **remove** o
+> prefixo `/api` antes de mandar para a API (que espera as rotas sem esse prefixo). Com `handle`
+> as chamadas quebrariam com 404.
 
 E crie um `docker-compose.override.yml` (o Compose junta ele com o principal automaticamente) para
 **substituir o nginx pelo Caddy**:

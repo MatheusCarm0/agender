@@ -119,8 +119,11 @@ export class StaffService {
       select: { name: true },
     });
 
-    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3001');
-    const inviteUrl = `${appUrl}/convite/${token}`;
+    // `/convite/...` é uma página do WEB (Next), não da API — usa a base do web
+    // (APP_WEB_URL), nunca APP_URL (que aponta para a API, atrás de /api no proxy).
+    const webUrl =
+      this.config.get<string>('APP_WEB_URL') || 'http://localhost:3000';
+    const inviteUrl = `${webUrl}/convite/${token}`;
     const roleName =
       dto.role === 'admin' ? 'Administrador' :
       dto.role === 'professional' ? 'Profissional' : 'Recepção';
