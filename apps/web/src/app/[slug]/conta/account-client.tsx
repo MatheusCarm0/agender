@@ -346,7 +346,7 @@ export default function AccountClient({
               <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>Enviamos um código de acesso para o seu e-mail. Válido por 5 minutos.</p>
               {devCode && (
                 <p className="text-[11px] mt-2 px-2 py-1.5 rounded" style={{ backgroundColor: `${colors.primary}12`, color: accent }}>
-                  Ambiente de teste — seu código é <strong>{devCode}</strong>
+                  Ambiente de teste. Seu código é <strong>{devCode}</strong>
                 </p>
               )}
             </div>

@@ -376,7 +376,7 @@ export default function FidelityPage() {
                     <select id="member-client" value={memberForm.clientId} onChange={(e) => setMemberForm((f) => ({ ...f, clientId: e.target.value }))} required
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none">
                       <option value="">Selecione...</option>
-                      {clients.map((c) => <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>)}
+                      {clients.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}
                     </select>
                   </div>
                   <div className="w-48">
@@ -384,7 +384,7 @@ export default function FidelityPage() {
                     <select id="member-plan" value={memberForm.planId} onChange={(e) => setMemberForm((f) => ({ ...f, planId: e.target.value }))} required
                       className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none">
                       <option value="">Selecione...</option>
-                      {plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} — {formatBRL(p.price)}</option>)}
+                      {plans.filter((p) => p.active).map((p) => <option key={p.id} value={p.id}>{p.name} · {formatBRL(p.price)}</option>)}
                     </select>
                   </div>
                 </div>
@@ -450,7 +450,7 @@ export default function FidelityPage() {
                           {m.usageInCycle}{m.plan.usageLimitType === 'limited' ? ` / ${m.plan.usageLimit}` : ''}
                         </td>
                         <td className="px-4 py-3 text-text-muted whitespace-nowrap text-xs">
-                          {new Date(m.cycleStart).toLocaleDateString('pt-BR')} — {new Date(m.cycleEnd).toLocaleDateString('pt-BR')}
+                          {new Date(m.cycleStart).toLocaleDateString('pt-BR')} a {new Date(m.cycleEnd).toLocaleDateString('pt-BR')}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${

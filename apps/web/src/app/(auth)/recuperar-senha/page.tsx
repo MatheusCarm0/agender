@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
           </p>
           {devToken && (
             <p className="lp-alert" style={{ background: 'var(--lp-cream-2)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-muted)' }}>
-              Ambiente de teste — abra o link:{' '}
+              Ambiente de teste. Abra o link:{' '}
               <Link href={`/redefinir-senha?token=${devToken}`} className="lp-link" style={{ wordBreak: 'break-all' }}>
                 /redefinir-senha
               </Link>

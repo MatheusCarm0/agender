@@ -411,7 +411,7 @@ export class NotificationProcessor extends WorkerHost {
         ),
         emailButton(resetUrl, 'Criar nova senha'),
         emailText(
-          'O link expira em 1 hora. Se você não solicitou, ignore este e-mail — sua senha atual continua válida.',
+          'O link expira em 1 hora. Se você não solicitou, ignore este e-mail; sua senha atual continua válida.',
         ),
       ].join(''),
       'Enviado por <strong style="color:#78716C;">Agender</strong>.',
@@ -468,7 +468,7 @@ export class NotificationProcessor extends WorkerHost {
       this.config.get<string>('FEEDBACK_EMAIL') || 'suporte@agender.app';
     const kindLabel =
       kind === 'bug' ? 'Problema' : kind === 'idea' ? 'Ideia' : 'Outro';
-    const subject = `[Feedback] ${kindLabel} — ${businessName ?? businessId}`;
+    const subject = `[Feedback] ${kindLabel}: ${businessName ?? businessId}`;
 
     const html = emailLayout(
       `Novo feedback: ${kindLabel}`,

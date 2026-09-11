@@ -455,7 +455,7 @@ export default function OnboardingPage() {
           <h1 className="lp-display" style={{ fontSize: 'clamp(1.5rem, 3.6vw, 2rem)' }}>
             Vamos preparar a <span className="lp-grad-text">{user!.business.name}</span>
           </h1>
-          <p style={{ color: 'var(--lp-text-muted)', fontSize: 14.5, marginTop: 6 }}>Alguns passos rápidos — pule o que quiser e ajuste depois.</p>
+          <p style={{ color: 'var(--lp-text-muted)', fontSize: 14.5, marginTop: 6 }}>Alguns passos rápidos. Pule o que quiser e ajuste depois.</p>
         </div>
       )}
 

@@ -46,7 +46,7 @@ export function SiteNav() {
         className="lp-container"
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72 }}
       >
-        <Link href="/" aria-label="Agender — início" style={{ display: 'inline-flex', alignItems: 'center' }}>
+        <Link href="/" aria-label="Início do Agender" style={{ display: 'inline-flex', alignItems: 'center' }}>
           <AgenderLogo color="light" width={132} height={40} />
         </Link>
 

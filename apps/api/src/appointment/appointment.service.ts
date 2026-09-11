@@ -36,6 +36,55 @@ export class AppointmentService {
     return id;
   }
 
+  /**
+   * O `SELECT ... FOR UPDATE` sobre a faixa do horário toma gap locks no InnoDB.
+   * Sob concorrência real (dois clientes disputando o MESMO slot livre), os dois
+   * podem travar um ao outro e o MySQL derruba uma das transações com deadlock
+   * (código 1213 → Prisma P2010/P2034). O dado permanece íntegro — nunca há
+   * double-booking — mas sem tratar isso o perdedor recebia um 500 cru. Aqui
+   * reexecutamos a transação algumas vezes; quase sempre a segunda tentativa já
+   * enxerga o agendamento do vencedor e retorna um 409 limpo. Se a contenção
+   * persistir, tratamos como "horário tomado" (409), nunca como erro interno.
+   */
+  private isRetryableTxError(e: unknown): boolean {
+    if (!e || typeof e !== 'object') return false;
+    const code = (e as { code?: string }).code;
+    if (code === 'P2034') return true; // write conflict / deadlock (Prisma)
+    if (code === 'P2010') {
+      const msg = String((e as { message?: string }).message ?? '');
+      return /deadlock|1213|1205|lock wait timeout|restart(ing)? transaction/i.test(
+        msg,
+      );
+    }
+    return false;
+  }
+
+  private async runBookingTransaction<T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.prisma.raw.$transaction(fn);
+      } catch (e) {
+        if (this.isRetryableTxError(e) && attempt < MAX_ATTEMPTS) {
+          // Backoff curto e crescente para desempatar a corrida antes de repetir.
+          await new Promise((r) => setTimeout(r, 25 * attempt));
+          continue;
+        }
+        if (this.isRetryableTxError(e)) {
+          this.logger.warn(
+            `Deadlock persistente ao reservar horário após ${MAX_ATTEMPTS} tentativas — tratando como slot indisponível.`,
+          );
+          throw new ConflictException(
+            'Este horário acabou de ser reservado. Escolha outro.',
+          );
+        }
+        throw e;
+      }
+    }
+  }
+
   async create(dto: CreateAppointmentDto, businessId?: string) {
     const bId = businessId ?? this.getBusinessId();
 
@@ -65,7 +114,7 @@ export class AppointmentService {
     const blockStart = new Date(startAt.getTime() - bufferBefore * 60 * 1000);
     const blockEnd = new Date(endAt.getTime() + bufferAfter * 60 * 1000);
 
-    return this.prisma.raw.$transaction(async (tx) => {
+    return this.runBookingTransaction(async (tx) => {
       if (dto.idempotencyKey) {
         const existing = await tx.appointment.findUnique({
           where: {
@@ -160,7 +209,7 @@ export class AppointmentService {
     const blockStart = new Date(startAt.getTime() - bufferBefore * 60 * 1000);
     const blockEnd = new Date(endAt.getTime() + bufferAfter * 60 * 1000);
 
-    return this.prisma.raw.$transaction(async (tx) => {
+    return this.runBookingTransaction(async (tx) => {
       if (dto.idempotencyKey) {
         const existing = await tx.appointment.findUnique({
           where: {
@@ -186,6 +235,7 @@ export class AppointmentService {
       if (conflicts.length > 0) {
         throw new ConflictException('Este horário já foi reservado. Escolha outro.');
       }
+      // (retry de deadlock envolve esta transação — ver runBookingTransaction)
 
       const optInData = dto.marketingOptIn
         ? { marketingOptIn: true, marketingOptInAt: new Date() }
