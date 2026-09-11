@@ -164,7 +164,7 @@ export default function RegisterPage() {
             </p>
             {devCode && (
               <p className="lp-alert" style={{ marginTop: 10, background: 'var(--lp-cream-2)', border: '1px solid var(--lp-border)', color: 'var(--lp-text-muted)' }}>
-                Ambiente de teste — seu código é <strong>{devCode}</strong>
+                Ambiente de teste. Seu código é <strong>{devCode}</strong>
               </p>
             )}
           </div>

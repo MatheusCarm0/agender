@@ -5,7 +5,7 @@ import { AgenderLogo } from '@/components/logo';
 import { Halo } from '@/components/landing/decor';
 
 export const metadata = {
-  title: 'Perguntas frequentes — Agender',
+  title: 'Perguntas frequentes · Agender',
   description: 'Dúvidas comuns sobre a plataforma de agendamento Agender.',
 };
 
@@ -46,7 +46,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: 'Como funciona a cobrança do plano?',
-        a: 'A assinatura é mensal e recorrente, processada com segurança pelo Mercado Pago. Você pode trocar de plano ou cancelar quando quiser — o acesso segue até o fim do ciclo já pago.',
+        a: 'A assinatura é mensal e recorrente, processada com segurança pelo Mercado Pago. Você pode trocar de plano ou cancelar quando quiser. O acesso segue até o fim do ciclo já pago.',
       },
       {
         q: 'O que acontece se o pagamento falhar?',
@@ -67,7 +67,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: 'A plataforma cobra comissão sobre os agendamentos?',
-        a: 'Não cobramos comissão sobre o valor do agendamento. Atenção: o gateway de pagamento (Mercado Pago) desconta a taxa de processamento dele sobre cada transação — por isso o painel sempre mostra o valor líquido estimado, nunca só o bruto.',
+        a: 'Não cobramos comissão sobre o valor do agendamento. Atenção: o gateway de pagamento (Mercado Pago) desconta a taxa de processamento dele sobre cada transação, por isso o painel sempre mostra o valor líquido estimado, nunca só o bruto.',
       },
     ],
   },
@@ -91,7 +91,7 @@ const SECTIONS: Section[] = [
         q: 'E os dados dos meus clientes? (LGPD)',
         a: (
           <>
-            Os dados dos seus clientes ficam isolados no seu negócio — nenhum outro negócio os
+            Os dados dos seus clientes ficam isolados no seu negócio; nenhum outro negócio os
             acessa. Sobre esses dados, <strong>você é o Controlador</strong> e a plataforma é a{' '}
             <strong>Operadora</strong> (tratamos os dados a seu pedido). Isso significa que você
             deve ter base legal para usá-los e informar seus clientes. Os detalhes estão nos{' '}
@@ -134,7 +134,7 @@ export default function FaqPage() {
         }}
       >
         <nav className="lp-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 72 }}>
-          <Link href="/" aria-label="Agender — início" style={{ display: 'inline-flex' }}>
+          <Link href="/" aria-label="Início do Agender" style={{ display: 'inline-flex' }}>
             <AgenderLogo width={132} height={40} />
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

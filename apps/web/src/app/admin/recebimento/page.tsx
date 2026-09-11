@@ -22,7 +22,7 @@ export default function RecebimentoPage() {
         <p className="mt-2 text-sm text-text-muted max-w-md mx-auto">
           Estamos finalizando o recebimento online e o saque para a sua conta. Essa
           funcionalidade será liberada em uma próxima atualização. Até lá, você continua
-          agendando normalmente — os clientes marcam horário sem pagar antes.
+          agendando normalmente: os clientes marcam horário sem pagar antes.
         </p>
       </section>
     </div>

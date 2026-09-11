@@ -40,7 +40,7 @@ export function emailLayout(title: string, body: string, footer?: string): strin
         <!-- Footer -->
         <tr><td style="padding:20px 32px;border-top:1px solid #E7E5E4;text-align:center;">
           <p style="margin:0;font-size:12px;color:#A8A29E;line-height:1.5;">
-            ${footer || 'Enviado pelo Agender — sua agenda online.'}
+            ${footer || 'Enviado pelo Agender · sua agenda online.'}
           </p>
         </td></tr>
 

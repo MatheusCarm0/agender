@@ -13,7 +13,7 @@ const ITEMS = [
   },
   {
     q: 'Como funciona o lembrete que reduz o no-show?',
-    a: 'A cada agendamento, o sistema dispara lembretes automáticos por e-mail antes do horário — reduzindo faltas sem você precisar mandar mensagem manualmente.',
+    a: 'A cada agendamento, o sistema dispara lembretes automáticos por e-mail antes do horário, reduzindo faltas sem você precisar mandar mensagem manualmente.',
   },
   {
     q: 'Consigo receber pagamento na hora de agendar?',
@@ -25,7 +25,7 @@ const ITEMS = [
   },
   {
     q: 'Posso personalizar a página pública com a cara do meu negócio?',
-    a: 'Totalmente. Cores, fonte, fundo e logo são configuráveis por negócio — a página do cliente fica com a identidade da sua marca, não com a nossa.',
+    a: 'Totalmente. Cores, fonte, fundo e logo são configuráveis por negócio, então a página do cliente fica com a identidade da sua marca, não com a nossa.',
   },
 ];
 

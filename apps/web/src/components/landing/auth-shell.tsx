@@ -36,7 +36,7 @@ export function AuthShell({
         style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth, padding: 'clamp(1.75rem, 4vw, 2.6rem)', borderRadius: 28 }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <Link href="/" aria-label="Agender — início" style={{ display: 'inline-flex' }}>
+          <Link href="/" aria-label="Início do Agender" style={{ display: 'inline-flex' }}>
             <AgenderLogo width={132} height={40} />
           </Link>
         </div>

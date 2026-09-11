@@ -15,7 +15,7 @@ import { IconTile } from '@/components/landing/icons';
 import { AgenderLogo } from '@/components/logo';
 
 export const metadata: Metadata = {
-  title: 'Agender — Agendamento online lindo e no automático',
+  title: 'Agender: agendamento online lindo e no automático',
   description:
     'Página de agendamento personalizada, lembretes automáticos que acabam com o no-show e pagamento no PIX. Monte sua agenda online em minutos. Teste 7 dias grátis.',
   keywords: [
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     'reduzir no-show',
   ],
   openGraph: {
-    title: 'Agender — Agendamento online lindo e no automático',
+    title: 'Agender: agendamento online lindo e no automático',
     description:
       'Página de agendamento personalizada, lembretes automáticos e pagamento no PIX. Teste 7 dias grátis, sem cartão.',
     type: 'website',
@@ -44,7 +44,7 @@ const STEPS = [
   },
   {
     title: 'Compartilhe seu link',
-    text: 'Coloque na bio do Instagram, no WhatsApp e no Google. O cliente abre e marca — sem app, sem login.',
+    text: 'Coloque na bio do Instagram, no WhatsApp e no Google. O cliente abre e marca, sem app, sem login.',
   },
   {
     title: 'Receba agendamentos',
@@ -283,7 +283,7 @@ export default function LandingPage() {
             <Reveal delay={120}>
               <p className="lp-lead" style={{ marginTop: 22, color: 'var(--lp-text-muted)', maxWidth: 540 }}>
                 Página de agendamento personalizada, lembretes automáticos que acabam com o no-show e pagamento no
-                PIX — tudo em um link só que você põe na bio.
+                PIX: tudo em um link só que você põe na bio.
               </p>
             </Reveal>
 
@@ -333,7 +333,7 @@ export default function LandingPage() {
                   <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>Núcleo</span>
                   <h3 className="lp-display" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', margin: '10px 0 14px' }}>Agenda que <span className="lp-grad-anim">nunca dá encontro</span>.</h3>
                   <p style={{ margin: 0, color: 'var(--lp-text-muted)', fontSize: 'clamp(1rem,1.5vw,1.15rem)', lineHeight: 1.65, maxWidth: 460 }}>
-                    Trava de horário de verdade: dois clientes jamais caem no mesmo slot — nem quando todo mundo marca no mesmo minuto. Adeus, dor de cabeça no balcão.
+                    Trava de horário de verdade: dois clientes jamais caem no mesmo slot, nem quando todo mundo marca no mesmo minuto. Adeus, dor de cabeça no balcão.
                   </p>
                 </div>
                 <div className="lp-spot-visual"><VisualConflict /></div>
@@ -347,7 +347,7 @@ export default function LandingPage() {
                   <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>Retenção</span>
                   <h3 className="lp-display" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', margin: '10px 0 14px' }}>Lembretes que <span className="lp-grad-anim">trazem o cliente</span>.</h3>
                   <p style={{ margin: 0, color: 'var(--lp-text-muted)', fontSize: 'clamp(1rem,1.5vw,1.15rem)', lineHeight: 1.65, maxWidth: 460 }}>
-                    Lembretes por e-mail automáticos antes do horário. O cliente lembra, confirma e aparece — e você não digita uma mensagem sequer.
+                    Lembretes por e-mail automáticos antes do horário. O cliente lembra, confirma e aparece, e você não digita uma mensagem sequer.
                   </p>
                 </div>
                 <div className="lp-spot-visual"><VisualReminder /></div>
@@ -361,7 +361,7 @@ export default function LandingPage() {
                   <span style={{ fontFamily: 'var(--lp-font-display)', fontWeight: 700, color: 'var(--lp-teal)', fontSize: 15 }}>Dinheiro</span>
                   <h3 className="lp-display" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', margin: '10px 0 14px' }}>Receba antes, no PIX. <span className="lp-grad-anim">E veja tudo</span>.</h3>
                   <p style={{ margin: 0, color: 'var(--lp-text-muted)', fontSize: 'clamp(1rem,1.5vw,1.15rem)', lineHeight: 1.65, maxWidth: 460 }}>
-                    Cobre no ato do agendamento e reduza o furo de agenda. Depois, um financeiro que você entende de bater o olho — receita, faltas e desempenho por profissional.
+                    Cobre no ato do agendamento e reduza o furo de agenda. Depois, um financeiro que você entende de bater o olho: receita, faltas e desempenho por profissional.
                   </p>
                 </div>
                 <div className="lp-spot-visual"><VisualPayment /></div>
@@ -451,7 +451,7 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={100}>
             <p style={{ color: 'rgba(255,255,255,.9)', fontSize: 'clamp(1.05rem, 1.9vw, 1.42rem)', maxWidth: 660, margin: '24px auto 0', lineHeight: 1.55 }}>
-              O Agender atende, confirma e lembra por você — 24 horas por dia, sem você tocar no celular.
+              O Agender atende, confirma e lembra por você, 24 horas por dia, sem você tocar no celular.
             </p>
           </Reveal>
           <Reveal delay={160}>
@@ -483,7 +483,7 @@ export default function LandingPage() {
                 Não é bonito só por fora. <span className="lp-grad-anim">É por dentro</span> também.
               </h2>
               <p className="lp-lead" style={{ color: 'rgba(255,255,255,.72)', marginTop: 16, maxWidth: 560 }}>
-                O painel que organiza o seu dia e a página que faz o cliente marcar em segundos — com o capricho que o seu negócio merece.
+                O painel que organiza o seu dia e a página que faz o cliente marcar em segundos, com o capricho que o seu negócio merece.
               </p>
             </div>
           </Reveal>

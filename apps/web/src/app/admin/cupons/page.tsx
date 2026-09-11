@@ -302,7 +302,7 @@ export default function CouponsPage() {
                   </td>
                   <td className="px-4 py-3 text-text-muted whitespace-nowrap">
                     {new Date(c.validFrom).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                    {c.validUntil ? ` — ${new Date(c.validUntil).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : ' — sem limite'}
+                    {c.validUntil ? ` a ${new Date(c.validUntil).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : ' · sem limite'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${
