@@ -111,7 +111,7 @@ CORS_ORIGINS=https://seunegocio.com.br
 
 # --- E-mail (Resend) ---
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
-MAIL_FROM=Agender <nao-responda@seunegocio.com.br>
+MAIL_FROM=Agender <nao-responda@mail.agender.app.br>   # domínio já verificado no Resend
 
 # --- Upload de imagens (Cloudflare R2 / S3) ⚠️ obrigatório em produção ---
 S3_ENDPOINT=https://SEU_ACCOUNT_ID.r2.cloudflarestorage.com
