@@ -13,10 +13,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, unlinkSync } from 'fs';
+import { extname } from 'path';
 import { randomUUID } from 'crypto';
+import { StorageService } from './storage.service';
 
 interface RequestUser {
   userId: string;
@@ -24,27 +23,19 @@ interface RequestUser {
   role: string;
 }
 
-const UPLOADS_DIR = join(process.cwd(), 'uploads');
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 const MAX_SIZE = 5 * 1024 * 1024;
 
 @Controller('upload')
 export class UploadController {
+  constructor(private readonly storage: StorageService) {}
+
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
+    // memoryStorage (default do multer sem `storage`): o arquivo fica em
+    // file.buffer e é gravado pelo StorageService — nunca em disco de request.
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: UPLOADS_DIR,
-        filename: (
-          _req: Express.Request,
-          file: Express.Multer.File,
-          cb: (error: Error | null, filename: string) => void,
-        ) => {
-          const ext = extname(file.originalname).toLowerCase();
-          cb(null, `${randomUUID()}${ext}`);
-        },
-      }),
       fileFilter: (
         _req: Express.Request,
         file: Express.Multer.File,
@@ -66,12 +57,14 @@ export class UploadController {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-    if (file.size > MAX_SIZE) {
-      unlinkSync(file.path);
-      throw new BadRequestException('File too large (max 5 MB)');
-    }
-    const url = `/upload/files/${file.filename}`;
-    return { url, filename: file.filename };
+    const ext = extname(file.originalname).toLowerCase();
+    const filename = `${randomUUID()}${ext}`;
+    const url = await this.storage.save(
+      filename,
+      file.buffer,
+      this.storage.contentTypeFor(ext),
+    );
+    return { url, filename };
   }
 
   @Get('files/:filename')
@@ -79,13 +72,19 @@ export class UploadController {
     if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
       return res.status(400).send('Invalid filename');
     }
-    const filepath = join(UPLOADS_DIR, filename);
-    if (!existsSync(filepath)) {
+    const obj = await this.storage.read(filename);
+    if (!obj) {
       return res.status(404).send('Not found');
     }
     // Impede o browser de "sniffar" o conteúdo como outro tipo (ex.: HTML) — o
     // arquivo é validado só pela extensão no upload.
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    return res.sendFile(filepath);
+    res.setHeader('Content-Type', obj.contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    obj.stream.on('error', () => {
+      if (!res.headersSent) res.status(500);
+      res.end();
+    });
+    obj.stream.pipe(res);
   }
 }

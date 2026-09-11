@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
 import { PlanController } from './plan.controller';
 import { PlanService } from './plan.service';
 import { NotificationModule } from '../notification/notification.module';
 
+// ScheduleModule.forRoot() é registrado uma única vez no AppModule, apenas no
+// processo worker. Os @Cron de PlanService ficam inertes na API.
 @Module({
-  imports: [ScheduleModule.forRoot(), NotificationModule],
+  imports: [NotificationModule],
   controllers: [PlanController],
   providers: [PlanService],
   exports: [PlanService],

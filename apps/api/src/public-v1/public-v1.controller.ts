@@ -31,6 +31,7 @@ import { BookingPaymentService } from '../booking-payment/booking-payment.servic
 import { CreateBookingPaymentDto } from '../booking-payment/dto/create-booking-payment.dto';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+import { ONLINE_PAYMENTS_ENABLED } from '../common/payments-flag';
 
 @Controller('public/v1')
 export class PublicV1Controller {
@@ -70,13 +71,13 @@ export class PublicV1Controller {
 
     const acceptingBookings = business.planStatus !== 'expired';
 
-    // A política de cobrança só vale se o plano permite pagamento online —
-    // expor 'none' quando não permite evita a página pública anunciar um
-    // pagamento que o backend nunca vai exigir (ex.: downgrade de plano).
-    const paymentsAllowed = capabilitiesFor(
-      business.plan,
-      business.planStatus,
-    ).onlinePayments;
+    // A política de cobrança só vale se a cobrança online está ligada (beta:
+    // desligada por padrão) E o plano permite pagamento online — expor 'none'
+    // caso contrário evita a página pública anunciar um pagamento que o backend
+    // nunca vai exigir.
+    const paymentsAllowed =
+      ONLINE_PAYMENTS_ENABLED &&
+      capabilitiesFor(business.plan, business.planStatus).onlinePayments;
     const effectivePolicy = paymentsAllowed
       ? business.bookingPaymentPolicy
       : 'none';

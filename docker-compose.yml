@@ -46,15 +46,25 @@ services:
       redis:
         condition: service_healthy
 
+  # Mesma imagem/código da API, iniciada em modo worker: consome a fila BullMQ
+  # e roda os @Cron (é o ÚNICO processo que os roda). A API só enfileira.
   worker:
     build:
       context: .
-      dockerfile: apps/worker/Dockerfile
+      dockerfile: apps/api/Dockerfile
     restart: unless-stopped
+    command: ["pnpm", "--filter", "@agenda/api", "start:worker"]
     environment:
+      PROCESS_ROLE: worker
       DATABASE_URL: mysql://agenda:agenda@mysql:3306/agenda
       REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: "super-secret-access-token-key-2026-secure"
+      JWT_REFRESH_SECRET: "super-secret-refresh-token-key-2026-secure"
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 7d
       NODE_ENV: production
+      # O worker é quem ENTREGA e-mails: defina RESEND_API_KEY e MAIL_FROM aqui
+      # (e ONLINE_PAYMENTS_ENABLED se for reabrir cobrança). Ver docs/notificacoes.md.
     depends_on:
       mysql:
         condition: service_healthy
