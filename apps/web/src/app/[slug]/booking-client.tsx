@@ -112,7 +112,7 @@ function fontFamily(font: string): string {
 
 function btnRadius(style?: string): string {
   if (style === "pill") return "999px";
-  if (style === "square") return "4px";
+  if (style === "square") return "0px";
   return "8px";
 }
 
@@ -147,6 +147,27 @@ function bgStyle(
     };
   }
   return { backgroundColor: bg.value || "#f9fafb" };
+}
+
+// Fundo do efeito "gradiente animado": monta um gradiente multi-parada e o
+// dimensiona a 400% para que a animação de background-position produza
+// movimento visível. Usa as paradas do gradiente do tema quando existir;
+// senão sintetiza a partir das cores da paleta. O background-size vai inline
+// (longhand) de propósito — o shorthand `background` reiniciaria o size a auto.
+function animatedBgStyle(
+  bg: Customization["theme"]["background"] | undefined,
+  solid: string,
+  primary: string,
+  surface: string,
+): React.CSSProperties {
+  const stops =
+    bg?.type === "gradient" && bg.gradient
+      ? [bg.gradient.from, bg.gradient.to, bg.gradient.from]
+      : [solid, primary, surface, solid];
+  return {
+    backgroundImage: `linear-gradient(-45deg, ${stops.join(", ")})`,
+    backgroundSize: "400% 400%",
+  };
 }
 
 const DAYS_TO_SHOW = 13;
@@ -602,7 +623,12 @@ export default function BookingClient({
   function navigate(to: Step) {
     setPrevStep(step);
     setStep(to);
-    contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    // Rola a própria janela (ou o iframe da prévia) ao topo — antes rolava um
+    // div que não é container de scroll, então a nova etapa surgia abaixo da
+    // dobra e o cliente precisava rolar a cada clique.
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
   function selectProfessional(p: Professional) {
@@ -837,19 +863,60 @@ function generateDates(pageOffset: number): {
   const slideDirection =
     STEP_ORDER.indexOf(step) >= STEP_ORDER.indexOf(prevStep) ? "left" : "right";
 
+  // Fora da home o cabeçalho encolhe (logo menor, sem sobre/redes/horário) para
+  // que o fluxo de agendamento comece perto do topo — menos rolagem por clique.
+  const compact = step !== "home";
+
   return (
     <div
-      className={`min-h-screen flex flex-col items-center relative ${backgroundEffect === "dots" ? "bg-effect-dots" : backgroundEffect === "grid" ? "bg-effect-grid" : backgroundEffect === "noise" ? "bg-effect-noise" : backgroundEffect === "animated-gradient" ? "bg-effect-animated-gradient" : ""}`}
+      className="min-h-screen flex flex-col items-center relative"
       style={{
-        ...(bgTheme
-          ? bgStyle(bgTheme, overlayOpacity)
-          : { backgroundColor: bg }),
         color: text,
-        fontFamily: fontFamily(customization?.theme?.font || "inter"),
+        fontFamily: fontFamily(cust?.theme?.font || "inter"),
+        // Contexto de empilhamento próprio: mantém as camadas de fundo
+        // (z-index:-1) contidas, sem cair atrás do fundo do body.
+        isolation: "isolate",
       }}
     >
+      {/* Camada de fundo — separada do conteúdo para que os efeitos não colidam
+          com o estilo inline dos containers. O gradiente animado precisa do
+          background-size a 400%; texturas (dots/grid/noise) precisam pintar
+          sobre qualquer tipo de fundo, inclusive gradiente e imagem. */}
+      <div
+        aria-hidden
+        className={
+          backgroundEffect === "animated-gradient"
+            ? "bg-effect-animated-gradient"
+            : ""
+        }
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: -1,
+          ...(backgroundEffect === "animated-gradient"
+            ? animatedBgStyle(bgTheme, bg, primary, surface)
+            : bgTheme
+              ? bgStyle(bgTheme, overlayOpacity)
+              : { backgroundColor: bg }),
+        }}
+      />
+      {(backgroundEffect === "dots" ||
+        backgroundEffect === "grid" ||
+        backgroundEffect === "noise") && (
+        <div
+          aria-hidden
+          className={`bg-effect-${backgroundEffect}`}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: -1,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {/* Cover */}
-      {coverUrl && bgTheme?.type !== "image" && (
+      {coverUrl && bgTheme?.type !== "image" && !compact && (
         <div
           className="w-full h-44 sm:h-52 bg-cover bg-center"
           style={{ backgroundImage: `url(${coverUrl})` }}
@@ -858,19 +925,19 @@ function generateDates(pageOffset: number): {
 
       {/* Profile header */}
       <div
-        className={`flex flex-col items-center text-center w-full max-w-[680px] px-6 ${coverUrl && bgTheme?.type !== "image" ? "-mt-12" : "mt-14"}`}
+        className={`flex flex-col items-center text-center w-full max-w-[680px] px-6 transition-all duration-300 ${compact ? "mt-8" : coverUrl && bgTheme?.type !== "image" ? "-mt-12" : "mt-14"}`}
       >
         <div className="stagger-item avatar-ring">
           {logoUrl ? (
             <img
               src={logoUrl}
               alt={business.name}
-              className="w-24 h-24 rounded-full object-cover border-4 shadow-md"
+              className={`rounded-full object-cover border-4 shadow-md transition-all duration-300 ${compact ? "w-14 h-14" : "w-24 h-24"}`}
               style={{ borderColor: surface }}
             />
           ) : (
             <div
-              className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold border-4 shadow-md"
+              className={`rounded-full flex items-center justify-center font-bold border-4 shadow-md transition-all duration-300 ${compact ? "w-14 h-14 text-xl" : "w-24 h-24 text-3xl"}`}
               style={{
                 backgroundColor: primary,
                 color: onPrimary,
@@ -881,10 +948,12 @@ function generateDates(pageOffset: number): {
             </div>
           )}
         </div>
-        <h1 className="text-2xl font-semibold mt-5 tracking-[-0.01em] stagger-item">
+        <h1
+          className={`font-semibold tracking-[-0.01em] stagger-item ${compact ? "text-lg mt-3" : "text-2xl mt-5"}`}
+        >
           {headline}
         </h1>
-        {about && (
+        {about && !compact && (
           <p
             className="text-sm mt-2 max-w-sm leading-relaxed stagger-item"
             style={{ opacity: 0.55 }}
@@ -894,7 +963,7 @@ function generateDates(pageOffset: number): {
         )}
 
         {/* Open/closed status */}
-        {showHours && openStatus && openStatus.label && (
+        {showHours && openStatus && openStatus.label && !compact && (
           <button
             type="button"
             onClick={() => setHoursExpanded(!hoursExpanded)}
@@ -928,7 +997,7 @@ function generateDates(pageOffset: number): {
         )}
 
         {/* Expanded hours */}
-        {hoursExpanded && workingHours && workingHours.length > 0 && (
+        {hoursExpanded && workingHours && workingHours.length > 0 && !compact && (
           <div
             className="mt-2 p-3 rounded-lg text-xs w-full max-w-xs"
             style={{
@@ -957,7 +1026,7 @@ function generateDates(pageOffset: number): {
         )}
 
         {/* Social icons */}
-        {hasSocials && (
+        {hasSocials && !compact && (
           <div className="flex gap-3 mt-5 stagger-item">
             {socials!.instagram && (
               <a
@@ -1046,7 +1115,7 @@ function generateDates(pageOffset: number): {
       {/* Content area with transitions */}
       <div
         ref={contentRef}
-        className={`w-full max-w-[680px] px-6 pb-28 mt-9 flex flex-col items-center ${containerStyle === "glass" ? "container-glass rounded-2xl mx-4 py-6" : containerStyle === "frosted" ? "container-frosted rounded-3xl mx-4 py-8" : ""}`}
+        className={`w-full max-w-[680px] px-6 pb-28 flex flex-col items-center transition-all duration-300 ${compact ? "mt-6" : "mt-9"} ${containerStyle === "glass" ? "container-glass rounded-2xl mx-4 py-6" : containerStyle === "frosted" ? "container-frosted rounded-3xl mx-4 py-8" : ""}`}
         style={{ position: "relative", zIndex: 1 }}
       >
         <style>{`
@@ -1480,7 +1549,7 @@ function generateDates(pageOffset: number): {
                     <div
                       className={
                         layout === "cards"
-                          ? "grid gap-2 grid-cols-2"
+                          ? "grid gap-2 grid-cols-1 sm:grid-cols-2"
                           : "space-y-2"
                       }
                     >

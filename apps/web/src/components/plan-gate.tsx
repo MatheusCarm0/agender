@@ -4,8 +4,17 @@ export type Plan = 'basico' | 'profissional' | 'pro';
 
 const PLAN_RANK: Record<string, number> = { basico: 0, profissional: 1, pro: 2 };
 
-/** Retorna true se o plano do negócio atende (ou supera) o plano mínimo exigido. */
-export function planAllows(plan: string | undefined | null, minPlan: 'profissional' | 'pro'): boolean {
+/**
+ * Retorna true se o negócio atende (ou supera) o plano mínimo exigido.
+ * Negócio em TRIAL (`planStatus === 'trialing'`) tem a experiência Pro completa,
+ * espelhando `capabilitiesFor` no backend (apps/api/src/plan/plan-limits.ts).
+ */
+export function planAllows(
+  plan: string | undefined | null,
+  minPlan: 'profissional' | 'pro',
+  planStatus?: string | null,
+): boolean {
+  if (planStatus === 'trialing') return true;
   return (PLAN_RANK[plan ?? 'basico'] ?? 0) >= PLAN_RANK[minPlan];
 }
 

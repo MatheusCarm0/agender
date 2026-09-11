@@ -89,7 +89,9 @@ export default function CampaignsPage() {
   });
 
   const canAccessCampaigns =
-    user?.business.plan === 'profissional' || user?.business.plan === 'pro';
+    user?.business.planStatus === 'trialing' ||
+    user?.business.plan === 'profissional' ||
+    user?.business.plan === 'pro';
 
   const loadCampaigns = useCallback(async () => {
     if (!token || !canAccessCampaigns) {

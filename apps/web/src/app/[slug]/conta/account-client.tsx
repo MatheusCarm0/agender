@@ -19,7 +19,37 @@ interface Appointment {
   professionalName: string;
 }
 
+interface PlanSummary {
+  id: string;
+  name: string;
+  price: number;
+  billingCycle: string;
+  usageLimitType: string;
+  usageLimit: number | null;
+}
+interface ClientPlan extends PlanSummary {
+  services: { id: string; name: string }[];
+}
+interface MyMembership {
+  id: string;
+  status: string;
+  paymentStatus: string;
+  cycleStart: string;
+  cycleEnd: string;
+  usageInCycle: number;
+  plan: PlanSummary;
+}
+
 type Step = 'email' | 'code' | 'list';
+
+const CYCLE_SUFFIX: Record<string, string> = { monthly: 'mês', quarterly: 'trimestre', yearly: 'ano' };
+const MEMBERSHIP_STATUS: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+  active: { label: 'Ativo', bg: '#F0FDF4', text: '#15803D', dot: '#16A34A' },
+  pending: { label: 'Aguardando confirmação', bg: '#FFFBEB', text: '#B45309', dot: '#D97706' },
+  suspended: { label: 'Suspenso', bg: '#F5F5F4', text: '#78716C', dot: '#A8A29E' },
+  expired: { label: 'Expirado', bg: '#F5F5F4', text: '#78716C', dot: '#A8A29E' },
+  cancelled: { label: 'Cancelado', bg: '#FEF2F2', text: '#B91C1C', dot: '#DC2626' },
+};
 
 const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
   scheduled: { label: 'Agendado', dot: '#2563EB', bg: '#EFF6FF', text: '#1D4ED8' },
@@ -60,6 +90,10 @@ export default function AccountClient({
   const [loading, setLoading] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [error, setError] = useState('');
+  const [clubPlans, setClubPlans] = useState<ClientPlan[]>([]);
+  const [myMemberships, setMyMemberships] = useState<MyMembership[]>([]);
+  const [subscribingId, setSubscribingId] = useState<string | null>(null);
+  const [clubMsg, setClubMsg] = useState('');
 
   const loadAppointments = useCallback(async (authToken: string): Promise<boolean> => {
     try {
@@ -74,6 +108,18 @@ export default function AccountClient({
     }
   }, [slug]);
 
+  // Clube de fidelidade: planos disponíveis (público) + minhas assinaturas
+  // (autenticado). Silencioso — se o recurso estiver desligado, vem vazio.
+  const loadClub = useCallback(async (authToken: string) => {
+    const [plans, mine] = await Promise.all([
+      fetch(`${API_URL}/public/v1/${slug}/membership-plans`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
+      fetch(`${API_URL}/public/v1/${slug}/me/memberships`, { headers: { Authorization: `Bearer ${authToken}` } })
+        .then((r) => (r.ok ? r.json() : [])).catch(() => []),
+    ]);
+    setClubPlans(plans);
+    setMyMemberships(mine);
+  }, [slug]);
+
   // Sessão persistida: se há token válido, entra direto na lista.
   useEffect(() => {
     const stored = typeof window !== 'undefined' ? localStorage.getItem(tokenKey) : null;
@@ -83,6 +129,7 @@ export default function AccountClient({
         fetch(`${API_URL}/public/v1/${slug}/me`, { headers: { Authorization: `Bearer ${stored}` } })
           .then((r) => (r.ok ? r.json() : null)).catch(() => null),
         loadAppointments(stored),
+        loadClub(stored),
       ]);
       if (meOk && apptsOk) {
         setToken(stored);
@@ -93,7 +140,7 @@ export default function AccountClient({
       }
       setBootstrapping(false);
     })();
-  }, [slug, tokenKey, loadAppointments]);
+  }, [slug, tokenKey, loadAppointments, loadClub]);
 
   async function startOtp(e: React.FormEvent) {
     e.preventDefault();
@@ -131,7 +178,7 @@ export default function AccountClient({
       localStorage.setItem(tokenKey, body.accessToken);
       setToken(body.accessToken);
       setClientName(body.client?.name || '');
-      await loadAppointments(body.accessToken);
+      await Promise.all([loadAppointments(body.accessToken), loadClub(body.accessToken)]);
       setStep('list');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Código incorreto.');
@@ -143,6 +190,26 @@ export default function AccountClient({
     localStorage.removeItem(tokenKey);
     setToken(null); setStep('email'); setEmail(''); setCode(''); setDevCode('');
     setAppointments([]); setClientName('');
+    setClubPlans([]); setMyMemberships([]); setClubMsg('');
+  }
+
+  async function subscribe(planId: string) {
+    if (!token) return;
+    setSubscribingId(planId); setClubMsg(''); setError('');
+    try {
+      const res = await fetch(`${API_URL}/public/v1/${slug}/me/memberships`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ planId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || 'Não foi possível solicitar a assinatura.');
+      await loadClub(token);
+      setClubMsg('Solicitação enviada! O estabelecimento vai confirmar o pagamento para ativar seu plano.');
+    } catch (err) {
+      setClubMsg(err instanceof Error ? err.message : 'Não foi possível solicitar a assinatura.');
+    }
+    setSubscribingId(null);
   }
 
   const [cancelId, setCancelId] = useState<string | null>(null);
@@ -181,6 +248,11 @@ export default function AccountClient({
   const now = Date.now();
   const upcoming = appointments.filter((a) => new Date(a.startAt).getTime() >= now && !['cancelled', 'no_show', 'completed'].includes(a.status));
   const past = appointments.filter((a) => !upcoming.includes(a));
+
+  const heldPlanIds = new Set(myMemberships.filter((m) => ['active', 'pending'].includes(m.status)).map((m) => m.plan.id));
+  const availablePlans = clubPlans.filter((p) => !heldPlanIds.has(p.id));
+  const showClub = clubPlans.length > 0 || myMemberships.length > 0;
+  const usageText = (p: PlanSummary) => (p.usageLimitType === 'unlimited' ? 'Uso ilimitado' : `${p.usageLimit} usos por ciclo`);
 
   function ApptCard({ a, cancellable = false }: { a: Appointment; cancellable?: boolean }) {
     const meta = STATUS_META[a.status] || STATUS_META.scheduled;
@@ -321,6 +393,75 @@ export default function AccountClient({
                   Agendar novo horário
                 </a>
               </>
+            )}
+
+            {showClub && (
+              <div>
+                <h2 className="text-[11px] font-medium uppercase tracking-wider mb-2.5" style={{ opacity: 0.4 }}>Clube de fidelidade</h2>
+
+                {clubMsg && (
+                  <p className="text-xs px-3 py-2 rounded mb-3" style={{ backgroundColor: `${colors.primary}12`, color: accent }}>{clubMsg}</p>
+                )}
+
+                <div className="space-y-2.5">
+                  {/* Minhas assinaturas */}
+                  {myMemberships.map((m) => {
+                    const meta = MEMBERSHIP_STATUS[m.status] || MEMBERSHIP_STATUS.pending;
+                    return (
+                      <div key={m.id} className="border p-5" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm">{m.plan.name}</p>
+                            <p className="text-xs mt-0.5" style={{ opacity: 0.6 }}>
+                              {formatCurrency(m.plan.price)}/{CYCLE_SUFFIX[m.plan.billingCycle] || 'ciclo'} · {usageText(m.plan)}
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full shrink-0" style={{ backgroundColor: meta.bg, color: meta.text }}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: meta.dot }} />
+                            {meta.label}
+                          </span>
+                        </div>
+                        {m.status === 'active' && (
+                          <div className="flex items-center justify-between mt-3 pt-3 text-xs" style={{ borderTop: `1px solid ${colors.text}10` }}>
+                            <span style={{ opacity: 0.6 }}>
+                              {m.plan.usageLimitType === 'limited' ? `${m.usageInCycle} / ${m.plan.usageLimit} usados neste ciclo` : `${m.usageInCycle} usados neste ciclo`}
+                            </span>
+                            <span style={{ opacity: 0.6 }}>Renova em {new Date(m.cycleEnd).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                        )}
+                        {m.status === 'pending' && (
+                          <p className="text-xs mt-3 pt-3" style={{ borderTop: `1px solid ${colors.text}10`, opacity: 0.6 }}>
+                            Aguardando o estabelecimento confirmar o pagamento para ativar.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Planos disponíveis para assinar */}
+                  {availablePlans.map((p) => (
+                    <div key={p.id} className="border p-5" style={{ backgroundColor: colors.surface, borderColor: `${colors.text}12`, borderRadius: cardRad }}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm">{p.name}</p>
+                          <p className="text-xs mt-0.5" style={{ opacity: 0.6 }}>
+                            {formatCurrency(p.price)}/{CYCLE_SUFFIX[p.billingCycle] || 'ciclo'} · {usageText(p)}
+                          </p>
+                          {p.services.length > 0 && (
+                            <p className="text-[11px] mt-1" style={{ opacity: 0.5 }}>Serviços: {p.services.map((s) => s.name).join(', ')}</p>
+                          )}
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color: accent, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(p.price)}</span>
+                      </div>
+                      <button type="button" onClick={() => subscribe(p.id)} disabled={subscribingId === p.id}
+                        className="mt-3 w-full py-2.5 text-sm font-semibold disabled:opacity-50 transition-colors"
+                        style={{ backgroundColor: colors.primary, color: onPrimary, borderRadius: buttonRadius }}>
+                        {subscribingId === p.id ? 'Enviando...' : 'Assinar'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
