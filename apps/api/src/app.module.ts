@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { IS_WORKER } from './common/process-role';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { QueueModule } from './queue/queue.module';
@@ -47,6 +49,10 @@ import { FeedbackModule } from './feedback/feedback.module';
     // (login/registro) apertam esse limite com @Throttle no controller; as rotas
     // públicas de agendamento mantêm o RateLimitGuard dedicado por negócio.
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
+    // Os @Cron só são agendados no processo worker. ScheduleModule.forRoot()
+    // é o que varre os providers e registra os crons; sem ele, os @Cron ficam
+    // inertes. Assim, com N réplicas da API nenhuma agenda cron — só o worker.
+    ...(IS_WORKER ? [ScheduleModule.forRoot()] : []),
     PrismaModule,
     RedisModule,
     QueueModule,

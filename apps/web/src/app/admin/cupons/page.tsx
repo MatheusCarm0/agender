@@ -125,7 +125,7 @@ export default function CouponsPage() {
     return formatBRL(c.discountValue);
   }
 
-  if (!planAllows(user?.business.plan, 'profissional')) {
+  if (!planAllows(user?.business.plan, 'profissional', user?.business.planStatus)) {
     return (
       <div>
         <h1 className="text-2xl font-semibold text-text-strong">Cupons</h1>

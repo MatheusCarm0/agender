@@ -16,3 +16,9 @@ COPY apps/web/ apps/web/
 ENV NEXT_PUBLIC_API_URL=/api
 
 RUN pnpm --filter @agenda/web build
+
+# As páginas públicas são SSR (dinâmicas por tenant) — servimos com o servidor
+# Node do Next (next start) atrás do nginx, não como export estático.
+ENV NODE_ENV=production
+EXPOSE 3000
+CMD ["pnpm", "--filter", "@agenda/web", "start"]

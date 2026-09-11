@@ -1,0 +1,32 @@
+# Nunca copiar node_modules do host para dentro da imagem: as dependências são
+# instaladas no build (pnpm install). Copiar as do host (Windows/local) quebra
+# binários nativos (ex.: prisma) na imagem Linux.
+**/node_modules
+
+# Artefatos de build (regerados dentro da imagem)
+**/dist
+**/.next
+**/out
+**/.turbo
+packages/database/src/*.js
+packages/database/src/*.d.ts
+packages/database/src/*.map
+
+# Git e metadados
+.git
+.gitignore
+.github
+
+# Segredos e ambiente (injetados via compose/env, nunca embutidos na imagem)
+.env
+.env.*
+!.env.example
+
+# Logs e temporários
+*.log
+npm-debug.log*
+
+# Editor / SO
+.vscode
+.idea
+.DS_Store

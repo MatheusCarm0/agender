@@ -1,16 +1,27 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { CreateMembershipDto, UpdateMembershipDto } from './dto/create-membership.dto';
 
+// Quantos dias antes do fim do ciclo enviar o aviso de "assinatura expirando".
+const EXPIRY_REMINDER_DAYS = 3;
+
 @Injectable()
 export class MembershipService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(MembershipService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationService,
+  ) {}
 
   // --- Plans ---
 
@@ -100,6 +111,7 @@ export class MembershipService {
   async updateMembership(businessId: string, id: string, dto: UpdateMembershipDto) {
     const membership = await this.prisma.raw.clientMembership.findFirst({
       where: { id, businessId },
+      include: { plan: true },
     });
     if (!membership) throw new NotFoundException('Membership not found');
 
@@ -107,11 +119,156 @@ export class MembershipService {
     if (dto.status) data.status = dto.status;
     if (dto.paymentStatus) data.paymentStatus = dto.paymentStatus;
 
+    // Confirmar o pagamento inicia (ou renova) o ciclo pago a partir de agora:
+    // zera o uso e recalcula o fim do ciclo. Reativar um plano suspenso (só
+    // status, sem novo pagamento) preserva o ciclo em andamento.
+    if (dto.paymentStatus === 'paid') {
+      const cycleStart = new Date();
+      data.cycleStart = cycleStart;
+      data.cycleEnd = this.computeCycleEnd(cycleStart, membership.plan.billingCycle);
+      data.usageInCycle = 0;
+    }
+
     return this.prisma.raw.clientMembership.update({
       where: { id },
       data,
       include: { plan: true, client: true },
     });
+  }
+
+  // --- Cliente (área "minha conta") ---
+
+  // Planos ativos que o cliente pode assinar, já com os nomes dos serviços
+  // cobertos resolvidos (lista vazia = vale para todos os serviços).
+  async findActivePlansForClient(businessId: string) {
+    const [plans, services] = await Promise.all([
+      this.prisma.raw.membershipPlan.findMany({
+        where: { businessId, active: true },
+        orderBy: { price: 'asc' },
+      }),
+      this.prisma.raw.service.findMany({
+        where: { businessId, active: true },
+        select: { id: true, name: true },
+      }),
+    ]);
+    const nameById = new Map(services.map((s) => [s.id, s.name]));
+    return plans.map((p) => {
+      const ids: string[] = this.parseServiceIds(p.serviceIds);
+      return {
+        id: p.id,
+        name: p.name,
+        price: Number(p.price),
+        billingCycle: p.billingCycle,
+        usageLimitType: p.usageLimitType,
+        usageLimit: p.usageLimit,
+        services: ids
+          .map((id) => ({ id, name: nameById.get(id) }))
+          .filter((s): s is { id: string; name: string } => !!s.name),
+      };
+    });
+  }
+
+  async findClientMemberships(businessId: string, clientId: string) {
+    const memberships = await this.prisma.raw.clientMembership.findMany({
+      where: { businessId, clientId },
+      include: { plan: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return memberships.map((m) => ({
+      id: m.id,
+      status: m.status,
+      paymentStatus: m.paymentStatus,
+      cycleStart: m.cycleStart,
+      cycleEnd: m.cycleEnd,
+      usageInCycle: m.usageInCycle,
+      plan: {
+        id: m.plan.id,
+        name: m.plan.name,
+        price: Number(m.plan.price),
+        billingCycle: m.plan.billingCycle,
+        usageLimitType: m.plan.usageLimitType,
+        usageLimit: m.plan.usageLimit,
+      },
+    }));
+  }
+
+  // Solicitação de assinatura pelo próprio cliente: cria a matrícula em
+  // `pending`/`unpaid`. A ativação continua manual pelo negócio (registrar o
+  // pagamento) enquanto a cobrança online do clube não existe.
+  async requestMembership(businessId: string, clientId: string, planId: string) {
+    const plan = await this.prisma.raw.membershipPlan.findFirst({
+      where: { id: planId, businessId, active: true },
+    });
+    if (!plan) throw new NotFoundException('Plano não encontrado ou inativo.');
+
+    const existing = await this.prisma.raw.clientMembership.findFirst({
+      where: {
+        businessId,
+        clientId,
+        planId,
+        status: { in: ['pending', 'active'] },
+      },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        existing.status === 'active'
+          ? 'Você já tem este plano ativo.'
+          : 'Você já solicitou este plano. Aguarde a confirmação do estabelecimento.',
+      );
+    }
+
+    const cycleStart = new Date();
+    const cycleEnd = this.computeCycleEnd(cycleStart, plan.billingCycle);
+    return this.prisma.raw.clientMembership.create({
+      data: {
+        businessId,
+        clientId,
+        planId,
+        status: 'pending',
+        cycleStart,
+        cycleEnd,
+      },
+    });
+  }
+
+  // --- Ciclo de vida (cron diário) ---
+  // Enfileira o aviso de expiração e marca como `expired` o que passou do fim
+  // do ciclo. Sem renovação automática: pagamento é manual (ver updateMembership).
+  @Cron(CronExpression.EVERY_DAY_AT_6AM)
+  async runLifecycle() {
+    const now = new Date();
+
+    // Aviso de expiração — janela de EXPIRY_REMINDER_DAYS antes do fim do ciclo.
+    const soon = new Date(now.getTime() + EXPIRY_REMINDER_DAYS * 24 * 60 * 60 * 1000);
+    const ending = await this.prisma.raw.clientMembership.findMany({
+      where: { status: 'active', cycleEnd: { gte: now, lte: soon } },
+      select: { id: true, businessId: true },
+    });
+    for (const m of ending) {
+      // Dedup do envio é garantido no processor (referenceId + type único).
+      await this.notifications.enqueueMembershipExpiring(m.id, m.businessId);
+    }
+
+    // Expiração — ciclos vencidos deixam de valer.
+    const expired = await this.prisma.raw.clientMembership.updateMany({
+      where: { status: { in: ['active', 'pending'] }, cycleEnd: { lt: now } },
+      data: { status: 'expired' },
+    });
+
+    if (ending.length || expired.count) {
+      this.logger.log(
+        `[fidelidade] lifecycle: ${ending.length} aviso(s), ${expired.count} expirada(s)`,
+      );
+    }
+  }
+
+  private parseServiceIds(raw: unknown): string[] {
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 
   async checkAndApplyMembership(

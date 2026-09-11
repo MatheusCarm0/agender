@@ -1,7 +1,12 @@
 import { notFound } from 'next/navigation';
 import AccountClient from './account-client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Server component (SSR): fetch roda no Node do container — precisa de URL
+// ABSOLUTA interna (API_INTERNAL_URL, ex.: http://api:3001), não o /api do browser.
+const API_URL =
+  process.env.API_INTERNAL_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:3001';
 
 const DEFAULT_COLORS = {
   background: '#F8FAFC',

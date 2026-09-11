@@ -2,7 +2,14 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import BookingClient from './booking-client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Server component (SSR): o fetch roda no Node do container, então precisa de
+// uma URL ABSOLUTA interna (ex.: http://api:3001), não o /api relativo do
+// browser. Prefere API_INTERNAL_URL; cai para NEXT_PUBLIC_API_URL (absoluto em
+// dev) e por fim localhost.
+const API_URL =
+  process.env.API_INTERNAL_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:3001';
 
 interface Customization {
   theme: {
