@@ -17,12 +17,16 @@ import { CreateInviteDto } from './dto/create-invite.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 
-const FROM_EMAIL = 'Agender <onboarding@resend.dev>';
+// Remetente padrão: sandbox do Resend, que SÓ entrega no e-mail do dono da
+// conta. Para enviar convites a membros da equipe, verifique um domínio em
+// resend.com/domains e defina MAIL_FROM (ex.: "Agender <nao-responda@seudominio.com>").
+const DEFAULT_FROM_EMAIL = 'Agender <onboarding@resend.dev>';
 
 @Injectable()
 export class StaffService {
   private readonly logger = new Logger(StaffService.name);
   private readonly resend: Resend | null;
+  private readonly fromEmail: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,6 +35,14 @@ export class StaffService {
   ) {
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     this.resend = apiKey ? new Resend(apiKey) : null;
+    this.fromEmail = this.config.get<string>('MAIL_FROM') || DEFAULT_FROM_EMAIL;
+    if (!this.resend) {
+      this.logger.warn('RESEND_API_KEY not set — invite emails will be logged only');
+    } else if (this.fromEmail === DEFAULT_FROM_EMAIL) {
+      this.logger.warn(
+        'MAIL_FROM não definido — convites usam o sandbox do Resend (onboarding@resend.dev), que só entrega no e-mail do dono da conta. Verifique um domínio e defina MAIL_FROM para enviar aos membros da equipe.',
+      );
+    }
   }
 
   async listStaff(businessId: string) {
@@ -154,7 +166,7 @@ export class StaffService {
 
     try {
       const { error } = await this.resend.emails.send({
-        from: FROM_EMAIL,
+        from: this.fromEmail,
         to,
         subject,
         html,
