@@ -1,8 +1,14 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Geist, Geist_Mono, Inter, Poppins, Playfair_Display, DM_Sans, Montserrat, Raleway, Lora, Nunito, Space_Grotesk, Cormorant_Garamond } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth-context';
 import './globals.css';
 import { ThemeProvider } from '@/lib/theme-context';
+
+// Microsoft Clarity (heatmaps, scroll, dead/rage clicks, session replay).
+// O Project ID é público (fica no HTML do cliente), mas vem por env para não
+// ativar em dev/local sem querer. Definido no build do web (Dockerfile/compose).
+const CLARITY_ID = process.env.NEXT_PUBLIC_CLARITY_ID;
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -84,6 +90,11 @@ export default function RootLayout({
             {children}
           </ThemeProvider>
         </AuthProvider>
+        {CLARITY_ID && (
+          <Script id="ms-clarity" strategy="afterInteractive">
+            {`(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${CLARITY_ID}");`}
+          </Script>
+        )}
       </body>
     </html>
   );
