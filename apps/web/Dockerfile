@@ -20,6 +20,11 @@ ENV NEXT_PUBLIC_API_URL=/api
 ARG NEXT_PUBLIC_CLARITY_ID=yiwdunm70s
 ENV NEXT_PUBLIC_CLARITY_ID=$NEXT_PUBLIC_CLARITY_ID
 
+# Meta Pixel (Facebook/Instagram Ads). Vazio = desligado. Passe o ID com
+# --build-arg NEXT_PUBLIC_META_PIXEL_ID=123456789012345 no build de produção.
+ARG NEXT_PUBLIC_META_PIXEL_ID=
+ENV NEXT_PUBLIC_META_PIXEL_ID=$NEXT_PUBLIC_META_PIXEL_ID
+
 RUN pnpm --filter @agenda/web build
 
 # As páginas públicas são SSR (dinâmicas por tenant) — servimos com o servidor
