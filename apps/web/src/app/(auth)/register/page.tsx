@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import { AuthShell } from '@/components/landing/auth-shell';
-import { track } from '@/lib/analytics';
+import { track, trackMeta } from '@/lib/analytics';
 
 export default function RegisterPage() {
   const { registerStart, register } = useAuth();
@@ -45,6 +45,7 @@ export default function RegisterPage() {
       if (res.devCode) setDevCode(res.devCode);
       setStep('code');
       track('register_code_requested');
+      trackMeta('Lead'); // conversão intermediária p/ otimização do Meta Ads
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Não foi possível enviar o código';
       setError(message);
@@ -82,6 +83,7 @@ export default function RegisterPage() {
     try {
       await register({ ...form, code });
       track('register_completed');
+      trackMeta('CompleteRegistration'); // conversão principal p/ o Meta Ads
       router.push('/onboarding');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao criar conta';
