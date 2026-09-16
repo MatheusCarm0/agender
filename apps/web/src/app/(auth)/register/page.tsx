@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import { AuthShell } from '@/components/landing/auth-shell';
+import { track } from '@/lib/analytics';
 
 export default function RegisterPage() {
   const { registerStart, register } = useAuth();
@@ -28,17 +29,26 @@ export default function RegisterPage() {
   const passwordLength = form.password.length;
   const passwordStrength = passwordLength === 0 ? null : passwordLength < 8 ? 'fraca' : passwordLength < 12 ? 'média' : 'forte';
 
+  // Funil de cadastro no Clarity: abriu a tela.
+  useEffect(() => {
+    track('signup_view');
+  }, []);
+
   // Passo 1: valida o e-mail (formato + unicidade no backend) e dispara o código.
   async function handleStart(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    track('signup_email_submitted');
     try {
       const res = await registerStart(form.email);
       if (res.devCode) setDevCode(res.devCode);
       setStep('code');
+      track('register_code_requested');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Não foi possível enviar o código');
+      const message = err instanceof Error ? err.message : 'Não foi possível enviar o código';
+      setError(message);
+      track('register_start_error', { message: message.slice(0, 60) });
     } finally {
       setLoading(false);
     }
@@ -48,6 +58,7 @@ export default function RegisterPage() {
   async function handleResend() {
     setError('');
     setLoading(true);
+    track('register_code_resend');
     try {
       const res = await registerStart(form.email);
       if (res.devCode) setDevCode(res.devCode);
@@ -67,11 +78,15 @@ export default function RegisterPage() {
     }
     setError('');
     setLoading(true);
+    track('signup_code_submitted');
     try {
       await register({ ...form, code });
+      track('register_completed');
       router.push('/onboarding');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar conta');
+      const message = err instanceof Error ? err.message : 'Erro ao criar conta';
+      setError(message);
+      track('register_code_error', { message: message.slice(0, 60) });
     } finally {
       setLoading(false);
     }

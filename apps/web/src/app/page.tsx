@@ -6,6 +6,7 @@ import './landing.css';
 import adminAgendaShot from '@/images/landing/admin-agenda.png';
 import publicRealShot from '@/images/landing/public-real.png';
 import { SiteNav } from '@/components/landing/site-nav';
+import { LandingAnalytics } from '@/components/landing/landing-analytics';
 import { Reveal } from '@/components/landing/reveal';
 import { Faq } from '@/components/landing/faq';
 import { Parallax } from '@/components/landing/parallax';
@@ -251,6 +252,7 @@ function PhoneShot() {
 export default function LandingPage() {
   return (
     <div className="lp">
+      <LandingAnalytics />
       <SiteNav />
 
       {/* ============================= HERO ============================= */}
