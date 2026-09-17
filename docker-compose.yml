@@ -114,6 +114,9 @@ services:
       # SSR (server-side) usa esta URL interna absoluta para falar com a API.
       # O browser continua usando NEXT_PUBLIC_API_URL=/api (proxy do nginx).
       API_INTERNAL_URL: http://api:3001
+      # Domínio público do site: usado por sitemap.xml e robots.txt para montar
+      # URLs absolutas. Espelha o WEB_URL do .env da raiz.
+      SITE_URL: ${WEB_URL:-}
     depends_on:
       - api
 
