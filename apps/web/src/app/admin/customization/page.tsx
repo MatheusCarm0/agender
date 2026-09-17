@@ -520,7 +520,7 @@ export default function CustomizationPage() {
     <>
     <div className="flex gap-6">
       {/* Coluna esquerda: formulário */}
-      <div className="flex-1 min-w-0 lg:mr-[400px]">
+      <div className="flex-1 min-w-0 lg:mr-[400px] pb-24">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-text-strong">Personalização</h1>
           {isDirty && <span className="text-xs text-warning-fg font-medium bg-warning-bg px-2.5 py-1 rounded-[var(--radius-pill)]">Alterações não salvas</span>}
@@ -634,17 +634,17 @@ export default function CustomizationPage() {
                       Ajustar cores manualmente
                     </button>
                     {showManualColors && (
-                      <div className="grid grid-cols-2 gap-4 mt-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                         {([['background', 'Fundo'], ['surface', 'Superfície'], ['primary', 'Primária'], ['text', 'Texto']] as [keyof Theme['colors'], string][]).map(([key, label]) => (
                           <div key={key}>
                             <label className="block text-xs font-medium text-text-muted mb-1">{label}</label>
                             <div className="flex items-center gap-2">
-                              <input type="color" value={theme.colors[key]} onChange={(e) => updateColor(key, e.target.value)} className="w-9 h-9 p-0.5 border border-border-strong rounded-[var(--radius-sm)] cursor-pointer" />
-                              <input type="text" value={theme.colors[key]} onChange={(e) => updateColor(key, e.target.value)} className="flex-1 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default" />
+                              <input type="color" value={theme.colors[key]} onChange={(e) => updateColor(key, e.target.value)} className="w-9 h-9 shrink-0 p-0.5 border border-border-strong rounded-[var(--radius-sm)] cursor-pointer" />
+                              <input type="text" value={theme.colors[key]} onChange={(e) => updateColor(key, e.target.value)} className="flex-1 min-w-0 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default" />
                             </div>
                           </div>
                         ))}
-                        <p className="col-span-2 text-[11px] text-text-subtle">Ao alterar, a paleta muda para &quot;Personalizado&quot;.</p>
+                        <p className="sm:col-span-2 text-[11px] text-text-subtle">Ao alterar, a paleta muda para &quot;Personalizado&quot;.</p>
                       </div>
                     )}
                   </div>
@@ -705,19 +705,19 @@ export default function CustomizationPage() {
                             title={gp.name} />
                         ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-text-muted mb-1">Cor inicial</label>
                           <div className="flex items-center gap-2">
-                            <input type="color" value={theme.background.gradient?.from || '#667EEA'} onChange={(e) => updateTheme({ background: { ...theme.background, gradient: { ...theme.background.gradient!, from: e.target.value } } })} className="w-9 h-9 p-0.5 border border-border-strong rounded-[var(--radius-sm)] cursor-pointer" />
-                            <input type="text" value={theme.background.gradient?.from || ''} onChange={(e) => updateTheme({ background: { ...theme.background, gradient: { ...theme.background.gradient!, from: e.target.value } } })} className="flex-1 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default" />
+                            <input type="color" value={theme.background.gradient?.from || '#667EEA'} onChange={(e) => updateTheme({ background: { ...theme.background, gradient: { ...theme.background.gradient!, from: e.target.value } } })} className="w-9 h-9 shrink-0 p-0.5 border border-border-strong rounded-[var(--radius-sm)] cursor-pointer" />
+                            <input type="text" value={theme.background.gradient?.from || ''} onChange={(e) => updateTheme({ background: { ...theme.background, gradient: { ...theme.background.gradient!, from: e.target.value } } })} className="flex-1 min-w-0 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default" />
                           </div>
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-text-muted mb-1">Cor final</label>
                           <div className="flex items-center gap-2">
-                            <input type="color" value={theme.background.gradient?.to || '#764BA2'} onChange={(e) => updateTheme({ background: { ...theme.background, gradient: { ...theme.background.gradient!, to: e.target.value } } })} className="w-9 h-9 p-0.5 border border-border-strong rounded-[var(--radius-sm)] cursor-pointer" />
-                            <input type="text" value={theme.background.gradient?.to || ''} onChange={(e) => updateTheme({ background: { ...theme.background, gradient: { ...theme.background.gradient!, to: e.target.value } } })} className="flex-1 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default" />
+                            <input type="color" value={theme.background.gradient?.to || '#764BA2'} onChange={(e) => updateTheme({ background: { ...theme.background, gradient: { ...theme.background.gradient!, to: e.target.value } } })} className="w-9 h-9 shrink-0 p-0.5 border border-border-strong rounded-[var(--radius-sm)] cursor-pointer" />
+                            <input type="text" value={theme.background.gradient?.to || ''} onChange={(e) => updateTheme({ background: { ...theme.background, gradient: { ...theme.background.gradient!, to: e.target.value } } })} className="flex-1 min-w-0 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default" />
                           </div>
                         </div>
                       </div>
@@ -1072,8 +1072,8 @@ export default function CustomizationPage() {
 
     {canEdit && isDirty && (
         <div className="fixed bottom-0 left-0 right-0 lg:right-[404px] z-40 bg-surface-card border-t border-border-default shadow-[var(--shadow-elevation-2)]">
-          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-            <span className="text-sm text-text-muted">Você tem alterações não salvas</span>
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <span className="hidden sm:block text-sm text-text-muted">Você tem alterações não salvas</span>
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => { loadCustomization(); setIsDirty(false); }} className="h-9 px-4 text-sm font-medium border border-border-strong rounded-[var(--radius-sm)] text-text-default hover:bg-surface-subtle">Descartar</button>
               <button type="button" onClick={handleSave} disabled={saving} className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active disabled:opacity-50">
