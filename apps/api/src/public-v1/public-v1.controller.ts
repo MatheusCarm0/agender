@@ -71,13 +71,24 @@ export class PublicV1Controller {
 
     const acceptingBookings = business.planStatus !== 'expired';
 
-    // A política de cobrança só vale se a cobrança online está ligada (beta:
-    // desligada por padrão) E o plano permite pagamento online — expor 'none'
-    // caso contrário evita a página pública anunciar um pagamento que o backend
-    // nunca vai exigir.
+    // Split marketplace: o cartão precisa ser tokenizado com a PUBLIC KEY DO
+    // VENDEDOR (a mesma conta cujo token cria o pagamento), senão o MP responde
+    // "Card Token not found". Buscamos a conta MP conectada do negócio.
+    const paymentAccount = await this.prisma.raw.paymentAccount.findUnique({
+      where: { businessId: business.id },
+      select: { status: true, oauthPublicKey: true, pixUnavailable: true },
+    });
+    const sellerConnected =
+      paymentAccount?.status === 'active' && !!paymentAccount.oauthPublicKey;
+
+    // A política de cobrança só vale se a cobrança online está ligada, o plano
+    // permite pagamento online E a conta MP do negócio está conectada — expor
+    // 'none' caso contrário evita a página pública exigir um pagamento que o
+    // backend não conseguiria processar.
     const paymentsAllowed =
       ONLINE_PAYMENTS_ENABLED &&
-      capabilitiesFor(business.plan, business.planStatus).onlinePayments;
+      capabilitiesFor(business.plan, business.planStatus).onlinePayments &&
+      sellerConnected;
     const effectivePolicy = paymentsAllowed
       ? business.bookingPaymentPolicy
       : 'none';
@@ -92,11 +103,18 @@ export class PublicV1Controller {
       acceptingBookings,
       bookingPaymentPolicy: effectivePolicy,
       depositPercent: business.depositPercent,
-      // Public key do gateway — segura para o frontend (tokenização de cartão).
-      // Só exposta quando há cobrança online ativa.
+      // PIX reativo: escondido no checkout quando a conta do lojista não tem
+      // chave PIX (detectado numa cobrança anterior). Cartão segue disponível.
+      acceptsPix:
+        paymentsAllowed && effectivePolicy !== 'none'
+          ? !paymentAccount?.pixUnavailable
+          : false,
+      // Public key do VENDEDOR (marketplace) — segura para o frontend tokenizar
+      // o cartão na conta certa. Só exposta quando há cobrança online ativa e a
+      // conta MP do negócio está conectada.
       mpPublicKey:
         paymentsAllowed && effectivePolicy !== 'none'
-          ? this.config.get<string>('MERCADOPAGO_PUBLIC_KEY') || null
+          ? paymentAccount?.oauthPublicKey || null
           : null,
       professionals: business.professionals.map((p) => ({
         id: p.id,
