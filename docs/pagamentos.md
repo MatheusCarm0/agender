@@ -7,6 +7,43 @@
 
 ---
 
+## ⚠️ Estado atual da implementação (leia antes)
+
+Este documento foi escrito em torno do **Asaas** e do modelo de **split com subconta**. O que está
+**implementado no código diverge** e manda sobre o texto abaixo:
+
+- **Gateway implementado: Mercado Pago** (não Asaas). Decisão de 2026-07-21 — MP é menos burocrático
+  para testes. O corpo Asaas abaixo permanece como **referência do modelo de split** para o
+  checkpoint de produção, não como o que existe hoje.
+- **Split real plugado via Mercado Pago Marketplace (OAuth / MP Connect)** — desde 2026-09-13. Cada
+  lojista conecta a **própria conta MP** por OAuth; o pagamento do agendamento é criado **com o token
+  do lojista** e cai **direto na conta dele**; a plataforma pode reter `application_fee` (comissão,
+  default **0%**, configurável por `MERCADOPAGO_APPLICATION_FEE_PERCENT`). A **assinatura de plano**
+  continua na conta única da plataforma (correto — a receita é da plataforma).
+- **Saque = espelho + link** (v1): o painel mostra o saldo **real** consultado na conta MP do lojista
+  (token OAuth dele) e leva ele a sacar dentro do Mercado Pago. A plataforma **nunca custodia** o
+  dinheiro — não há payout disparado por nós (o stub antigo saiu).
+- **Checkpoint de produção restante:** registrar a **aplicação de marketplace** no MP e trocar as
+  credenciais sandbox (`TEST-*` / test users) pelas reais (`APP_USR-*`), setar
+  `MERCADOPAGO_WEBHOOK_SECRET`, `MERCADOPAGO_APP_ID`/`_CLIENT_SECRET`/`_OAUTH_REDIRECT_URI`,
+  `TOKEN_ENCRYPTION_KEY` e `ONLINE_PAYMENTS_ENABLED=true`, com URLs https.
+- **Onde vive:** interface `PaymentProvider` (token `PAYMENT_PROVIDER`) em `apps/api/src/payment/`,
+  com a impl `MercadoPagoProvider`. Trocar gateway/modelo é reescrever só essa implementação. A
+  **costura do split** é o campo `seller` (credenciais do lojista) + `applicationFee` dos params do
+  provider; o OAuth vive em `apps/api/src/payment-account/` e os tokens do lojista são cifrados
+  (`common/token-crypto.ts`, AES-256-GCM).
+- **Webhook real:** `POST /webhooks/mercadopago` (não `/webhooks/asaas`). Idempotente. Em dev aceita
+  sem verificar assinatura (com aviso) quando `MERCADOPAGO_WEBHOOK_SECRET` não está setado; em
+  produção a verificação é obrigatória.
+- **Env:** `MERCADOPAGO_ACCESS_TOKEN` / `MERCADOPAGO_PUBLIC_KEY` (sandbox `TEST-*`) no `.env` da raiz
+  e em `apps/api/.env`. MP exige `notification_url`/`back_url` **https** — em dev o código só envia
+  `notification_url` quando `APP_URL` é https e usa um `back_url` neutro no preapproval; o retorno é
+  reconciliado por poll de status / `POST /plan-subscription/sync`.
+- **Nomenclatura:** onde o texto abaixo disser "Asaas", "subconta", `provider = "asaas"` ou
+  `POST /webhooks/asaas`, leia como o **modelo-alvo de split**, não a implementação atual.
+
+---
+
 ## Decisão de modelo (confirmada)
 
 - **Split de pagamento com subconta**, não repasse direto. O dinheiro do agendamento entra na
@@ -185,15 +222,18 @@ extrato de saldo do dono. Segue a fonte `mono` + `tabular-nums` já definida em 
 
 ## Endpoints
 
+> Implementação atual (Mercado Pago Marketplace/OAuth) — substitui as rotas de subconta/saque abaixo:
+
 | Método | Rota | Papel | Descrição |
 |---|---|---|---|
-| `POST` | `/payment-account` | admin (dono) | Inicia criação da subconta (onboarding de pagamento). |
-| `GET` | `/payment-account` | admin (dono) | Status da subconta e saldo espelhado. |
-| `POST` | `/payment-account/withdraw` | admin (dono) | Solicita saque para conta/PIX cadastrado. |
+| `GET` | `/payment-account` | admin (dono) | Status da conexão + saldo real do MP do lojista + link de saque. |
+| `GET` | `/payment-account/connect` | admin (dono) | Devolve a URL de autorização do OAuth do MP. |
+| `GET` | `/payment-account/oauth/callback` | público (MP) | Retorno do OAuth: valida o `state` assinado, troca o code por token (cifrado) e redireciona ao painel. |
+| `POST` | `/payment-account/disconnect` | admin (dono) | Desconecta a conta MP (limpa tokens). |
 | `POST` | `/plan-subscription` | admin (dono) | Assina/troca de plano (Básico/Profissional/Pro). |
 | `GET` | `/plan-subscription` | admin (dono) | Status da assinatura atual. |
-| `POST` | `/public/v1/{slug}/appointments/:id/pay` | público | Inicia cobrança do agendamento (PIX/cartão). |
-| `POST` | `/webhooks/asaas` | sistema (Asaas) | Recebe confirmações de pagamento/assinatura/saque. |
+| `POST` | `/public/v1/{slug}/appointments/:id/pay` | público | Inicia cobrança do agendamento (PIX/cartão) em nome do lojista. |
+| `POST` | `/webhooks/mercadopago` | sistema (MP) | Recebe confirmações de pagamento/assinatura. Idempotente. |
 
 ---
 
@@ -209,8 +249,8 @@ extrato de saldo do dono. Segue a fonte `mono` + `tabular-nums` já definida em 
 - [x] Falha de cobrança recorrente move `planStatus` para `pastDue` automaticamente via webhook.
 - [x] Negócio com `bookingPaymentPolicy = deposit` exige o valor de depósito antes de confirmar o slot.
 - [x] Agendamento com pagamento pendente não trava o slot indefinidamente — expira e libera. (cron a cada 5 min)
-- [~] Pagamento confirmado credita o negócio (saldo espelhado em razão interno; subconta real = produção).
-- [~] Botão de saque funciona e fica desabilitado com mensagem clara enquanto a conta não está `active`. (payout real = produção)
+- [x] Pagamento confirmado credita o negócio **direto na conta MP dele** (split via marketplace/OAuth; saldo exibido é o saldo real do MP).
+- [x] Recebimento exige conta MP conectada: sem conexão, a cobrança online é bloqueada com mensagem clara (nunca cai na conta da plataforma). Saque = link para o MP (espelho + link).
 - [x] Reentrega do mesmo webhook não duplica confirmação de pagamento nem saque. (tabela `WebhookEvent`)
 - [x] UI de saldo/pagamento sempre mostra o valor líquido (após taxa estimada do gateway), nunca só o bruto.
 - [ ] Fidelidade pode ser paga via checkout automatizado ou continuar manual, à escolha do fluxo. (não abordado nesta rodada)
