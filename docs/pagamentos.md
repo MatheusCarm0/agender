@@ -165,6 +165,15 @@ depositPercent       Int?                    // usado quando policy = deposit
 3. **O agendamento só é confirmado (`status: scheduled`) após o webhook confirmar o pagamento** —
    nunca reservar o slot como definitivo com pagamento pendente por muito tempo; usar o mesmo
    mecanismo de lock/transação do MVP, com um TTL curto para expirar reservas não pagas e liberar o slot.
+
+   > **Implementado (2026-09-21) — "só cria após pagar":** quando a cobrança é exigida, o agendamento
+   > nasce com status **`pending_payment`** (enum de `AppointmentStatus`). Essa reserva **segura o
+   > horário** — entra na checagem de disponibilidade (`availability.service`) E no `SELECT … FOR
+   > UPDATE` de conflito (`appointment.service`), impedindo double-booking durante o checkout — mas
+   > **não aparece** na agenda do admin (`appointment.findAll`), nos relatórios nem na área do cliente
+   > (`client-auth`). O pagamento confirmado (`BookingPaymentService.applyConfirmation`) materializa a
+   > reserva em **`scheduled`** e só então dispara confirmação/lembrete. Sem pagamento no prazo, o cron
+   > (`expireStalePayments` / `expireUninitiatedHolds`) cancela a reserva e libera o slot.
 4. Pagamento confirmado → split automático credita 100% (menos a taxa do gateway) na subconta do
    negócio. Nenhuma etapa manual sua no meio.
 
