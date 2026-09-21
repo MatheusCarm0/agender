@@ -15,6 +15,16 @@ COPY apps/web/ apps/web/
 
 ENV NEXT_PUBLIC_API_URL=/api
 
+# ID público do Microsoft Clarity (heatmaps/replay). Inlined no bundle no build;
+# sobrescreva com --build-arg NEXT_PUBLIC_CLARITY_ID=... ou deixe vazio p/ desligar.
+ARG NEXT_PUBLIC_CLARITY_ID=yiwdunm70s
+ENV NEXT_PUBLIC_CLARITY_ID=$NEXT_PUBLIC_CLARITY_ID
+
+# Meta Pixel (Facebook/Instagram Ads). Vazio = desligado. Passe o ID com
+# --build-arg NEXT_PUBLIC_META_PIXEL_ID=123456789012345 no build de produção.
+ARG NEXT_PUBLIC_META_PIXEL_ID=1313037534111459
+ENV NEXT_PUBLIC_META_PIXEL_ID=$NEXT_PUBLIC_META_PIXEL_ID
+
 RUN pnpm --filter @agenda/web build
 
 # As páginas públicas são SSR (dinâmicas por tenant) — servimos com o servidor

@@ -6,6 +6,7 @@ import './landing.css';
 import adminAgendaShot from '@/images/landing/admin-agenda.png';
 import publicRealShot from '@/images/landing/public-real.png';
 import { SiteNav } from '@/components/landing/site-nav';
+import { LandingAnalytics } from '@/components/landing/landing-analytics';
 import { Reveal } from '@/components/landing/reveal';
 import { Faq } from '@/components/landing/faq';
 import { Parallax } from '@/components/landing/parallax';
@@ -63,49 +64,6 @@ const SEGMENTS = [
   'Studios de pilates',
   'Massoterapia',
   'Depilação',
-];
-
-const PLANS = [
-  {
-    tier: 'basico',
-    label: 'Básico',
-    price: 'R$ 49,90',
-    tagline: 'Pra começar a organizar de vez.',
-    features: [
-      'Agendamento online ilimitado',
-      'Página pública personalizada',
-      'Até 3 profissionais ativos',
-      'Lembretes de agendamento',
-      'Relatório financeiro',
-    ],
-    highlight: false,
-  },
-  {
-    tier: 'profissional',
-    label: 'Profissional',
-    price: 'R$ 99,90',
-    tagline: 'Pra cobrar e crescer com controle.',
-    features: [
-      'Tudo do Básico',
-      'Até 10 profissionais ativos',
-      'Cobrança no agendamento (PIX)',
-      'Cupons de desconto',
-    ],
-    highlight: true,
-  },
-  {
-    tier: 'pro',
-    label: 'Pro',
-    price: 'R$ 199,90',
-    tagline: 'Pra escalar sem limite.',
-    features: [
-      'Tudo do Profissional',
-      'Profissionais ilimitados',
-      'Campanhas de disparo',
-      'Clube fidelidade',
-    ],
-    highlight: false,
-  },
 ];
 
 /* --------------------------- Utilidades -------------------------- */
@@ -251,6 +209,7 @@ function PhoneShot() {
 export default function LandingPage() {
   return (
     <div className="lp">
+      <LandingAnalytics />
       <SiteNav />
 
       {/* ============================= HERO ============================= */}
@@ -554,95 +513,65 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ============================ PREÇOS ========================== */}
+      {/* ====================== COMECE GRÁTIS ======================== */}
       <Section id="precos">
         <Halo color="rgba(139,92,246,.22)" size={420} top={40} right={-120} opacity={0.5} />
         <div className="lp-container" style={{ position: 'relative' }}>
           <SectionHead
-            eyebrow="Planos"
-            title={<>Comece grátis. <span className="lp-grad-text">Escale quando quiser</span>.</>}
-            lead="7 dias com tudo liberado pra você conhecer. Depois, escolha o plano que combina com o tamanho do seu negócio."
+            eyebrow="Comece agora"
+            title={<>Grátis por 7 dias. <span className="lp-grad-text">Sem cartão</span>.</>}
+            lead="Crie sua conta em minutos e teste tudo liberado. Você só escolhe um plano se decidir continuar, e cancela quando quiser."
           />
 
-          <div
-            style={{
-              marginTop: 'clamp(2.5rem, 5vw, 4rem)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: 22,
-              alignItems: 'stretch',
-              maxWidth: 1040,
-              marginInline: 'auto',
-            }}
-          >
-            {PLANS.map((p, i) => (
-              <Reveal key={p.tier} delay={i * 90}>
-                <article
-                  className="lp-card"
-                  style={{
-                    position: 'relative',
-                    padding: '30px 28px',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    borderRadius: 26,
-                    borderColor: p.highlight ? 'transparent' : undefined,
-                    background: p.highlight ? 'linear-gradient(165deg, var(--lp-ink), var(--lp-ink-2))' : undefined,
-                    boxShadow: p.highlight ? 'var(--lp-shadow-lg)' : undefined,
-                    transform: p.highlight ? 'translateY(-8px)' : undefined,
-                  }}
-                >
-                  {p.highlight && (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        top: 18,
-                        right: 18,
-                        fontFamily: 'var(--lp-font-display)',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: '#062621',
-                        background: 'var(--lp-mint)',
-                        padding: '5px 11px',
-                        borderRadius: 999,
-                      }}
-                    >
-                      Mais popular
-                    </span>
-                  )}
-                  <h3 className="lp-display" style={{ fontSize: 21, marginBottom: 4, color: p.highlight ? '#fff' : undefined }}>
-                    {p.label}
-                  </h3>
-                  <p style={{ margin: 0, fontSize: 14, color: p.highlight ? 'rgba(255,255,255,.65)' : 'var(--lp-text-muted)' }}>{p.tagline}</p>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 18 }}>
-                    <span className="lp-display" style={{ fontSize: 40, color: p.highlight ? '#fff' : 'var(--lp-text-strong)' }}>{p.price}</span>
-                    <span style={{ fontSize: 14, color: p.highlight ? 'rgba(255,255,255,.6)' : 'var(--lp-text-muted)' }}>/mês</span>
-                  </div>
+          <Reveal>
+            <article
+              className="lp-card"
+              style={{
+                position: 'relative',
+                maxWidth: 660,
+                marginInline: 'auto',
+                marginTop: 'clamp(2.5rem, 5vw, 4rem)',
+                padding: 'clamp(28px, 4vw, 40px)',
+                borderRadius: 28,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 24,
+              }}
+            >
+              <ul
+                style={{
+                  listStyle: 'none',
+                  margin: 0,
+                  padding: 0,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+                  gap: 14,
+                }}
+              >
+                {[
+                  'Agendamento online ilimitado',
+                  'Página pública personalizada',
+                  'Lembretes de agendamento',
+                  'Cobrança no agendamento (PIX)',
+                  'Relatório financeiro',
+                  'Cupons e clube de fidelidade',
+                ].map((feat) => (
+                  <li key={feat} style={{ display: 'flex', gap: 11, alignItems: 'flex-start', fontSize: 15, color: 'var(--lp-text)' }}>
+                    <Check />
+                    {feat}
+                  </li>
+                ))}
+              </ul>
 
-                  <Link
-                    href="/register"
-                    className={p.highlight ? 'lp-btn lp-btn-dark' : 'lp-btn lp-btn-primary'}
-                    style={{ width: '100%', marginTop: 22 }}
-                  >
-                    Começar grátis
-                  </Link>
+              <Link href="/register" className="lp-btn lp-btn-primary" style={{ width: '100%' }}>
+                Começar grátis
+              </Link>
 
-                  <ul style={{ listStyle: 'none', margin: '24px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {p.features.map((feat) => (
-                      <li key={feat} style={{ display: 'flex', gap: 11, alignItems: 'flex-start', fontSize: 14.5, color: p.highlight ? 'rgba(255,255,255,.82)' : 'var(--lp-text)' }}>
-                        <Check />
-                        {feat}
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              </Reveal>
-            ))}
-          </div>
-
-          <p style={{ textAlign: 'center', marginTop: 26, fontSize: 13, color: 'var(--lp-text-muted)' }}>
-            Cobrança recorrente e segura via Mercado Pago. Troque ou cancele o plano a qualquer momento.
-          </p>
+              <p style={{ textAlign: 'center', margin: 0, fontSize: 13, color: 'var(--lp-text-muted)' }}>
+                Sem cartão de crédito · Configuração em minutos · Cancele quando quiser
+              </p>
+            </article>
+          </Reveal>
         </div>
       </Section>
 
@@ -710,7 +639,7 @@ export default function LandingPage() {
                 { label: 'Recursos', href: '#recursos' },
                 { label: 'Como funciona', href: '#como-funciona' },
                 { label: 'Exemplos', href: '#exemplos' },
-                { label: 'Preços', href: '#precos' },
+                { label: 'Começar grátis', href: '#precos' },
               ]}
             />
             <FooterCol
