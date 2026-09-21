@@ -26,7 +26,9 @@ correta de mensagem no WhatsApp — a interface `NotificationProvider` já foi d
 
 **Se a tarefa envolver pagamento (assinatura de plano, cobrança no agendamento, saque, fidelidade
 paga), leia também `docs/pagamentos.md`.** Ele substitui a ativação manual descrita em
-`05-monetizacao.md` e `04-retencao.md` por um fluxo real de split via Asaas.
+`05-monetizacao.md` e `04-retencao.md` por um fluxo automatizado real. **Atenção:** o gateway
+implementado é o **Mercado Pago** em modo **conta única** (o `pagamentos.md` foi escrito em torno de
+Asaas/split — veja o banner no topo do doc; o split/marketplace continua sendo checkpoint de produção).
 
 ---
 
@@ -43,9 +45,14 @@ paga), leia também `docs/pagamentos.md`.** Ele substitui a ativação manual de
 ```
 Fase atual: Monetização (Fase 5) + Pagamentos — em andamento
 Concluído no código: Fundação, MVP, Diferenciação, Retenção, campanhas; e docs/pagamentos.md
-  (Mercado Pago) implementado em modo CONTA ÚNICA de testes — assinatura de plano self-service,
-  cobrança PIX/cartão no agendamento, saldo/saque e webhook idempotente. Split/marketplace (subconta
-  ou OAuth do dono) e payout real ainda NÃO plugados — checkpoint obrigatório antes de produção.
+  (Mercado Pago) — assinatura de plano self-service na conta única da plataforma, cobrança PIX/cartão
+  no agendamento e webhook idempotente. SPLIT REAL plugado via Mercado Pago Marketplace/OAuth
+  (2026-09-13): o lojista conecta a própria conta MP, o pagamento do agendamento cai direto na conta
+  dele (com application_fee configurável, default 0%), e o saque é espelho do saldo real do MP + link
+  (a plataforma não custodia). Falta só o checkpoint de PRODUÇÃO: registrar a aplicação de marketplace
+  no MP, trocar credenciais TEST-*/test users por APP_USR-* reais, setar MERCADOPAGO_APP_ID/
+  _CLIENT_SECRET/_OAUTH_REDIRECT_URI/_WEBHOOK_SECRET + TOKEN_ENCRYPTION_KEY + ONLINE_PAYMENTS_ENABLED
+  com URLs https.
 Próximo documento: docs/pagamentos.md (checkpoint de produção) / restante da Fase 5 / docs/06-hardening.md
 ```
 

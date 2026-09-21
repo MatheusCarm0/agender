@@ -74,9 +74,10 @@ const DEFAULT_COLORS = {
   text: '#1C1917',
 };
 
-export async function generateStaticParams() {
-  return [{ slug: 'agender' }];
-}
+// Página do tenant é sempre dinâmica: depende do `?preview=1` (modo prévia do
+// admin) e da personalização, que muda a qualquer momento. Nunca pré-renderizar
+// estático — senão o preview não liga e mudanças salvas não aparecem.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -109,10 +110,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PublicBookingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }) {
   const { slug } = await params;
+  const { preview } = await searchParams;
+  const isPreview = preview === '1';
 
   let business: Business;
   try {
@@ -163,7 +168,7 @@ export default async function PublicBookingPage({
           business={business}
           customization={business.customization}
           workingHours={business.workingHours}
-          preview={false}
+          preview={isPreview}
         />
       </Suspense>
     </div>

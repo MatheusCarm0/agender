@@ -1,72 +1,89 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   PAYMENT_PROVIDER,
   PaymentProvider,
+  SellerCredentials,
 } from '../payment/payment-provider.interface';
+import { encryptSecret, decryptSecret } from '../common/token-crypto';
 import { estimateFee } from '../payment/fees';
-import { CreatePaymentAccountDto } from './dto/create-payment-account.dto';
 
+// Antecedência para renovar o token do lojista antes de expirar (MP: ~180 dias).
+const REFRESH_MARGIN_MS = 24 * 60 * 60 * 1000; // 1 dia
+const STATE_TTL_MS = 15 * 60 * 1000; // 15 min
+// Página do MP onde o lojista saca o próprio saldo (modelo espelho + link).
+const MP_WITHDRAW_URL = 'https://www.mercadopago.com.br/balance';
+
+/**
+ * Conta de recebimento no modelo MARKETPLACE (Mercado Pago Connect / OAuth).
+ * O lojista conecta a própria conta MP; a partir daí o pagamento do agendamento
+ * cai direto na conta dele (ver booking-payment) e o saldo exibido aqui é o
+ * saldo REAL do MP do lojista. A plataforma nunca custodia o dinheiro; o saque
+ * é feito dentro do MP (botão que leva ao painel deles). Ver docs/pagamentos.md.
+ */
 @Injectable()
 export class PaymentAccountService {
   private readonly logger = new Logger(PaymentAccountService.name);
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
   ) {}
 
-  /**
-   * Status da conta + saldo ESPELHADO. No modo conta única de testes o saldo é
-   * um razão interno: soma dos pagamentos de agendamento confirmados menos os
-   * saques. Exibimos bruto, taxa estimada e líquido — nunca só o bruto (ver
-   * docs/pagamentos.md). Em produção com marketplace, a fonte da verdade do
-   * saldo é o gateway, sincronizada por webhook.
-   */
+  // -------------------------------------------------------------------------
+  // Leitura: status da conexão + saldo real espelhado do MP.
+  // -------------------------------------------------------------------------
   async get(businessId: string) {
     const account = await this.prisma.raw.paymentAccount.findUnique({
       where: { businessId },
     });
 
-    const balance = await this.computeBalance(businessId, this.prisma.raw);
+    const connected = this.isConnected(account);
+    // Saldo GLOBAL do MP: a API de saldo (/users/me/mercadopago_account/balance)
+    // NÃO é liberada para o token de marketplace (403). O saldo real do MP o
+    // lojista vê dentro do MP (link). Em vez disso mostramos o EXTRATO PRÓPRIO:
+    // o que ele recebeu através dos agendamentos, calculado dos nossos registros
+    // (BookingPayment) — não depende de nenhuma API bloqueada.
+    const received = await this.computeReceived(businessId);
+    const recentPayments = await this.recentPayments(businessId);
 
     return {
+      connected,
       account: account
         ? {
-            id: account.id,
             status: account.status,
             provider: account.provider,
-            pixKey: account.pixKey,
-            documentType: account.documentType,
-            // nunca devolver o número do documento inteiro
-            documentNumberMasked: account.documentNumber
-              ? maskDocument(account.documentNumber)
-              : null,
-            externalAccountId: account.externalAccountId,
-            createdAt: account.createdAt,
+            externalAccountId: account.externalAccountId, // user_id do MP (não é segredo)
+            connectedAt: account.connectedAt,
+            pixUnavailable: account.pixUnavailable,
           }
         : null,
-      balance,
-      canWithdraw: account?.status === 'active' && balance.available > 0,
+      received,
+      recentPayments,
+      withdrawUrl: connected ? MP_WITHDRAW_URL : null,
     };
   }
 
-  // `db` pode ser o client normal ou o client de uma transação — para o cálculo
-  // do saldo participar do mesmo lock do saque (ver `withdraw`).
-  private async computeBalance(businessId: string, db: Prisma.TransactionClient) {
-    const payments = await db.bookingPayment.findMany({
+  /**
+   * Extrato próprio: soma dos pagamentos de agendamento CONFIRMADOS deste negócio
+   * (bruto, taxa estimada do gateway, líquido). É o que entrou pela plataforma —
+   * fonte da verdade são os nossos registros, já que todo pagamento passa por nós.
+   * Não é o saldo global do MP (esse fica no painel do MP).
+   */
+  private async computeReceived(businessId: string) {
+    const payments = await this.prisma.raw.bookingPayment.findMany({
       where: { businessId, status: 'confirmed' },
       select: { amount: true, method: true },
     });
-
     let gross = 0;
     let fees = 0;
     for (const p of payments) {
@@ -74,66 +91,81 @@ export class PaymentAccountService {
       gross += amount;
       fees += estimateFee(amount, p.method);
     }
-
-    const withdrawals = await db.withdrawal.findMany({
-      where: { businessId, status: { in: ['pending', 'confirmed'] } },
-      select: { amount: true },
-    });
-    const withdrawn = withdrawals.reduce((s, w) => s + Number(w.amount), 0);
-
-    const net = round2(gross - fees);
-    const available = round2(net - withdrawn);
-
     return {
       gross: round2(gross),
       estimatedFees: round2(fees),
-      net,
-      withdrawn: round2(withdrawn),
-      available: available < 0 ? 0 : available,
+      net: round2(gross - fees),
+      count: payments.length,
       currency: 'BRL',
     };
   }
 
-  /**
-   * Onboarding de pagamento: registra os dados de recebimento. No modo conta
-   * única de testes NÃO cria subconta real no gateway (externalAccountId fica
-   * nulo) — isso é o checkpoint de produção (marketplace/OAuth). Status inicia
-   * `pending_verification`, como o KYC real faria.
-   */
-  async createOrUpdate(businessId: string, dto: CreatePaymentAccountDto) {
-    const account = await this.prisma.raw.paymentAccount.upsert({
-      where: { businessId },
-      create: {
-        businessId,
-        provider: this.provider.name,
-        status: 'pending_verification',
-        documentType: dto.documentType,
-        documentNumber: dto.documentNumber,
-        pixKey: dto.pixKey,
-      },
-      update: {
-        documentType: dto.documentType,
-        documentNumber: dto.documentNumber,
-        pixKey: dto.pixKey,
-      },
+  /** Últimos pagamentos confirmados, para o extrato exibido no painel. */
+  private async recentPayments(businessId: string) {
+    const payments = await this.prisma.raw.bookingPayment.findMany({
+      where: { businessId, status: 'confirmed' },
+      orderBy: { paidAt: 'desc' },
+      take: 10,
+      select: { id: true, amount: true, method: true, paidAt: true },
     });
-
-    return this.get(businessId);
+    return payments.map((p) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      method: p.method,
+      paidAt: p.paidAt,
+    }));
   }
 
-  /**
-   * Simula a conclusão do KYC (em produção quem faz isso é o webhook do
-   * gateway). Disponível só para destravar o teste do fluxo de saque.
-   */
-  async markVerified(businessId: string) {
-    // Stub de KYC só para destravar o teste do saque em dev. Em produção quem
-    // ativa a conta é o webhook do gateway após o KYC real — nunca o próprio
-    // dono. Recusar aqui fecha o auto-approve antes do payout real ser plugado.
-    if (process.env.NODE_ENV === 'production') {
-      throw new ForbiddenException(
-        'A verificação da conta é feita automaticamente pelo provedor de pagamento.',
-      );
+  // -------------------------------------------------------------------------
+  // OAuth: início da conexão.
+  // -------------------------------------------------------------------------
+  getConnectUrl(businessId: string) {
+    const redirectUri = this.redirectUri();
+    const state = this.signState(businessId);
+    const authorizationUrl = this.provider.buildAuthorizationUrl({
+      state,
+      redirectUri,
+    });
+    return { authorizationUrl };
+  }
+
+  // -------------------------------------------------------------------------
+  // OAuth: retorno do MP. `state` é a prova de vínculo (não há JWT no redirect).
+  // Retorna a URL do painel para onde redirecionar o navegador do dono.
+  // -------------------------------------------------------------------------
+  async handleOAuthCallback(input: {
+    code?: string;
+    state?: string;
+    error?: string;
+  }): Promise<{ redirectTo: string }> {
+    const webUrl = this.config.get<string>('WEB_URL', 'http://localhost:3000');
+    const base = `${webUrl}/admin/recebimento`;
+
+    if (input.error) {
+      this.logger.warn(`OAuth do MP retornou erro: ${input.error}`);
+      return { redirectTo: `${base}?connect=denied` };
     }
+    const businessId = input.state ? this.verifyState(input.state) : null;
+    if (!businessId || !input.code) {
+      return { redirectTo: `${base}?connect=invalid` };
+    }
+
+    try {
+      const tokens = await this.provider.exchangeOAuthCode({
+        code: input.code,
+        redirectUri: this.redirectUri(),
+      });
+      await this.persistTokens(businessId, tokens);
+      return { redirectTo: `${base}?connected=1` };
+    } catch (e: any) {
+      this.logger.error(
+        `Falha ao concluir conexão do MP para ${businessId}: ${e.message}`,
+      );
+      return { redirectTo: `${base}?connect=error` };
+    }
+  }
+
+  async disconnect(businessId: string) {
     const account = await this.prisma.raw.paymentAccount.findUnique({
       where: { businessId },
     });
@@ -142,116 +174,199 @@ export class PaymentAccountService {
     }
     await this.prisma.raw.paymentAccount.update({
       where: { businessId },
-      data: { status: 'active' },
+      data: {
+        status: 'pending_verification',
+        externalAccountId: null,
+        oauthAccessToken: null,
+        oauthRefreshToken: null,
+        oauthPublicKey: null,
+        tokenExpiresAt: null,
+        connectedAt: null,
+        pixUnavailable: false,
+      },
     });
     return this.get(businessId);
   }
 
-  async withdraw(businessId: string, amount: number) {
+  // -------------------------------------------------------------------------
+  // Credenciais do lojista para o SPLIT (usado por booking-payment). Renova o
+  // token se estiver perto de expirar. Retorna null se a conta não está
+  // conectada — o chamador deve bloquear a cobrança com mensagem clara.
+  // -------------------------------------------------------------------------
+  async getSellerCredentials(
+    businessId: string,
+  ): Promise<SellerCredentials | null> {
     const account = await this.prisma.raw.paymentAccount.findUnique({
       where: { businessId },
     });
-    if (!account) {
-      throw new NotFoundException('Conta de recebimento não configurada.');
-    }
-    if (account.status !== 'active') {
-      throw new BadRequestException(
-        'Conta de recebimento ainda não verificada. O saque fica indisponível até a verificação ser concluída.',
-      );
-    }
-
-    // Checagem de saldo + reserva do valor precisam ser ATÔMICAS (invariante
-    // "money = FOR UPDATE" do projeto): travamos a conta, recalculamos o saldo
-    // e gravamos o saque como `pending` dentro da mesma transação. A chamada de
-    // payout ao gateway roda FORA da transação (para não segurar o lock durante
-    // I/O de rede); o registro pendente já reserva o valor contra saques
-    // concorrentes (computeBalance conta pending + confirmed).
-    const withdrawal = await this.prisma.raw.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT id FROM payment_accounts WHERE business_id = ${businessId} FOR UPDATE
-      `;
-      const balance = await this.computeBalance(businessId, tx);
-      if (amount > balance.available) {
-        throw new BadRequestException(
-          `Saldo insuficiente. Disponível: R$ ${balance.available.toFixed(2)}.`,
-        );
-      }
-      return tx.withdrawal.create({
-        data: {
-          businessId,
-          paymentAccountId: account.id,
-          amount,
-          status: 'pending',
-          destination: account.pixKey ? `PIX: ${account.pixKey}` : null,
-        },
-      });
-    });
-
-    // Payout no gateway, fora da transação.
-    let message: string | undefined;
-    try {
-      const result = await this.provider.createWithdrawal({
-        amount,
-        pixKey: account.pixKey,
-        externalReference: businessId,
-        sellerAccountId: account.externalAccountId,
-      });
-      message = result.message;
-      await this.prisma.raw.withdrawal.update({
-        where: { id: withdrawal.id },
-        data: {
-          status: result.status,
-          gatewayTransferId: result.transferId,
-          error: result.status === 'failed' ? result.message : undefined,
-        },
-      });
-    } catch (e: any) {
-      // Falha no payout: marca o saque como falho (libera o valor reservado).
-      await this.prisma.raw.withdrawal.update({
-        where: { id: withdrawal.id },
-        data: { status: 'failed', error: e.message },
-      });
-      throw new BadRequestException('Não foi possível processar o saque agora.');
-    }
-
-    const fresh = await this.prisma.raw.withdrawal.findUnique({
-      where: { id: withdrawal.id },
-    });
-
-    return {
-      withdrawal: {
-        id: fresh!.id,
-        amount: Number(fresh!.amount),
-        status: fresh!.status,
-        createdAt: fresh!.createdAt,
-      },
-      message,
-    };
+    if (!this.isConnected(account)) return null;
+    const accessToken = await this.resolveAccessToken(account!);
+    return { accessToken, userId: account!.externalAccountId ?? undefined };
   }
 
-  async listWithdrawals(businessId: string) {
-    const withdrawals = await this.prisma.raw.withdrawal.findMany({
+  // -------------------------------------------------------------------------
+  // Internos
+  // -------------------------------------------------------------------------
+  private isConnected(account: {
+    status: string;
+    oauthAccessToken: string | null;
+  } | null): account is { status: string; oauthAccessToken: string } & any {
+    return (
+      !!account &&
+      account.status === 'active' &&
+      !!account.oauthAccessToken
+    );
+  }
+
+  /** Decifra o access token, renovando (e persistindo) se estiver expirando. */
+  private async resolveAccessToken(account: {
+    businessId: string;
+    oauthAccessToken: string | null;
+    oauthRefreshToken: string | null;
+    tokenExpiresAt: Date | null;
+  }): Promise<string> {
+    const expiring =
+      !account.tokenExpiresAt ||
+      account.tokenExpiresAt.getTime() - Date.now() < REFRESH_MARGIN_MS;
+
+    if (expiring && account.oauthRefreshToken) {
+      try {
+        const refreshed = await this.provider.refreshOAuthToken(
+          decryptSecret(account.oauthRefreshToken),
+        );
+        await this.persistTokens(account.businessId, refreshed);
+        return refreshed.accessToken;
+      } catch (e: any) {
+        this.logger.warn(
+          `Falha ao renovar token do MP para ${account.businessId}: ${e.message}. Usando token atual.`,
+        );
+      }
+    }
+    return decryptSecret(account.oauthAccessToken!);
+  }
+
+  private async persistTokens(
+    businessId: string,
+    tokens: {
+      userId: string;
+      accessToken: string;
+      refreshToken: string;
+      publicKey?: string;
+      expiresIn: number;
+    },
+  ) {
+    const expiresAt = tokens.expiresIn
+      ? new Date(Date.now() + tokens.expiresIn * 1000)
+      : null;
+    await this.prisma.raw.paymentAccount.upsert({
       where: { businessId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
+      create: {
+        businessId,
+        provider: this.provider.name,
+        status: 'active',
+        externalAccountId: tokens.userId,
+        oauthAccessToken: encryptSecret(tokens.accessToken),
+        oauthRefreshToken: encryptSecret(tokens.refreshToken),
+        oauthPublicKey: tokens.publicKey,
+        tokenExpiresAt: expiresAt,
+        connectedAt: new Date(),
+        pixUnavailable: false,
+      },
+      update: {
+        status: 'active',
+        externalAccountId: tokens.userId,
+        oauthAccessToken: encryptSecret(tokens.accessToken),
+        oauthRefreshToken: encryptSecret(tokens.refreshToken),
+        oauthPublicKey: tokens.publicKey,
+        tokenExpiresAt: expiresAt,
+        connectedAt: new Date(),
+        // Reconectou: dá ao PIX uma nova chance (a conta pode ter cadastrado chave).
+        pixUnavailable: false,
+      },
     });
-    return withdrawals.map((w) => ({
-      id: w.id,
-      amount: Number(w.amount),
-      status: w.status,
-      destination: w.destination,
-      confirmedAt: w.confirmedAt,
-      createdAt: w.createdAt,
-    }));
+  }
+
+  /**
+   * PIX reativo: o MP não deixa checar antes se o vendedor tem chave PIX. Quando
+   * uma cobrança PIX falha por falta de chave (booking-payment captura o erro),
+   * marcamos aqui — o checkout esconde o PIX e o painel avisa o dono. Best-effort:
+   * nunca deixa a falha de marcação derrubar o fluxo de pagamento.
+   */
+  async markPixUnavailable(businessId: string) {
+    try {
+      await this.prisma.raw.paymentAccount.updateMany({
+        where: { businessId },
+        data: { pixUnavailable: true },
+      });
+    } catch (e: any) {
+      this.logger.warn(
+        `Não foi possível marcar PIX indisponível para ${businessId}: ${e.message}`,
+      );
+    }
+  }
+
+  /** O dono diz que cadastrou a chave PIX: reabilita o PIX para novo teste. */
+  async clearPixUnavailable(businessId: string) {
+    await this.prisma.raw.paymentAccount.updateMany({
+      where: { businessId },
+      data: { pixUnavailable: false },
+    });
+    return this.get(businessId);
+  }
+
+  private redirectUri(): string {
+    const explicit = this.config.get<string>('MERCADOPAGO_OAUTH_REDIRECT_URI');
+    if (explicit) return explicit;
+    const apiUrl = this.config.get<string>('APP_URL', 'http://localhost:3001');
+    return `${apiUrl}/payment-account/oauth/callback`;
+  }
+
+  // State assinado (HMAC) para o OAuth: {businessId, nonce, exp}. Impede que um
+  // terceiro conecte a conta MP dele a um businessId que não é seu.
+  private stateSecret(): string {
+    return (
+      this.config.get<string>('TOKEN_ENCRYPTION_KEY') ??
+      this.config.get<string>('JWT_SECRET') ??
+      'dev-state-secret'
+    );
+  }
+
+  private signState(businessId: string): string {
+    const payload = {
+      b: businessId,
+      n: randomBytes(8).toString('hex'),
+      e: Date.now() + STATE_TTL_MS,
+    };
+    const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const sig = createHmac('sha256', this.stateSecret())
+      .update(data)
+      .digest('base64url');
+    return `${data}.${sig}`;
+  }
+
+  private verifyState(state: string): string | null {
+    const [data, sig] = state.split('.');
+    if (!data || !sig) return null;
+    const expected = createHmac('sha256', this.stateSecret())
+      .update(data)
+      .digest('base64url');
+    try {
+      const a = Buffer.from(sig);
+      const b = Buffer.from(expected);
+      if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    } catch {
+      return null;
+    }
+    try {
+      const payload = JSON.parse(Buffer.from(data, 'base64url').toString());
+      if (typeof payload.e !== 'number' || payload.e < Date.now()) return null;
+      return typeof payload.b === 'string' ? payload.b : null;
+    } catch {
+      return null;
+    }
   }
 }
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
-}
-
-function maskDocument(doc: string): string {
-  const clean = doc.replace(/\D/g, '');
-  if (clean.length <= 4) return '***';
-  return `***${clean.slice(-4)}`;
 }

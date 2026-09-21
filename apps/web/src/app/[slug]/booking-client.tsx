@@ -30,6 +30,7 @@ interface Business {
   bookingPaymentPolicy?: "none" | "deposit" | "full";
   depositPercent?: number | null;
   mpPublicKey?: string | null;
+  acceptsPix?: boolean;
   professionals: Professional[];
 }
 interface Customization {
@@ -422,7 +423,11 @@ export default function BookingClient({
   } | null>(null);
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState("");
-  const [payMethod, setPayMethod] = useState<"pix" | "card">("pix");
+  // PIX só é opção quando a conta do lojista aceita PIX (tem chave cadastrada);
+  // senão o checkout já abre no cartão e o PIX nem aparece.
+  const [payMethod, setPayMethod] = useState<"pix" | "card">(
+    business.acceptsPix === false ? "card" : "pix",
+  );
   const [copied, setCopied] = useState(false);
   const [nowTs, setNowTs] = useState(() => Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -789,7 +794,7 @@ export default function BookingClient({
     setPayInfo(null);
     setPayDue(0);
     setPayError("");
-    setPayMethod("pix");
+    setPayMethod(business.acceptsPix === false ? "card" : "pix");
   }
 
 
@@ -2140,7 +2145,7 @@ function generateDates(pageOffset: number): {
 
               {!payInfo && (
                 <div className="space-y-4">
-                  {business.mpPublicKey && (
+                  {business.mpPublicKey && business.acceptsPix && (
                     <div
                       className="flex gap-2 p-1 rounded-lg"
                       style={{ backgroundColor: `${text}08` }}
