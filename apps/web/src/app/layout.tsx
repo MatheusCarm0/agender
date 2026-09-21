@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Inter, Poppins, Playfair_Display, DM_Sans, Montserra
 import { AuthProvider } from '@/lib/auth-context';
 import './globals.css';
 import { ThemeProvider } from '@/lib/theme-context';
+import { SITE_URL } from '@/lib/site';
 import { MetaPixelRouteViews } from '@/components/meta-pixel';
 
 // Microsoft Clarity (heatmaps, scroll, dead/rage clicks, session replay).
@@ -78,8 +79,24 @@ const cormorantGaramond = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: 'Agenda',
-  description: 'Plataforma de agendamento online',
+  // Base para resolver URLs relativas (canonical, OpenGraph, sitemap).
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Agender — Agendamento online lindo e no automático',
+    // Páginas internas viram "Título | Agender".
+    template: '%s | Agender',
+  },
+  description:
+    'Página de agendamento personalizada, lembretes automáticos que acabam com o no-show e pagamento no PIX. Monte sua agenda online em minutos.',
+  applicationName: 'Agender',
+  robots: { index: true, follow: true },
+  openGraph: {
+    siteName: 'Agender',
+    type: 'website',
+    locale: 'pt_BR',
+    url: SITE_URL,
+  },
+  twitter: { card: 'summary_large_image' },
 };
 
 export default function RootLayout({
