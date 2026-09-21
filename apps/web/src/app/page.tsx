@@ -7,6 +7,33 @@ import adminAgendaShot from '@/images/landing/admin-agenda.png';
 import publicRealShot from '@/images/landing/public-real.png';
 import { SiteNav } from '@/components/landing/site-nav';
 import { LandingAnalytics } from '@/components/landing/landing-analytics';
+import { SITE_URL } from '@/lib/site';
+
+// Dados estruturados (schema.org) — ajudam o Google a entender a marca/produto
+// e habilitam rich results.
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: 'Agender',
+      url: SITE_URL,
+      logo: `${SITE_URL}/icon.svg`,
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Agender',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web',
+      url: SITE_URL,
+      description:
+        'Plataforma de agendamento online: página personalizada, lembretes automáticos e pagamento no PIX.',
+      offers: { '@type': 'Offer', price: '49.90', priceCurrency: 'BRL' },
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+  ],
+};
 import { Reveal } from '@/components/landing/reveal';
 import { Faq } from '@/components/landing/faq';
 import { Parallax } from '@/components/landing/parallax';
@@ -16,7 +43,9 @@ import { IconTile } from '@/components/landing/icons';
 import { AgenderLogo } from '@/components/logo';
 
 export const metadata: Metadata = {
-  title: 'Agender: agendamento online lindo e no automático',
+  // `absolute` evita o sufixo "| Agender" do template do layout na home.
+  title: { absolute: 'Agender: agendamento online lindo e no automático' },
+  alternates: { canonical: '/' },
   description:
     'Página de agendamento personalizada, lembretes automáticos que acabam com o no-show e pagamento no PIX. Monte sua agenda online em minutos. Teste 7 dias grátis.',
   keywords: [
@@ -209,6 +238,10 @@ function PhoneShot() {
 export default function LandingPage() {
   return (
     <div className="lp">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <LandingAnalytics />
       <SiteNav />
 
