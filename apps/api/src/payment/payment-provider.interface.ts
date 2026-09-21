@@ -82,6 +82,8 @@ export interface CreateSubscriptionParams {
   reason: string;
   payer: PayerInfo;
   externalReference: string; // businessId
+  /** Intervalo de recorrência em meses (1 = mensal, 12 = anual). Default: 1. */
+  frequencyMonths?: number;
   /** Omitido quando a URL pública não é https (o MP rejeita http/localhost). */
   backUrl?: string;
   notificationUrl?: string;

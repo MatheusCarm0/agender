@@ -32,7 +32,7 @@ export class PlanSubscriptionController {
   @Roles('owner')
   @SkipPlanStatus()
   async subscribe(@Req() req: any, @Body() dto: CreateSubscriptionDto) {
-    return this.service.subscribe(req.user.businessId, dto.plan);
+    return this.service.subscribe(req.user.businessId, dto.plan, dto.cycle);
   }
 
   @Post('sync')
