@@ -592,16 +592,32 @@ model PaymentAccount {
   businessId        String               @unique @map("business_id")
   business          Business             @relation(fields: [businessId], references: [id])
   provider          String               @default("mercadopago")
-  externalAccountId String?              @map("external_account_id") // id da subconta/seller no gateway (marketplace); null no modo conta única
-  status            PaymentAccountStatus @default(pending_verification)
+  externalAccountId String?              @map("external_account_id") // user_id do lojista no MP (marketplace/OAuth); null enquanto não conectado
+  status            PaymentAccountStatus @default(pending_verification) // active = conta MP conectada via OAuth
+  // --- Credenciais OAuth do lojista (Mercado Pago Connect / marketplace) ---
+  // Tokens SEMPRE cifrados (AES-256-GCM, common/token-crypto.ts). Nunca em claro,
+  // nunca devolvidos em resposta de API. São a costura do split: o pagamento do
+  // agendamento é criado com o token do lojista e cai direto na conta dele.
+  oauthAccessToken  String?              @map("oauth_access_token") @db.Text
+  oauthRefreshToken String?              @map("oauth_refresh_token") @db.Text
+  oauthPublicKey    String?              @map("oauth_public_key")
+  tokenExpiresAt    DateTime?            @map("token_expires_at")
+  connectedAt       DateTime?            @map("connected_at")
+  // PIX reativo: o MP não deixa checar antes se o vendedor tem chave PIX. Quando
+  // uma cobrança PIX falha por falta de chave (erro 13253), marcamos aqui para
+  // esconder o PIX no checkout do negócio e avisar o dono. Resetado ao reconectar
+  // ou pelo botão "já cadastrei minha chave".
+  pixUnavailable    Boolean              @default(false) @map("pix_unavailable")
+  // --- Legado (modo conta única / KYC-fake): mantido para histórico, inativo no
+  // modelo marketplace — o MP guarda documento/dados bancários e o saque é no MP. ---
   pixKey            String?              @map("pix_key")
-  bankAccount       Json?                @map("bank_account") // espelho informativo; fonte da verdade é o gateway
+  bankAccount       Json?                @map("bank_account")
   documentType      String?              @map("document_type") // CPF | CNPJ
   documentNumber    String?              @map("document_number")
   createdAt         DateTime             @default(now()) @map("created_at")
   updatedAt         DateTime             @updatedAt @map("updated_at")
 
-  withdrawals Withdrawal[]
+  withdrawals Withdrawal[] // legado (payout stub removido no modelo marketplace)
 
   @@index([businessId])
   @@map("payment_accounts")
