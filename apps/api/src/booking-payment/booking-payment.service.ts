@@ -399,11 +399,20 @@ export class BookingPaymentService {
     await this.prisma.raw.appointment.update({
       where: { id: payment.appointmentId },
       data: {
+        // Materializa a reserva: só agora (pago) o agendamento vira `scheduled`
+        // e passa a aparecer na agenda. Ver docs/pagamentos.md (Fluxo 2).
+        status: 'scheduled',
         paymentStatus: 'paid',
         paymentMethod: payment.method,
         paidAt: new Date(),
       },
     });
+    // O slot já estava seguro (pending_payment também bloqueia), mas invalidamos
+    // o cache para refletir a transição de estado imediatamente.
+    await this.availabilityService.invalidateCache(
+      payment.businessId,
+      payment.appointment.professionalId,
+    );
 
     // Só agora — pagamento confirmado — dispara confirmação e lembrete.
     await this.notificationService.enqueueBookingConfirmation(
@@ -444,10 +453,13 @@ export class BookingPaymentService {
         data: { status: 'expired' },
       });
 
-      // Só cancela o agendamento se ainda estiver não pago e ativo.
+      // Só cancela o agendamento se ainda estiver não pago e ativo (inclui a
+      // reserva pending_payment não materializada).
       if (
         payment.appointment.paymentStatus !== 'paid' &&
-        ['scheduled', 'confirmed'].includes(payment.appointment.status)
+        ['scheduled', 'confirmed', 'pending_payment'].includes(
+          payment.appointment.status,
+        )
       ) {
         await this.prisma.raw.appointment.update({
           where: { id: payment.appointmentId },
@@ -478,7 +490,9 @@ export class BookingPaymentService {
     // propósito → client `unsafe` (sem a rede de segurança de tenant).
     const held = await this.prisma.unsafe.appointment.findMany({
       where: {
-        status: 'scheduled',
+        // Reservas não materializadas (o "só cria após pagar"): pending_payment
+        // não pago além do prazo é descartado, liberando o slot.
+        status: 'pending_payment',
         paymentStatus: 'unpaid',
         createdAt: { lt: cutoff },
         business: { bookingPaymentPolicy: { not: 'none' } },

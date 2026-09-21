@@ -209,23 +209,31 @@ export class PublicV1Controller {
       clientUser?.clientId,
     );
 
-    await this.availabilityService.invalidateCache(
-      business.id,
-      dto.professionalId,
-    );
-
-    // Quando o negócio exige pagamento no agendamento, o slot fica RESERVADO
-    // mas a confirmação (e o lembrete) só são disparados após o pagamento —
-    // isso acontece em BookingPaymentService.applyConfirmation. Sem pagamento
-    // no prazo, o cron de expiração cancela e libera o slot.
     const paymentContext = await this.bookingPaymentService.getContext(
       business.id,
       appointment.id,
     );
 
     if (paymentContext.required) {
-      return { ...appointment, paymentRequired: true, payment: paymentContext };
+      // "Só cria após pagar": o agendamento nasce como RESERVA (pending_payment)
+      // — segura o slot (disponibilidade + conflito) mas NÃO aparece na agenda.
+      // Vira `scheduled` quando o pagamento confirma (applyConfirmation) e é
+      // cancelado pelo cron se não pagar no prazo. Ver docs/pagamentos.md.
+      const held = await this.prisma.raw.appointment.update({
+        where: { id: appointment.id },
+        data: { status: 'pending_payment' },
+      });
+      await this.availabilityService.invalidateCache(
+        business.id,
+        dto.professionalId,
+      );
+      return { ...held, paymentRequired: true, payment: paymentContext };
     }
+
+    await this.availabilityService.invalidateCache(
+      business.id,
+      dto.professionalId,
+    );
 
     await this.notificationService.enqueueBookingConfirmation(
       appointment.id,

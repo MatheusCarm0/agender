@@ -165,7 +165,8 @@ export class ClientAuthService {
 
   async getClientAppointments(clientId: string, businessId: string) {
     const appointments = await this.prisma.raw.appointment.findMany({
-      where: { clientId, businessId },
+      // pending_payment = reserva em checkout ainda não paga: não listar.
+      where: { clientId, businessId, status: { not: 'pending_payment' } },
       include: { professional: true, service: true },
       orderBy: { startAt: 'desc' },
     });

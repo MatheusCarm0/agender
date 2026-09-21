@@ -112,7 +112,8 @@ export class AvailabilityService {
       where: {
         professionalId,
         businessId,
-        status: { in: ['scheduled', 'confirmed'] },
+        // pending_payment = reserva em checkout: também segura o slot.
+        status: { in: ['scheduled', 'confirmed', 'pending_payment'] },
         startAt: { lt: new Date(dayEndUtc) },
         endAt: { gt: new Date(dayStartUtc) },
       },

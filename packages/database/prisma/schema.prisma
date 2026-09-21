@@ -20,6 +20,11 @@ enum AppointmentStatus {
   completed
   cancelled
   no_show
+  // Reserva temporária de slot enquanto o cliente paga (cobrança no agendamento).
+  // SEGURA o horário (bloqueia disponibilidade e conflito) mas NÃO aparece na
+  // agenda/relatórios. Vira `scheduled` quando o pagamento confirma; é cancelada
+  // pelo cron se não pagar no prazo. Ver docs/pagamentos.md (Fluxo 2).
+  pending_payment
 }
 
 enum CommissionType {
