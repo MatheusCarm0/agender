@@ -1,25 +1,32 @@
 import type { MetadataRoute } from 'next';
-import { SITE_URL } from '@/lib/site';
 
-// Servido em /robots.txt. Libera o site público (landing + páginas de negócio
-// /[slug]) e bloqueia o que não deve indexar: painel admin, onboarding e fluxos
-// de autenticação sensíveis.
+const SITE_URL = (
+  process.env.SITE_URL ||
+  process.env.WEB_URL ||
+  'http://localhost:3000'
+).replace(/\/+$/, '');
+
+// Ver nota em sitemap.ts: renderizado por request para ler SITE_URL do runtime.
+export const dynamic = 'force-dynamic';
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
       allow: '/',
+      // Áreas privadas/transacionais que não devem ser indexadas.
       disallow: [
         '/admin',
         '/onboarding',
+        '/bem-vindo',
         '/login',
+        '/register',
         '/recuperar-senha',
         '/redefinir-senha',
         '/convite',
-        '/api/',
+        '/api',
       ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
-    host: SITE_URL,
   };
 }
