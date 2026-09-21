@@ -20,6 +20,8 @@ import { capabilitiesFor } from '../plan/plan-limits';
 import { ONLINE_PAYMENTS_ENABLED } from '../common/payments-flag';
 import { NotificationService } from '../notification/notification.service';
 import { AvailabilityService } from '../availability/availability.service';
+import { PaymentAccountService } from '../payment-account/payment-account.service';
+import { SellerCredentials } from '../payment/payment-provider.interface';
 import { CreateBookingPaymentDto } from './dto/create-booking-payment.dto';
 
 const PIX_TTL_MINUTES = 60;
@@ -42,8 +44,18 @@ export class BookingPaymentService {
     private readonly config: ConfigService,
     private readonly notificationService: NotificationService,
     private readonly availabilityService: AvailabilityService,
+    private readonly paymentAccountService: PaymentAccountService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
   ) {}
+
+  /** Comissão da plataforma (application_fee) sobre um agendamento, em BRL. */
+  private applicationFee(amount: number): number {
+    const pct = Number(
+      this.config.get<string>('MERCADOPAGO_APPLICATION_FEE_PERCENT', '0'),
+    );
+    if (!Number.isFinite(pct) || pct <= 0) return 0;
+    return round2((amount * pct) / 100);
+  }
 
   /** Valor líquido a pagar num agendamento, conforme a política do negócio. */
   private amountDue(
@@ -161,6 +173,18 @@ export class BookingPaymentService {
       }
     }
 
+    // SPLIT (marketplace): o pagamento é criado EM NOME do lojista, para o
+    // dinheiro cair direto na conta MP dele — nunca na conta da plataforma. Sem
+    // conta conectada não há para onde repassar: bloqueia com mensagem clara.
+    const seller: SellerCredentials | null =
+      await this.paymentAccountService.getSellerCredentials(businessId);
+    if (!seller) {
+      throw new BadRequestException(
+        'Este negócio ainda não conectou uma conta de recebimento. Conecte o Mercado Pago no painel de Recebimento para aceitar pagamentos online.',
+      );
+    }
+    const applicationFee = this.applicationFee(amount);
+
     // O MP só aceita notification_url https públicas — em dev (localhost/http)
     // omitimos e a confirmação chega pela reconciliação do poll de status.
     const apiUrl = this.config.get<string>('APP_URL', 'http://localhost:3001');
@@ -182,19 +206,36 @@ export class BookingPaymentService {
 
     let result;
     if (dto.method === 'pix') {
-      result = await this.provider.createPixPayment({
-        amount,
-        description,
-        payer: {
-          email: payerEmail,
-          firstName: appointment.client.name,
-          document,
-        },
-        externalReference: appointment.id,
-        idempotencyKey,
-        notificationUrl,
-        expiresInMinutes: PIX_TTL_MINUTES,
-      });
+      try {
+        result = await this.provider.createPixPayment({
+          amount,
+          description,
+          payer: {
+            email: payerEmail,
+            firstName: appointment.client.name,
+            document,
+          },
+          externalReference: appointment.id,
+          idempotencyKey,
+          notificationUrl,
+          expiresInMinutes: PIX_TTL_MINUTES,
+          seller,
+          applicationFee,
+        });
+      } catch (e: any) {
+        // PIX reativo: se falhou por falta de chave PIX na conta do lojista,
+        // registra para esconder o PIX no checkout dele e avisar o dono. O MP
+        // não deixa checar isso antes (ver payment-account.service).
+        const code =
+          e?.response?.code ??
+          (typeof e?.getResponse === 'function'
+            ? e.getResponse()?.code
+            : undefined);
+        if (code === 'PIX_KEY_REQUIRED') {
+          await this.paymentAccountService.markPixUnavailable(businessId);
+        }
+        throw e;
+      }
     } else {
       if (!dto.cardToken || !dto.paymentMethodId) {
         throw new BadRequestException(
@@ -211,6 +252,8 @@ export class BookingPaymentService {
         externalReference: appointment.id,
         idempotencyKey,
         notificationUrl,
+        seller,
+        applicationFee,
       });
     }
 
@@ -274,7 +317,13 @@ export class BookingPaymentService {
 
     if (payment.status === 'pending' && staleEnough) {
       try {
-        const remote = await this.provider.getPayment(payment.gatewayChargeId);
+        const seller = await this.paymentAccountService.getSellerCredentials(
+          payment.businessId,
+        );
+        const remote = await this.provider.getPayment(
+          payment.gatewayChargeId,
+          seller?.accessToken,
+        );
         if (remote.status === 'confirmed') {
           await this.applyConfirmation(payment.id);
         } else {
@@ -309,7 +358,13 @@ export class BookingPaymentService {
       return;
     }
 
-    const remote = await this.provider.getPayment(gatewayChargeId);
+    const seller = await this.paymentAccountService.getSellerCredentials(
+      payment.businessId,
+    );
+    const remote = await this.provider.getPayment(
+      gatewayChargeId,
+      seller?.accessToken,
+    );
     if (remote.status === 'confirmed') {
       await this.applyConfirmation(payment.id);
     } else if (remote.status !== 'pending') {
