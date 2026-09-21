@@ -27,6 +27,17 @@ export interface PayerInfo {
   document?: { type: 'CPF' | 'CNPJ'; number: string };
 }
 
+/**
+ * Credenciais do lojista no modelo marketplace (Mercado Pago Connect). Quando
+ * presentes, a cobrança do agendamento é criada EM NOME do lojista (o dinheiro
+ * cai direto na conta MP dele) e a plataforma retém `applicationFee`. Ausentes
+ * = modo conta única (legado/sandbox), collector = plataforma.
+ */
+export interface SellerCredentials {
+  accessToken: string;
+  userId?: string;
+}
+
 export interface CreatePixPaymentParams {
   amount: number; // em BRL (reais)
   description: string;
@@ -35,11 +46,10 @@ export interface CreatePixPaymentParams {
   idempotencyKey: string; // chave única POR TENTATIVA (não reusar entre retries)
   notificationUrl?: string;
   expiresInMinutes?: number;
-  /**
-   * Conta do recebedor (split/marketplace). Vazio no modo conta única de
-   * testes; preenchido quando o marketplace/subconta real for plugado.
-   */
-  sellerAccountId?: string | null;
+  /** Conta do recebedor (split/marketplace). Vazio no modo conta única. */
+  seller?: SellerCredentials | null;
+  /** Comissão da plataforma em BRL (application_fee do MP). 0/omitido = sem comissão. */
+  applicationFee?: number;
 }
 
 export interface CreateCardPaymentParams {
@@ -52,7 +62,8 @@ export interface CreateCardPaymentParams {
   externalReference: string;
   idempotencyKey: string; // chave única POR TENTATIVA
   notificationUrl?: string;
-  sellerAccountId?: string | null;
+  seller?: SellerCredentials | null;
+  applicationFee?: number;
 }
 
 export interface PaymentResult {
@@ -84,17 +95,21 @@ export interface SubscriptionResult {
   nextDueDate?: Date;
 }
 
-export interface WithdrawalParams {
-  amount: number;
-  pixKey?: string | null;
-  externalReference: string; // businessId
-  sellerAccountId?: string | null;
+// --- OAuth / marketplace (Mercado Pago Connect) -----------------------------
+
+export interface OAuthTokenResult {
+  userId: string; // user_id do lojista no MP
+  accessToken: string;
+  refreshToken: string;
+  publicKey?: string;
+  /** Segundos até expirar (MP: ~180 dias). */
+  expiresIn: number;
 }
 
-export interface WithdrawalResult {
-  transferId?: string;
-  status: 'pending' | 'confirmed' | 'failed';
-  message?: string;
+export interface SellerBalance {
+  available: number;
+  pending: number;
+  currency: string;
 }
 
 export interface WebhookVerification {
@@ -111,18 +126,36 @@ export interface PaymentProvider {
   // --- Cobrança de agendamento ---
   createPixPayment(params: CreatePixPaymentParams): Promise<PaymentResult>;
   createCardPayment(params: CreateCardPaymentParams): Promise<PaymentResult>;
-  getPayment(chargeId: string): Promise<PaymentResult>;
-  refundPayment(chargeId: string): Promise<void>;
+  /**
+   * Consulta uma cobrança. `sellerAccessToken` é obrigatório para pagamentos
+   * criados em nome do lojista (split) — a plataforma não os enxerga com o
+   * próprio token.
+   */
+  getPayment(
+    chargeId: string,
+    sellerAccessToken?: string | null,
+  ): Promise<PaymentResult>;
+  refundPayment(chargeId: string, sellerAccessToken?: string | null): Promise<void>;
 
-  // --- Assinatura de plano ---
+  // --- Assinatura de plano (conta da plataforma) ---
   createSubscription(
     params: CreateSubscriptionParams,
   ): Promise<SubscriptionResult>;
   getSubscription(subscriptionId: string): Promise<SubscriptionResult>;
   cancelSubscription(subscriptionId: string): Promise<void>;
 
-  // --- Saque (split/marketplace) ---
-  createWithdrawal(params: WithdrawalParams): Promise<WithdrawalResult>;
+  // --- OAuth / marketplace ---
+  /** URL para o lojista autorizar a conexão da conta dele à plataforma. */
+  buildAuthorizationUrl(input: { state: string; redirectUri: string }): string;
+  /** Troca o `code` do callback por tokens do lojista. */
+  exchangeOAuthCode(input: {
+    code: string;
+    redirectUri: string;
+  }): Promise<OAuthTokenResult>;
+  /** Renova o access token do lojista a partir do refresh token. */
+  refreshOAuthToken(refreshToken: string): Promise<OAuthTokenResult>;
+  /** Saldo real da conta MP do lojista (espelho exibido no painel). */
+  getSellerBalance(accessToken: string): Promise<SellerBalance>;
 
   // --- Webhook ---
   verifyWebhookSignature(input: {

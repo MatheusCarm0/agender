@@ -71,13 +71,24 @@ export class PublicV1Controller {
 
     const acceptingBookings = business.planStatus !== 'expired';
 
-    // A política de cobrança só vale se a cobrança online está ligada (beta:
-    // desligada por padrão) E o plano permite pagamento online — expor 'none'
-    // caso contrário evita a página pública anunciar um pagamento que o backend
-    // nunca vai exigir.
+    // Split marketplace: o cartão precisa ser tokenizado com a PUBLIC KEY DO
+    // VENDEDOR (a mesma conta cujo token cria o pagamento), senão o MP responde
+    // "Card Token not found". Buscamos a conta MP conectada do negócio.
+    const paymentAccount = await this.prisma.raw.paymentAccount.findUnique({
+      where: { businessId: business.id },
+      select: { status: true, oauthPublicKey: true, pixUnavailable: true },
+    });
+    const sellerConnected =
+      paymentAccount?.status === 'active' && !!paymentAccount.oauthPublicKey;
+
+    // A política de cobrança só vale se a cobrança online está ligada, o plano
+    // permite pagamento online E a conta MP do negócio está conectada — expor
+    // 'none' caso contrário evita a página pública exigir um pagamento que o
+    // backend não conseguiria processar.
     const paymentsAllowed =
       ONLINE_PAYMENTS_ENABLED &&
-      capabilitiesFor(business.plan, business.planStatus).onlinePayments;
+      capabilitiesFor(business.plan, business.planStatus).onlinePayments &&
+      sellerConnected;
     const effectivePolicy = paymentsAllowed
       ? business.bookingPaymentPolicy
       : 'none';
@@ -92,11 +103,18 @@ export class PublicV1Controller {
       acceptingBookings,
       bookingPaymentPolicy: effectivePolicy,
       depositPercent: business.depositPercent,
-      // Public key do gateway — segura para o frontend (tokenização de cartão).
-      // Só exposta quando há cobrança online ativa.
+      // PIX reativo: escondido no checkout quando a conta do lojista não tem
+      // chave PIX (detectado numa cobrança anterior). Cartão segue disponível.
+      acceptsPix:
+        paymentsAllowed && effectivePolicy !== 'none'
+          ? !paymentAccount?.pixUnavailable
+          : false,
+      // Public key do VENDEDOR (marketplace) — segura para o frontend tokenizar
+      // o cartão na conta certa. Só exposta quando há cobrança online ativa e a
+      // conta MP do negócio está conectada.
       mpPublicKey:
         paymentsAllowed && effectivePolicy !== 'none'
-          ? this.config.get<string>('MERCADOPAGO_PUBLIC_KEY') || null
+          ? paymentAccount?.oauthPublicKey || null
           : null,
       professionals: business.professionals.map((p) => ({
         id: p.id,
@@ -191,23 +209,31 @@ export class PublicV1Controller {
       clientUser?.clientId,
     );
 
-    await this.availabilityService.invalidateCache(
-      business.id,
-      dto.professionalId,
-    );
-
-    // Quando o negócio exige pagamento no agendamento, o slot fica RESERVADO
-    // mas a confirmação (e o lembrete) só são disparados após o pagamento —
-    // isso acontece em BookingPaymentService.applyConfirmation. Sem pagamento
-    // no prazo, o cron de expiração cancela e libera o slot.
     const paymentContext = await this.bookingPaymentService.getContext(
       business.id,
       appointment.id,
     );
 
     if (paymentContext.required) {
-      return { ...appointment, paymentRequired: true, payment: paymentContext };
+      // "Só cria após pagar": o agendamento nasce como RESERVA (pending_payment)
+      // — segura o slot (disponibilidade + conflito) mas NÃO aparece na agenda.
+      // Vira `scheduled` quando o pagamento confirma (applyConfirmation) e é
+      // cancelado pelo cron se não pagar no prazo. Ver docs/pagamentos.md.
+      const held = await this.prisma.raw.appointment.update({
+        where: { id: appointment.id },
+        data: { status: 'pending_payment' },
+      });
+      await this.availabilityService.invalidateCache(
+        business.id,
+        dto.professionalId,
+      );
+      return { ...held, paymentRequired: true, payment: paymentContext };
     }
+
+    await this.availabilityService.invalidateCache(
+      business.id,
+      dto.professionalId,
+    );
 
     await this.notificationService.enqueueBookingConfirmation(
       appointment.id,

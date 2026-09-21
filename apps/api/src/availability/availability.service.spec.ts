@@ -112,6 +112,17 @@ describe('AvailabilityService', () => {
     expect(starts).toContain('2099-01-05T13:00:00.000Z'); // adjacente depois, ok
   });
 
+  it('considera reservas em checkout (pending_payment) ao buscar agendamentos que ocupam o slot', async () => {
+    const { service, prisma } = makeService();
+    await service.getSlots('biz1', 'prof1', 'svc1', FUTURE, FUTURE);
+    const where = prisma.raw.appointment.findMany.mock.calls[0][0].where;
+    // O hold de pagamento segura o horário: precisa estar entre os status que
+    // ocupam o slot, junto de scheduled/confirmed.
+    expect(where.status.in).toEqual(
+      expect.arrayContaining(['scheduled', 'confirmed', 'pending_payment']),
+    );
+  });
+
   it('remove slots que colidem com um bloqueio de agenda', async () => {
     const { service } = makeService({
       blocks: [

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   Post,
@@ -13,6 +14,16 @@ import { WebhookService } from './webhook.service';
 @Controller('webhooks')
 export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
+
+  // Validação/health: o painel do MP (e verificadores de URL) às vezes fazem um
+  // GET para checar se a URL existe antes de salvar. Respondemos 200 — sem GET
+  // aqui a URL retorna 404 e o painel a considera inválida. Nenhum efeito: as
+  // notificações reais chegam por POST.
+  @Get('mercadopago')
+  @HttpCode(200)
+  mercadopagoHealth() {
+    return { ok: true };
+  }
 
   @Post('mercadopago')
   @HttpCode(200)

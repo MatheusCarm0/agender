@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PlanGuard } from '../auth/guards/plan.guard';
@@ -13,12 +6,11 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RequiresPlan } from '../auth/decorators/requires-plan.decorator';
 import { PLANS_WITH } from '../plan/plan-limits';
 import { PaymentAccountService } from './payment-account.service';
-import { CreatePaymentAccountDto } from './dto/create-payment-account.dto';
-import { WithdrawDto } from './dto/withdraw.dto';
 
-// Conta de recebimento e saque são exclusivos do dono. Pagamento pela
-// plataforma é Profissional/Pro (plan/plan-limits.ts): gate nas MUTAÇÕES;
-// leitura de saldo/histórico segue livre após downgrade.
+// Conta de recebimento é exclusiva do dono. Conectar a conta MP (marketplace)
+// é Profissional/Pro (plan/plan-limits.ts): gate nas MUTAÇÕES; leitura de
+// status/saldo segue livre após downgrade. O callback do OAuth é público e
+// vive em payment-oauth.controller.ts (o MP redireciona sem JWT).
 @Controller('payment-account')
 @UseGuards(JwtAuthGuard, RolesGuard, PlanGuard)
 export class PaymentAccountController {
@@ -30,31 +22,24 @@ export class PaymentAccountController {
     return this.service.get(req.user.businessId);
   }
 
-  @Post()
+  /** Inicia a conexão da conta MP do lojista: devolve a URL de autorização. */
+  @Get('connect')
   @Roles('owner')
   @RequiresPlan(...PLANS_WITH.onlinePayments)
-  async createOrUpdate(@Req() req: any, @Body() dto: CreatePaymentAccountDto) {
-    return this.service.createOrUpdate(req.user.businessId, dto);
+  async connect(@Req() req: any) {
+    return this.service.getConnectUrl(req.user.businessId);
   }
 
-  // Simula conclusão de KYC para destravar o teste do saque (ver service).
-  @Post('verify')
+  @Post('disconnect')
   @Roles('owner')
-  @RequiresPlan(...PLANS_WITH.onlinePayments)
-  async verify(@Req() req: any) {
-    return this.service.markVerified(req.user.businessId);
+  async disconnect(@Req() req: any) {
+    return this.service.disconnect(req.user.businessId);
   }
 
-  @Post('withdraw')
+  /** Dono cadastrou a chave PIX no MP: reabilita o PIX no checkout. */
+  @Post('pix/retry')
   @Roles('owner')
-  @RequiresPlan(...PLANS_WITH.onlinePayments)
-  async withdraw(@Req() req: any, @Body() dto: WithdrawDto) {
-    return this.service.withdraw(req.user.businessId, dto.amount);
-  }
-
-  @Get('withdrawals')
-  @Roles('owner')
-  async withdrawals(@Req() req: any) {
-    return this.service.listWithdrawals(req.user.businessId);
+  async retryPix(@Req() req: any) {
+    return this.service.clearPixUnavailable(req.user.businessId);
   }
 }

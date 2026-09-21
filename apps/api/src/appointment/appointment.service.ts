@@ -131,7 +131,7 @@ export class AppointmentService {
         SELECT id FROM appointments
         WHERE business_id = ${bId}
           AND professional_id = ${dto.professionalId}
-          AND status IN ('scheduled', 'confirmed')
+          AND status IN ('scheduled', 'confirmed', 'pending_payment')
           AND start_at < ${blockEnd}
           AND end_at > ${blockStart}
         FOR UPDATE
@@ -226,7 +226,7 @@ export class AppointmentService {
         SELECT id FROM appointments
         WHERE business_id = ${businessId}
           AND professional_id = ${dto.professionalId}
-          AND status IN ('scheduled', 'confirmed')
+          AND status IN ('scheduled', 'confirmed', 'pending_payment')
           AND start_at < ${blockEnd}
           AND end_at > ${blockStart}
         FOR UPDATE
@@ -448,7 +448,11 @@ export class AppointmentService {
   async findAll(role: string, userId: string) {
     const businessId = this.getBusinessId();
 
-    const where: Prisma.AppointmentWhereInput = { businessId };
+    // pending_payment = reserva em checkout (não paga): não aparece na agenda.
+    const where: Prisma.AppointmentWhereInput = {
+      businessId,
+      status: { not: 'pending_payment' },
+    };
 
     if (role === 'professional') {
       const user = await this.prisma.raw.user.findUnique({
