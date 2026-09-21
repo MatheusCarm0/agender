@@ -18,6 +18,11 @@ export default function SettingsPage() {
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingSubdomain, setSavingSubdomain] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [payment, setPayment] = useState<{
+    bookingPaymentPolicy: 'none' | 'deposit' | 'full';
+    depositPercent: number;
+  }>({ bookingPaymentPolicy: 'none', depositPercent: 50 });
+  const [savingPayment, setSavingPayment] = useState(false);
   const { toggleTheme, theme } = useTheme();
 
   useEffect(() => {
@@ -27,9 +32,15 @@ export default function SettingsPage() {
       name: string;
       logoUrl?: string;
       subdomain?: string;
+      bookingPaymentPolicy?: 'none' | 'deposit' | 'full';
+      depositPercent?: number | null;
     }>('/business', { token })
       .then((b) => {
         setBusinessForm({ name: b.name, logoUrl: b.logoUrl || '', subdomain: b.subdomain || '' });
+        setPayment({
+          bookingPaymentPolicy: b.bookingPaymentPolicy ?? 'none',
+          depositPercent: b.depositPercent ?? 50,
+        });
       })
       .catch(() => setBusinessForm({ name: user.business.name, logoUrl: '', subdomain: '' }));
   }, [user, token]);
@@ -124,6 +135,30 @@ export default function SettingsPage() {
       toast(err instanceof Error ? err.message : 'Erro ao salvar subdomínio', 'error');
     }
     setSavingSubdomain(false);
+  }
+
+  async function handleSavePayment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    setSavingPayment(true);
+    try {
+      await api('/business', {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(
+          payment.bookingPaymentPolicy === 'deposit'
+            ? {
+                bookingPaymentPolicy: 'deposit',
+                depositPercent: payment.depositPercent,
+              }
+            : { bookingPaymentPolicy: payment.bookingPaymentPolicy },
+        ),
+      });
+      toast('Cobrança salva');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Erro ao salvar cobrança', 'error');
+    }
+    setSavingPayment(false);
   }
 
   const isOwner = user?.role === 'owner' || user?.role === 'admin';
@@ -255,10 +290,90 @@ export default function SettingsPage() {
         {isOwner && (
           <section className="bg-surface-card border border-border-default rounded-[var(--radius-md)] p-6 shadow-[var(--shadow-elevation-1)]">
             <h2 className="text-base font-semibold text-text-strong mb-1">Cobrança no agendamento</h2>
-            <p className="text-sm text-text-muted">
-              A cobrança online no agendamento chega em breve, junto com o recebimento. Por
-              enquanto os clientes agendam sem pagar antes.
+            <p className="text-sm text-text-muted mb-4">
+              Defina se o cliente paga ao agendar. Os pagamentos caem direto na sua conta Mercado Pago
+              conectada em{' '}
+              <a href="/admin/recebimento" className="text-primary-default hover:underline">Recebimento</a>.
             </p>
+            <form onSubmit={handleSavePayment} className="space-y-3">
+              {(
+                [
+                  { value: 'none', label: 'Não cobrar', hint: 'O cliente agenda sem pagar antes.' },
+                  { value: 'deposit', label: 'Cobrar um sinal (depósito)', hint: 'Uma parte do valor é paga para confirmar o horário.' },
+                  { value: 'full', label: 'Cobrar o valor integral', hint: 'O cliente paga o serviço todo ao agendar.' },
+                ] as const
+              ).map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-[var(--radius-sm)] border cursor-pointer transition-colors ${
+                    payment.bookingPaymentPolicy === opt.value
+                      ? 'border-primary-default bg-primary-tint-bg'
+                      : 'border-border-default hover:bg-surface-subtle'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="bookingPaymentPolicy"
+                    value={opt.value}
+                    checked={payment.bookingPaymentPolicy === opt.value}
+                    onChange={() =>
+                      setPayment((p) => ({ ...p, bookingPaymentPolicy: opt.value }))
+                    }
+                    className="mt-0.5 accent-primary-default"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-text-strong">{opt.label}</span>
+                    <span className="block text-xs text-text-muted">{opt.hint}</span>
+                  </span>
+                </label>
+              ))}
+
+              {payment.bookingPaymentPolicy !== 'none' && (
+                <div className="flex items-start gap-2 p-3 rounded-[var(--radius-sm)] bg-info-bg border border-info-fg/20">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-info-fg mt-0.5 shrink-0" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <p className="text-xs text-info-text">
+                    Para aceitar <strong>PIX</strong>, sua conta Mercado Pago precisa ter uma <strong>chave PIX cadastrada</strong>. Sem ela, os clientes conseguem pagar apenas com cartão. Cadastre a chave no app do Mercado Pago.
+                  </p>
+                </div>
+              )}
+
+              {payment.bookingPaymentPolicy === 'deposit' && (
+                <div className="pl-3">
+                  <label htmlFor="deposit-percent" className="block text-xs font-medium text-text-muted mb-1">
+                    Percentual do sinal
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="deposit-percent"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={payment.depositPercent}
+                      onChange={(e) =>
+                        setPayment((p) => ({
+                          ...p,
+                          depositPercent: Math.min(100, Math.max(1, Number(e.target.value) || 0)),
+                        }))
+                      }
+                      className="w-24 h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none focus:ring-1 focus:ring-primary-default"
+                    />
+                    <span className="text-sm text-text-muted">% do valor do serviço</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-1">
+                <button
+                  type="submit"
+                  disabled={savingPayment}
+                  className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50"
+                >
+                  {savingPayment ? 'Salvando...' : 'Salvar cobrança'}
+                </button>
+              </div>
+            </form>
           </section>
         )}
 

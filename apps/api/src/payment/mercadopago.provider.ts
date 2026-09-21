@@ -1,29 +1,36 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import {
   CreateCardPaymentParams,
   CreatePixPaymentParams,
   CreateSubscriptionParams,
+  OAuthTokenResult,
   PaymentChargeStatus,
   PaymentProvider,
   PaymentResult,
+  SellerBalance,
   SubscriptionResult,
   SubscriptionStatus,
-  WithdrawalParams,
-  WithdrawalResult,
 } from './payment-provider.interface';
 
 const MP_BASE_URL = 'https://api.mercadopago.com';
+const MP_AUTH_URL = 'https://auth.mercadopago.com.br/authorization';
 
 /**
- * Implementação concreta do Mercado Pago (checkout transparente + preapproval).
+ * Implementação concreta do Mercado Pago (checkout transparente + preapproval +
+ * marketplace/OAuth).
  *
- * Modo atual: CONTA ÚNICA (collector = plataforma), adequado para sandbox e
- * validação de ponta a ponta. O split real (marketplace/subconta) entra pelo
- * campo `sellerAccountId` dos params — hoje ignorado; quando o marketplace via
- * OAuth for plugado, é aqui (header de conta / campos de split) que ele reside.
- * Ver docs/pagamentos.md e o checkpoint de produção.
+ * Split (marketplace): quando os params trazem `seller`, a cobrança do
+ * agendamento é criada com o ACCESS TOKEN do lojista (o dinheiro cai direto na
+ * conta MP dele) e a plataforma retém `applicationFee`. Sem `seller`, cai no
+ * modo conta única (collector = plataforma), usado só pela assinatura de plano
+ * e no legado/sandbox. Ver docs/pagamentos.md.
  */
 @Injectable()
 export class MercadoPagoProvider implements PaymentProvider {
@@ -31,11 +38,15 @@ export class MercadoPagoProvider implements PaymentProvider {
   private readonly logger = new Logger(MercadoPagoProvider.name);
   private readonly accessToken: string | undefined;
   private readonly webhookSecret: string | undefined;
+  private readonly appId: string | undefined;
+  private readonly clientSecret: string | undefined;
   private readonly isProduction: boolean;
 
   constructor(private readonly config: ConfigService) {
     this.accessToken = this.config.get<string>('MERCADOPAGO_ACCESS_TOKEN');
     this.webhookSecret = this.config.get<string>('MERCADOPAGO_WEBHOOK_SECRET');
+    this.appId = this.config.get<string>('MERCADOPAGO_APP_ID');
+    this.clientSecret = this.config.get<string>('MERCADOPAGO_CLIENT_SECRET');
     this.isProduction = this.config.get<string>('NODE_ENV') === 'production';
     if (!this.accessToken) {
       this.logger.warn(
@@ -45,23 +56,25 @@ export class MercadoPagoProvider implements PaymentProvider {
   }
 
   // -------------------------------------------------------------------------
-  // HTTP helper
+  // HTTP helper. `accessToken` opcional sobrepõe o token da plataforma — usado
+  // para agir EM NOME do lojista (split/saldo) com o token OAuth dele.
   // -------------------------------------------------------------------------
   private async mpFetch<T = any>(
     path: string,
-    init: RequestInit & { idempotencyKey?: string } = {},
+    init: RequestInit & { idempotencyKey?: string; accessToken?: string } = {},
   ): Promise<T> {
-    if (!this.accessToken) {
+    const token = init.accessToken ?? this.accessToken;
+    if (!token) {
       throw new ServiceUnavailableException(
         'Gateway de pagamento não configurado.',
       );
     }
 
-    const { idempotencyKey, headers, ...rest } = init;
+    const { idempotencyKey, accessToken: _at, headers, ...rest } = init;
     const res = await fetch(`${MP_BASE_URL}${path}`, {
       ...rest,
       headers: {
-        Authorization: `Bearer ${this.accessToken}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         ...(idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : {}),
         ...(headers ?? {}),
@@ -76,6 +89,24 @@ export class MercadoPagoProvider implements PaymentProvider {
       this.logger.error(
         `Mercado Pago ${path} -> ${res.status}: ${JSON.stringify(body)}`,
       );
+
+      // Caso conhecido e ACIONÁVEL: a conta do lojista (collector) não tem chave
+      // PIX cadastrada, então o MP não gera o QR (cause 13253 / "key enabled for
+      // QR"). Sem isso o cliente veria só "falha no gateway" e o lojista não
+      // saberia o motivo. Devolvemos 400 com mensagem clara → o cliente cai pro
+      // cartão e o lojista entende que precisa cadastrar a chave PIX no MP.
+      const causes = Array.isArray(body?.cause) ? body.cause : [];
+      const isPixKeyMissing =
+        causes.some((c: any) => Number(c?.code) === 13253) ||
+        String(body?.message ?? '').toLowerCase().includes('key enabled for qr');
+      if (isPixKeyMissing) {
+        throw new BadRequestException({
+          code: 'PIX_KEY_REQUIRED',
+          message:
+            'Este estabelecimento ainda não habilitou o recebimento por PIX. Tente pagar com cartão.',
+        });
+      }
+
       throw new ServiceUnavailableException(
         'Falha ao comunicar com o gateway de pagamento.',
       );
@@ -148,6 +179,8 @@ export class MercadoPagoProvider implements PaymentProvider {
     const body = await this.mpFetch('/v1/payments', {
       method: 'POST',
       idempotencyKey: params.idempotencyKey,
+      // Split: cobra com o token do lojista quando presente.
+      accessToken: params.seller?.accessToken,
       body: JSON.stringify({
         transaction_amount: Number(params.amount.toFixed(2)),
         description: params.description,
@@ -156,6 +189,10 @@ export class MercadoPagoProvider implements PaymentProvider {
         // O MP rejeita notification_url http/localhost — só envia se existir.
         ...(params.notificationUrl
           ? { notification_url: params.notificationUrl }
+          : {}),
+        // Comissão da plataforma (marketplace). Só envia se > 0.
+        ...(params.applicationFee && params.applicationFee > 0
+          ? { application_fee: Number(params.applicationFee.toFixed(2)) }
           : {}),
         date_of_expiration: dateOfExpiration,
         payer: {
@@ -183,6 +220,7 @@ export class MercadoPagoProvider implements PaymentProvider {
     const body = await this.mpFetch('/v1/payments', {
       method: 'POST',
       idempotencyKey: params.idempotencyKey,
+      accessToken: params.seller?.accessToken,
       body: JSON.stringify({
         transaction_amount: Number(params.amount.toFixed(2)),
         description: params.description,
@@ -192,6 +230,9 @@ export class MercadoPagoProvider implements PaymentProvider {
         external_reference: params.externalReference,
         ...(params.notificationUrl
           ? { notification_url: params.notificationUrl }
+          : {}),
+        ...(params.applicationFee && params.applicationFee > 0
+          ? { application_fee: Number(params.applicationFee.toFixed(2)) }
           : {}),
         payer: {
           email: params.payer.email,
@@ -210,23 +251,31 @@ export class MercadoPagoProvider implements PaymentProvider {
     return this.toPaymentResult(body);
   }
 
-  async getPayment(chargeId: string): Promise<PaymentResult> {
+  async getPayment(
+    chargeId: string,
+    sellerAccessToken?: string | null,
+  ): Promise<PaymentResult> {
     const body = await this.mpFetch(`/v1/payments/${chargeId}`, {
       method: 'GET',
+      accessToken: sellerAccessToken ?? undefined,
     });
     return this.toPaymentResult(body);
   }
 
-  async refundPayment(chargeId: string): Promise<void> {
+  async refundPayment(
+    chargeId: string,
+    sellerAccessToken?: string | null,
+  ): Promise<void> {
     await this.mpFetch(`/v1/payments/${chargeId}/refunds`, {
       method: 'POST',
       idempotencyKey: `refund-${chargeId}`,
+      accessToken: sellerAccessToken ?? undefined,
       body: JSON.stringify({}),
     });
   }
 
   // -------------------------------------------------------------------------
-  // Assinatura de plano (preapproval)
+  // Assinatura de plano (preapproval) — sempre na conta da plataforma.
   // -------------------------------------------------------------------------
   async createSubscription(
     params: CreateSubscriptionParams,
@@ -282,23 +331,97 @@ export class MercadoPagoProvider implements PaymentProvider {
   }
 
   // -------------------------------------------------------------------------
-  // Saque
+  // OAuth / marketplace (Mercado Pago Connect)
   // -------------------------------------------------------------------------
-  async createWithdrawal(
-    params: WithdrawalParams,
-  ): Promise<WithdrawalResult> {
-    // STUB CONSCIENTE: transferência/payout real depende do modelo de
-    // marketplace/subconta (OAuth do dono) que ainda não está plugado. No modo
-    // conta única de testes não há como sacar programaticamente para a conta do
-    // dono. Registramos como 'pending' e sinalizamos claramente. Ver o
-    // checkpoint de produção em docs/pagamentos.md.
-    this.logger.warn(
-      `Saque solicitado (R$ ${params.amount}) mas o payout real exige o modelo de marketplace/subconta ainda não plugado. Registrando como pendente.`,
+  buildAuthorizationUrl(input: { state: string; redirectUri: string }): string {
+    if (!this.appId) {
+      throw new ServiceUnavailableException(
+        'Integração de marketplace não configurada (MERCADOPAGO_APP_ID ausente).',
+      );
+    }
+    const qs = new URLSearchParams({
+      client_id: this.appId,
+      response_type: 'code',
+      platform_id: 'mp',
+      state: input.state,
+      redirect_uri: input.redirectUri,
+    });
+    return `${MP_AUTH_URL}?${qs.toString()}`;
+  }
+
+  async exchangeOAuthCode(input: {
+    code: string;
+    redirectUri: string;
+  }): Promise<OAuthTokenResult> {
+    return this.oauthToken({
+      grant_type: 'authorization_code',
+      code: input.code,
+      redirect_uri: input.redirectUri,
+    });
+  }
+
+  async refreshOAuthToken(refreshToken: string): Promise<OAuthTokenResult> {
+    return this.oauthToken({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    });
+  }
+
+  /** POST /oauth/token — autenticado por client_id + client_secret. */
+  private async oauthToken(
+    extra: Record<string, string>,
+  ): Promise<OAuthTokenResult> {
+    if (!this.appId || !this.clientSecret) {
+      throw new ServiceUnavailableException(
+        'Integração de marketplace não configurada (MERCADOPAGO_APP_ID/CLIENT_SECRET ausentes).',
+      );
+    }
+    const res = await fetch(`${MP_BASE_URL}/oauth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        client_id: this.appId,
+        client_secret: this.clientSecret,
+        ...extra,
+      }),
+    });
+    const text = await res.text();
+    const body = text ? JSON.parse(text) : {};
+    if (!res.ok) {
+      // Não vazar client_secret/detalhes crus.
+      this.logger.error(
+        `Mercado Pago /oauth/token -> ${res.status}: ${JSON.stringify(body)}`,
+      );
+      throw new ServiceUnavailableException(
+        'Falha ao conectar a conta Mercado Pago.',
+      );
+    }
+    return {
+      userId: String(body.user_id),
+      accessToken: body.access_token,
+      refreshToken: body.refresh_token,
+      publicKey: body.public_key,
+      expiresIn: Number(body.expires_in ?? 0),
+    };
+  }
+
+  async getSellerBalance(accessToken: string): Promise<SellerBalance> {
+    // Saldo da conta MP do lojista. Campos podem variar conforme a conta;
+    // tratamos defensivamente e caímos em 0 quando ausentes.
+    const body = await this.mpFetch<any>('/users/me/mercadopago_account/balance', {
+      method: 'GET',
+      accessToken,
+    });
+    const available = Number(
+      body?.available_balance ?? body?.total_available_balance ?? 0,
+    );
+    const pending = Number(
+      body?.unavailable_balance ?? body?.total_unavailable_balance ?? 0,
     );
     return {
-      status: 'pending',
-      message:
-        'Saque registrado. O repasse automático será habilitado quando a conta de recebimento (marketplace) estiver ativa.',
+      available: Number.isFinite(available) ? available : 0,
+      pending: Number.isFinite(pending) ? pending : 0,
+      currency: body?.currency_id ?? 'BRL',
     };
   }
 

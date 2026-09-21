@@ -41,7 +41,7 @@ services:
       JWT_REFRESH_SECRET: "super-secret-refresh-token-key-2026-secure"
       JWT_ACCESS_TTL: 15m
       JWT_REFRESH_TTL: 7d
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       # Config sensível vem do .env da raiz (interpolação do compose), nunca
       # hardcoded. Defina no .env para habilitar notificações/pagamento. Vazio =
       # recurso desligado com degradação graciosa (o código já trata a ausência).
@@ -60,6 +60,12 @@ services:
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
       MERCADOPAGO_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY:-}
       MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      # Split marketplace (OAuth) + cripto dos tokens do lojista.
+      MERCADOPAGO_APP_ID: ${MERCADOPAGO_APP_ID:-}
+      MERCADOPAGO_CLIENT_SECRET: ${MERCADOPAGO_CLIENT_SECRET:-}
+      MERCADOPAGO_OAUTH_REDIRECT_URI: ${MERCADOPAGO_OAUTH_REDIRECT_URI:-}
+      MERCADOPAGO_APPLICATION_FEE_PERCENT: ${MERCADOPAGO_APPLICATION_FEE_PERCENT:-0}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-}
       ONLINE_PAYMENTS_ENABLED: ${ONLINE_PAYMENTS_ENABLED:-false}
     depends_on:
       mysql:
@@ -83,7 +89,7 @@ services:
       JWT_REFRESH_SECRET: "super-secret-refresh-token-key-2026-secure"
       JWT_ACCESS_TTL: 15m
       JWT_REFRESH_TTL: 7d
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       # O worker é quem ENTREGA e-mails e roda os crons: precisa das mesmas chaves.
       # Todas vêm do .env da raiz (interpolação); vazio = recurso desligado.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
@@ -94,6 +100,12 @@ services:
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
       MERCADOPAGO_PUBLIC_KEY: ${MERCADOPAGO_PUBLIC_KEY:-}
       MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      # O worker reconcilia pagamentos: precisa decifrar o token do lojista.
+      MERCADOPAGO_APP_ID: ${MERCADOPAGO_APP_ID:-}
+      MERCADOPAGO_CLIENT_SECRET: ${MERCADOPAGO_CLIENT_SECRET:-}
+      MERCADOPAGO_OAUTH_REDIRECT_URI: ${MERCADOPAGO_OAUTH_REDIRECT_URI:-}
+      MERCADOPAGO_APPLICATION_FEE_PERCENT: ${MERCADOPAGO_APPLICATION_FEE_PERCENT:-0}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-}
       ONLINE_PAYMENTS_ENABLED: ${ONLINE_PAYMENTS_ENABLED:-false}
     depends_on:
       mysql:
