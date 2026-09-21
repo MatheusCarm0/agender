@@ -8,7 +8,7 @@ const LINKS = [
   { href: '#recursos', label: 'Recursos' },
   { href: '#como-funciona', label: 'Como funciona' },
   { href: '#exemplos', label: 'Exemplos' },
-  { href: '#precos', label: 'Preços' },
+  { href: '#precos', label: 'Começar grátis' },
   { href: '#faq', label: 'FAQ' },
 ];
 
