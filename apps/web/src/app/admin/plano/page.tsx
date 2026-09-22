@@ -7,11 +7,21 @@ import { api } from '@/lib/api';
 import { getCached } from '@/lib/prefetch-cache';
 
 type PlanTier = 'basico' | 'profissional' | 'pro';
+type BillingCycle = 'monthly' | 'annual';
+
+interface CycleDiscount {
+  savings: number;
+  percent: number;
+  monthsFree: number;
+  monthlyEquivalent: number;
+}
 
 interface CatalogItem {
   tier: PlanTier;
   label: string;
-  monthlyPrice: number;
+  monthly: number;
+  annual: number;
+  discount: CycleDiscount;
 }
 
 interface SubscriptionInfo {
@@ -23,9 +33,11 @@ interface SubscriptionInfo {
     planTier: PlanTier;
     status: string;
     amount: number;
+    billingCycle: BillingCycle;
     checkoutUrl: string | null;
     nextDueDate: string | null;
   } | null;
+  branched: boolean;
   catalog: CatalogItem[];
 }
 
@@ -59,6 +71,20 @@ const PLAN_FEATURES: Record<PlanTier, string[]> = {
   ],
 };
 
+// Plano único: todas as funcionalidades. Usado quando a plataforma não está
+// com a ramificação de planos ligada (branched = false).
+const ALL_FEATURES: string[] = [
+  'Agendamento online ilimitado',
+  'Página pública personalizada',
+  'Profissionais ilimitados',
+  'Lembretes de agendamento',
+  'Relatório financeiro',
+  'Cobrança no agendamento (PIX)',
+  'Cupons de desconto',
+  'Campanhas de disparo',
+  'Clube fidelidade',
+];
+
 const SUBSCRIPTION_STATUS_LABEL: Record<string, string> = {
   pending: 'Aguardando pagamento',
   active: 'Ativa',
@@ -80,6 +106,7 @@ export default function PlanPage() {
   const [usage, setUsage] = useState<PlanUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState('');
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
 
   useEffect(() => {
     if (!token) return;
@@ -102,6 +129,8 @@ export default function PlanPage() {
         api<PlanUsage>('/plan/usage', { token: token! }).catch(() => null),
       ]);
       setInfo(sub);
+      // Reflete o ciclo já assinado no alternador (quando houver assinatura).
+      if (sub.subscription?.billingCycle) setCycle(sub.subscription.billingCycle);
       if (usageData) setUsage(usageData);
     } catch {
       toast('Não foi possível carregar seu plano.', 'error');
@@ -128,7 +157,7 @@ export default function PlanPage() {
       const res = await api<{ checkoutUrl: string | null }>('/plan-subscription', {
         token: token!,
         method: 'POST',
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, cycle }),
       });
       if (res.checkoutUrl) {
         // Redireciona para o checkout do gateway; o plano vira ativo no retorno
@@ -165,6 +194,8 @@ export default function PlanPage() {
 
   const catalog = info?.catalog ?? [];
   const activeSub = info?.subscription;
+  const singlePlan = info ? !info.branched || catalog.length <= 1 : catalog.length <= 1;
+  const maxDiscount = catalog.reduce((m, c) => Math.max(m, c.discount.percent), 0);
 
   return (
     <div className="space-y-6">
@@ -252,19 +283,71 @@ export default function PlanPage() {
         )}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      {/* Alternador de ciclo de cobrança (mensal / anual). */}
+      {maxDiscount > 0 && (
+        <div className="flex items-center justify-center">
+          <div
+            role="tablist"
+            aria-label="Ciclo de cobrança"
+            className="inline-flex items-center gap-1 p-1 bg-surface-subtle border border-border-default rounded-[var(--radius-sm)]"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={cycle === 'monthly'}
+              onClick={() => setCycle('monthly')}
+              className={`h-8 px-4 text-sm font-medium rounded-[var(--radius-sm)] transition-colors ${
+                cycle === 'monthly'
+                  ? 'bg-surface-card text-text-strong shadow-[var(--shadow-elevation-1)]'
+                  : 'text-text-muted hover:text-text-default'
+              }`}
+            >
+              Mensal
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={cycle === 'annual'}
+              onClick={() => setCycle('annual')}
+              className={`h-8 px-4 text-sm font-medium rounded-[var(--radius-sm)] transition-colors flex items-center gap-2 ${
+                cycle === 'annual'
+                  ? 'bg-surface-card text-text-strong shadow-[var(--shadow-elevation-1)]'
+                  : 'text-text-muted hover:text-text-default'
+              }`}
+            >
+              Anual
+              <span className="inline-flex items-center h-[18px] px-1.5 rounded-[var(--radius-pill)] bg-success-bg text-success-text text-[11px] font-medium">
+                −{maxDiscount}%
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div
+        className={
+          singlePlan
+            ? 'flex justify-center'
+            : 'grid md:grid-cols-3 gap-4'
+        }
+      >
         {catalog.map((item) => {
           const isCurrent =
             info?.plan === item.tier &&
             info?.planStatus === 'active' &&
             activeSub?.status === 'active';
           const isTrialPlan = isTrialing && info?.plan === item.tier;
-          const highlight = item.tier === 'profissional';
+          const highlight = !singlePlan && item.tier === 'profissional';
+          const isAnnual = cycle === 'annual';
+          const price = isAnnual ? item.annual : item.monthly;
+          const features = singlePlan ? ALL_FEATURES : PLAN_FEATURES[item.tier];
           return (
             <div
               key={item.tier}
-              className={`bg-surface-card border rounded-[var(--radius-md)] p-5 flex flex-col ${
-                highlight
+              className={`bg-surface-card border rounded-[var(--radius-md)] p-5 flex flex-col w-full ${
+                singlePlan ? 'max-w-md' : ''
+              } ${
+                highlight || singlePlan
                   ? 'border-primary-default ring-1 ring-primary-default'
                   : 'border-border-default'
               }`}
@@ -283,12 +366,36 @@ export default function PlanPage() {
               </h3>
               <p className="mt-1">
                 <span className="text-2xl font-semibold text-text-strong font-mono tabular-nums">
-                  {formatBRL(item.monthlyPrice)}
+                  {formatBRL(price)}
                 </span>
-                <span className="text-sm text-text-muted">/mês</span>
+                <span className="text-sm text-text-muted">
+                  {isAnnual ? '/ano' : '/mês'}
+                </span>
               </p>
+              {/* Desconto do ciclo anual: economia + equivalência mensal. */}
+              {isAnnual && item.discount.savings > 0 ? (
+                <p className="mt-1 text-sm text-success-text">
+                  Economize{' '}
+                  <span className="font-mono tabular-nums">
+                    {formatBRL(item.discount.savings)}
+                  </span>{' '}
+                  ({item.discount.percent}%) · equivale a{' '}
+                  <span className="font-mono tabular-nums">
+                    {formatBRL(item.discount.monthlyEquivalent)}
+                  </span>
+                  /mês
+                </p>
+              ) : !isAnnual && item.discount.savings > 0 ? (
+                <p className="mt-1 text-sm text-text-muted">
+                  No plano anual sai por{' '}
+                  <span className="font-mono tabular-nums">
+                    {formatBRL(item.discount.monthlyEquivalent)}
+                  </span>
+                  /mês ({item.discount.percent}% de desconto)
+                </p>
+              ) : null}
               <ul className="mt-4 space-y-2 flex-1">
-                {PLAN_FEATURES[item.tier].map((feature) => (
+                {features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-sm text-text-default">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-success-fg mt-0.5 shrink-0" aria-hidden="true">
                       <polyline points="20 6 9 17 4 12" />
@@ -298,7 +405,7 @@ export default function PlanPage() {
                 ))}
               </ul>
               <div className="mt-5">
-                {isCurrent ? (
+                {isCurrent && (info?.subscription?.billingCycle ?? 'monthly') === cycle ? (
                   <span className="block text-center text-sm font-medium text-primary-default py-2">
                     Plano atual
                   </span>
@@ -307,12 +414,18 @@ export default function PlanPage() {
                     onClick={() => handleSubscribe(item.tier)}
                     disabled={working !== ''}
                     className={`w-full py-2 text-sm font-medium rounded-[var(--radius-sm)] transition-colors disabled:opacity-50 ${
-                      highlight
+                      highlight || singlePlan
                         ? 'bg-primary-default text-primary-fg hover:bg-primary-hover'
                         : 'bg-surface-subtle text-text-strong border border-border-strong hover:bg-surface-card'
                     }`}
                   >
-                    {working === item.tier ? 'Redirecionando...' : 'Assinar'}
+                    {working === item.tier
+                      ? 'Redirecionando...'
+                      : isCurrent
+                        ? isAnnual
+                          ? 'Mudar para anual'
+                          : 'Mudar para mensal'
+                        : 'Assinar'}
                   </button>
                 )}
               </div>

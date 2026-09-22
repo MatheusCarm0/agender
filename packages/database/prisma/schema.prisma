@@ -694,6 +694,7 @@ model PlanSubscription {
   planTier              PlanTier  @map("plan_tier")
   status                String    @default("pending") // pending | active | overdue | cancelled — espelha o gateway
   amount                Decimal   @db.Decimal(10, 2)
+  billingCycle          String    @default("monthly") @map("billing_cycle") // monthly | annual
   checkoutUrl           String?   @map("checkout_url")
   nextDueDate           DateTime? @map("next_due_date")
   createdAt             DateTime  @default(now()) @map("created_at")

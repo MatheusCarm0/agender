@@ -289,7 +289,7 @@ export class MercadoPagoProvider implements PaymentProvider {
         payer_email: params.payer.email,
         status: 'pending',
         auto_recurring: {
-          frequency: 1,
+          frequency: params.frequencyMonths ?? 1,
           frequency_type: 'months',
           transaction_amount: Number(params.amount.toFixed(2)),
           currency_id: 'BRL',

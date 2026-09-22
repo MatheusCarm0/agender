@@ -12,7 +12,14 @@ import {
   PaymentProvider,
   SubscriptionStatus,
 } from '../payment/payment-provider.interface';
-import { PLAN_PRICING, getPlanPrice } from '../payment/plan-pricing';
+import {
+  BillingCycle,
+  PLANS_BRANCHED,
+  PLAN_PRICING,
+  SINGLE_PLAN_TIER,
+  getPlanCatalog,
+  getPlanPrice,
+} from '../payment/plan-pricing';
 
 @Injectable()
 export class PlanSubscriptionService {
@@ -44,11 +51,13 @@ export class PlanSubscriptionService {
             planTier: subscription.planTier,
             status: subscription.status,
             amount: Number(subscription.amount),
+            billingCycle: subscription.billingCycle,
             checkoutUrl: subscription.checkoutUrl,
             nextDueDate: subscription.nextDueDate,
           }
         : null,
-      catalog: Object.values(PLAN_PRICING),
+      branched: PLANS_BRANCHED,
+      catalog: getPlanCatalog(),
     };
   }
 
@@ -58,7 +67,15 @@ export class PlanSubscriptionService {
    * `active` quando o webhook (ou o sync) confirmar — nunca liberamos acesso
    * antes da confirmação do gateway.
    */
-  async subscribe(businessId: string, planTier: PlanTier) {
+  async subscribe(
+    businessId: string,
+    planTier: PlanTier,
+    cycle: BillingCycle = 'monthly',
+  ) {
+    // No modo plano único, ignora o tier recebido e força o plano vendido —
+    // defesa server-side para a request não escolher um tier fora de catálogo.
+    const tier: PlanTier = PLANS_BRANCHED ? planTier : SINGLE_PLAN_TIER;
+
     const owner = await this.prisma.raw.user.findFirst({
       where: { businessId, role: 'owner', active: true },
       select: { email: true },
@@ -83,7 +100,8 @@ export class PlanSubscriptionService {
       }
     }
 
-    const amount = getPlanPrice(planTier);
+    const amount = getPlanPrice(tier, cycle);
+    const cycleLabel = cycle === 'annual' ? 'anual' : 'mensal';
     // O MP exige back_url https e rejeita notification_url http/localhost.
     // Em dev usamos um back_url https neutro (o retorno real é reconciliado
     // pelo sync/“Já paguei, verificar” na tela de Plano) e omitimos o webhook.
@@ -92,9 +110,10 @@ export class PlanSubscriptionService {
 
     const result = await this.provider.createSubscription({
       amount,
-      reason: `Assinatura Agender — plano ${PLAN_PRICING[planTier].label}`,
+      reason: `Assinatura Agender — ${PLAN_PRICING[tier].label} (${cycleLabel})`,
       payer: { email: owner.email },
       externalReference: businessId,
+      frequencyMonths: cycle === 'annual' ? 12 : 1,
       backUrl: webUrl.startsWith('https://')
         ? `${webUrl}/admin/plano?subscription=return`
         : 'https://www.mercadopago.com.br',
@@ -109,18 +128,20 @@ export class PlanSubscriptionService {
         businessId,
         provider: this.provider.name,
         gatewaySubscriptionId: result.subscriptionId,
-        planTier,
+        planTier: tier,
         status: result.status,
         amount,
+        billingCycle: cycle,
         checkoutUrl: result.checkoutUrl,
         nextDueDate: result.nextDueDate,
       },
       update: {
         provider: this.provider.name,
         gatewaySubscriptionId: result.subscriptionId,
-        planTier,
+        planTier: tier,
         status: result.status,
         amount,
+        billingCycle: cycle,
         checkoutUrl: result.checkoutUrl,
         nextDueDate: result.nextDueDate,
       },
@@ -128,7 +149,7 @@ export class PlanSubscriptionService {
 
     // Se o gateway já confirmou na criação (raro), aplica imediatamente.
     if (result.status === 'active') {
-      await this.applyStatusToBusiness(businessId, planTier, 'active');
+      await this.applyStatusToBusiness(businessId, tier, 'active');
     }
 
     return {
@@ -136,6 +157,7 @@ export class PlanSubscriptionService {
       status: subscription.status,
       planTier: subscription.planTier,
       amount: Number(subscription.amount),
+      billingCycle: subscription.billingCycle,
     };
   }
 
