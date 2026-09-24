@@ -36,6 +36,7 @@ export class MembershipService {
         name: dto.name,
         price: dto.price,
         billingCycle: dto.billingCycle || 'monthly',
+        cycleDurationDays: dto.cycleDurationDays ?? null,
         usageLimitType: dto.usageLimitType,
         usageLimit: dto.usageLimitType === 'unlimited' ? null : dto.usageLimit,
         serviceIds: JSON.stringify(dto.serviceIds || []),
@@ -63,6 +64,9 @@ export class MembershipService {
         ...(dto.name ? { name: dto.name } : {}),
         ...(dto.price !== undefined ? { price: dto.price } : {}),
         ...(dto.billingCycle ? { billingCycle: dto.billingCycle } : {}),
+        ...(dto.cycleDurationDays !== undefined
+          ? { cycleDurationDays: dto.cycleDurationDays }
+          : {}),
         ...(dto.usageLimitType ? { usageLimitType: dto.usageLimitType } : {}),
         ...(dto.usageLimit !== undefined ? { usageLimit: dto.usageLimit } : {}),
         ...(dto.serviceIds ? { serviceIds: JSON.stringify(dto.serviceIds) } : {}),
@@ -85,7 +89,11 @@ export class MembershipService {
     if (!client) throw new NotFoundException('Client not found');
 
     const cycleStart = dto.cycleStart ? new Date(dto.cycleStart) : new Date();
-    const cycleEnd = this.computeCycleEnd(cycleStart, plan.billingCycle);
+    const cycleEnd = this.computeCycleEnd(
+      cycleStart,
+      plan.billingCycle,
+      plan.cycleDurationDays,
+    );
 
     return this.prisma.raw.clientMembership.create({
       data: {
@@ -125,7 +133,11 @@ export class MembershipService {
     if (dto.paymentStatus === 'paid') {
       const cycleStart = new Date();
       data.cycleStart = cycleStart;
-      data.cycleEnd = this.computeCycleEnd(cycleStart, membership.plan.billingCycle);
+      data.cycleEnd = this.computeCycleEnd(
+        cycleStart,
+        membership.plan.billingCycle,
+        membership.plan.cycleDurationDays,
+      );
       data.usageInCycle = 0;
     }
 
@@ -159,6 +171,7 @@ export class MembershipService {
         name: p.name,
         price: Number(p.price),
         billingCycle: p.billingCycle,
+        cycleDurationDays: p.cycleDurationDays,
         usageLimitType: p.usageLimitType,
         usageLimit: p.usageLimit,
         services: ids
@@ -186,6 +199,7 @@ export class MembershipService {
         name: m.plan.name,
         price: Number(m.plan.price),
         billingCycle: m.plan.billingCycle,
+        cycleDurationDays: m.plan.cycleDurationDays,
         usageLimitType: m.plan.usageLimitType,
         usageLimit: m.plan.usageLimit,
       },
@@ -218,7 +232,11 @@ export class MembershipService {
     }
 
     const cycleStart = new Date();
-    const cycleEnd = this.computeCycleEnd(cycleStart, plan.billingCycle);
+    const cycleEnd = this.computeCycleEnd(
+      cycleStart,
+      plan.billingCycle,
+      plan.cycleDurationDays,
+    );
     return this.prisma.raw.clientMembership.create({
       data: {
         businessId,
@@ -330,8 +348,18 @@ export class MembershipService {
     return null;
   }
 
-  private computeCycleEnd(start: Date, cycle: string): Date {
+  // Fim do ciclo: se o plano tem duração personalizada em dias (> 0), ela manda
+  // e ignora o billingCycle; senão cai no ciclo padrão (mensal/trimestral/anual).
+  private computeCycleEnd(
+    start: Date,
+    cycle: string,
+    durationDays?: number | null,
+  ): Date {
     const end = new Date(start);
+    if (durationDays && durationDays > 0) {
+      end.setDate(end.getDate() + durationDays);
+      return end;
+    }
     switch (cycle) {
       case 'monthly':
         end.setMonth(end.getMonth() + 1);
