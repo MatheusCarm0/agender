@@ -24,6 +24,7 @@ interface PlanSummary {
   name: string;
   price: number;
   billingCycle: string;
+  cycleDurationDays?: number | null;
   usageLimitType: string;
   usageLimit: number | null;
 }
@@ -43,6 +44,12 @@ interface MyMembership {
 type Step = 'email' | 'code' | 'list';
 
 const CYCLE_SUFFIX: Record<string, string> = { monthly: 'mês', quarterly: 'trimestre', yearly: 'ano' };
+
+// Sufixo do ciclo: duração personalizada em dias tem prioridade sobre o padrão.
+function cycleSuffix(plan: { billingCycle: string; cycleDurationDays?: number | null }): string {
+  if (plan.cycleDurationDays && plan.cycleDurationDays > 0) return `${plan.cycleDurationDays} dias`;
+  return CYCLE_SUFFIX[plan.billingCycle] || 'ciclo';
+}
 const MEMBERSHIP_STATUS: Record<string, { label: string; bg: string; text: string; dot: string }> = {
   active: { label: 'Ativo', bg: '#F0FDF4', text: '#15803D', dot: '#16A34A' },
   pending: { label: 'Aguardando confirmação', bg: '#FFFBEB', text: '#B45309', dot: '#D97706' },
@@ -413,7 +420,7 @@ export default function AccountClient({
                           <div className="min-w-0">
                             <p className="font-semibold text-sm">{m.plan.name}</p>
                             <p className="text-xs mt-0.5" style={{ opacity: 0.6 }}>
-                              {formatCurrency(m.plan.price)}/{CYCLE_SUFFIX[m.plan.billingCycle] || 'ciclo'} · {usageText(m.plan)}
+                              {formatCurrency(m.plan.price)}/{cycleSuffix(m.plan)} · {usageText(m.plan)}
                             </p>
                           </div>
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full shrink-0" style={{ backgroundColor: meta.bg, color: meta.text }}>
@@ -445,7 +452,7 @@ export default function AccountClient({
                         <div className="min-w-0">
                           <p className="font-semibold text-sm">{p.name}</p>
                           <p className="text-xs mt-0.5" style={{ opacity: 0.6 }}>
-                            {formatCurrency(p.price)}/{CYCLE_SUFFIX[p.billingCycle] || 'ciclo'} · {usageText(p)}
+                            {formatCurrency(p.price)}/{cycleSuffix(p)} · {usageText(p)}
                           </p>
                           {p.services.length > 0 && (
                             <p className="text-[11px] mt-1" style={{ opacity: 0.5 }}>Serviços: {p.services.map((s) => s.name).join(', ')}</p>

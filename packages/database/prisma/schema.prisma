@@ -452,17 +452,20 @@ model CouponRedemption {
 }
 
 model MembershipPlan {
-  id             String         @id @default(cuid())
-  businessId     String         @map("business_id")
-  business       Business       @relation(fields: [businessId], references: [id])
-  name           String
-  price          Decimal        @db.Decimal(10, 2)
-  billingCycle   BillingCycle   @default(monthly) @map("billing_cycle")
-  usageLimitType UsageLimitType @map("usage_limit_type")
-  usageLimit     Int?           @map("usage_limit")
-  serviceIds     Json           @default("[]") @map("service_ids")
-  active         Boolean        @default(true)
-  createdAt      DateTime       @default(now()) @map("created_at")
+  id                String         @id @default(cuid())
+  businessId        String         @map("business_id")
+  business          Business       @relation(fields: [businessId], references: [id])
+  name              String
+  price             Decimal        @db.Decimal(10, 2)
+  billingCycle      BillingCycle   @default(monthly) @map("billing_cycle")
+  usageLimitType    UsageLimitType @map("usage_limit_type")
+  usageLimit        Int?           @map("usage_limit")
+  // Duração personalizada do ciclo em dias. Quando > 0, sobrepõe billingCycle no
+  // cálculo do fim do ciclo (computeCycleEnd). null/0 = usa billingCycle.
+  cycleDurationDays Int?           @map("cycle_duration_days")
+  serviceIds        Json           @default("[]") @map("service_ids")
+  active            Boolean        @default(true)
+  createdAt         DateTime       @default(now()) @map("created_at")
 
   memberships ClientMembership[]
 

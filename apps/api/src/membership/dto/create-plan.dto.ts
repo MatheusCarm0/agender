@@ -5,7 +5,9 @@ import {
   IsOptional,
   IsArray,
   IsBoolean,
+  IsInt,
   Min,
+  Max,
 } from 'class-validator';
 
 export class CreatePlanDto {
@@ -19,6 +21,14 @@ export class CreatePlanDto {
   @IsOptional()
   @IsEnum(['monthly', 'quarterly', 'yearly'])
   billingCycle?: 'monthly' | 'quarterly' | 'yearly';
+
+  // Ciclo personalizado em dias. Quando informado (>= 1), sobrepõe billingCycle
+  // no cálculo do fim do ciclo. Ex.: 45 = cada ciclo dura 45 dias.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  cycleDurationDays?: number;
 
   @IsEnum(['unlimited', 'limited'])
   usageLimitType!: 'unlimited' | 'limited';
