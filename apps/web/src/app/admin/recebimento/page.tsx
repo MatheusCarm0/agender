@@ -176,7 +176,7 @@ export default function RecebimentoPage() {
 
             {/* Extrato PRÓPRIO: o que entrou pelos agendamentos, dos nossos
                 registros (o saldo global do MP não é acessível por API). */}
-            <div className="mt-6 grid grid-cols-3 gap-4">
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-surface-subtle rounded-[var(--radius-md)] p-4">
                 <p className="text-xs font-medium text-text-muted">Recebido (bruto)</p>
                 <p className="mt-1 text-xl font-semibold text-text-strong font-mono tabular-nums">
@@ -239,24 +239,26 @@ export default function RecebimentoPage() {
               <h2 className="text-sm font-semibold text-text-strong px-5 pt-5 pb-3">
                 Últimos pagamentos
               </h2>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-surface-subtle text-xs text-text-muted">
-                    <th className="text-left font-medium px-5 py-2">Data</th>
-                    <th className="text-left font-medium px-5 py-2">Forma</th>
-                    <th className="text-right font-medium px-5 py-2">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {info.recentPayments.map((p) => (
-                    <tr key={p.id} className="border-t border-border-default">
-                      <td className="px-5 py-2.5 font-mono tabular-nums text-text-default">{formatDate(p.paidAt)}</td>
-                      <td className="px-5 py-2.5 text-text-default">{METHOD_LABEL[p.method] ?? p.method}</td>
-                      <td className="px-5 py-2.5 text-right font-mono tabular-nums text-text-strong">{formatBRL(p.amount)}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-surface-subtle text-xs text-text-muted">
+                      <th className="text-left font-medium px-5 py-2">Data</th>
+                      <th className="text-left font-medium px-5 py-2">Forma</th>
+                      <th className="text-right font-medium px-5 py-2">Valor</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {info.recentPayments.map((p) => (
+                      <tr key={p.id} className="border-t border-border-default">
+                        <td className="px-5 py-2.5 font-mono tabular-nums text-text-default whitespace-nowrap">{formatDate(p.paidAt)}</td>
+                        <td className="px-5 py-2.5 text-text-default whitespace-nowrap">{METHOD_LABEL[p.method] ?? p.method}</td>
+                        <td className="px-5 py-2.5 text-right font-mono tabular-nums text-text-strong whitespace-nowrap">{formatBRL(p.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
         </>

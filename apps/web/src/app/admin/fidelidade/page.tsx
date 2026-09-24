@@ -13,6 +13,7 @@ interface MembershipPlan {
   name: string;
   price: number;
   billingCycle: 'monthly' | 'quarterly' | 'yearly';
+  cycleDurationDays: number | null;
   usageLimitType: 'unlimited' | 'limited';
   usageLimit: number | null;
   serviceIds: string;
@@ -45,6 +46,15 @@ interface ClientMembership {
 
 const CYCLE_LABELS: Record<string, string> = { monthly: 'Mensal', quarterly: 'Trimestral', yearly: 'Anual' };
 
+// Rótulo do ciclo de um plano: duração personalizada em dias tem prioridade
+// sobre o ciclo padrão (espelha computeCycleEnd no backend).
+function cycleLabel(p: { billingCycle: string; cycleDurationDays: number | null }): string {
+  if (p.cycleDurationDays && p.cycleDurationDays > 0) {
+    return `${p.cycleDurationDays} dias`;
+  }
+  return CYCLE_LABELS[p.billingCycle] ?? p.billingCycle;
+}
+
 // serviceIds é gravado como string JSON (dupla codificação histórica do backend).
 function parseServiceIds(raw: string): string[] {
   try {
@@ -68,7 +78,7 @@ export default function FidelityPage() {
 
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [planForm, setPlanForm] = useState({
-    name: '', price: '', billingCycle: 'monthly', usageLimitType: 'unlimited', usageLimit: '', serviceIds: [] as string[],
+    name: '', price: '', billingCycle: 'monthly', cycleDurationDays: '', usageLimitType: 'unlimited', usageLimit: '', serviceIds: [] as string[],
   });
   const [savingPlan, setSavingPlan] = useState(false);
 
@@ -89,12 +99,13 @@ export default function FidelityPage() {
       const [p, m, c, s] = await Promise.all([
         api<MembershipPlan[]>('/membership-plans', { token: token! }),
         api<ClientMembership[]>('/client-memberships', { token: token! }),
-        api<Client[]>('/clients', { token: token! }),
+        // /clients é paginado ({ data, total, ... }).
+        api<{ data: Client[] }>('/clients?limit=200', { token: token! }),
         api<Service[]>('/services', { token: token! }).catch(() => []),
       ]);
       setPlans(p);
       setMemberships(m);
-      setClients(c);
+      setClients(Array.isArray(c) ? c : (c?.data ?? []));
       setServices(s);
     } catch {
       toast('Não foi possível carregar os dados de fidelidade', 'error');
@@ -106,20 +117,24 @@ export default function FidelityPage() {
     e.preventDefault();
     setSavingPlan(true);
     try {
+      const isCustom = planForm.billingCycle === 'custom';
       await api('/membership-plans', {
         method: 'POST',
         token: token!,
         body: JSON.stringify({
           name: planForm.name,
           price: Number(planForm.price),
-          billingCycle: planForm.billingCycle,
+          // Ciclo personalizado envia billingCycle placeholder + a duração em dias,
+          // que o backend usa preferencialmente (computeCycleEnd).
+          billingCycle: isCustom ? 'monthly' : planForm.billingCycle,
+          cycleDurationDays: isCustom ? Number(planForm.cycleDurationDays) : undefined,
           usageLimitType: planForm.usageLimitType,
           usageLimit: planForm.usageLimitType === 'limited' ? Number(planForm.usageLimit) : undefined,
           serviceIds: planForm.serviceIds,
         }),
       });
       setShowPlanForm(false);
-      setPlanForm({ name: '', price: '', billingCycle: 'monthly', usageLimitType: 'unlimited', usageLimit: '', serviceIds: [] });
+      setPlanForm({ name: '', price: '', billingCycle: 'monthly', cycleDurationDays: '', usageLimitType: 'unlimited', usageLimit: '', serviceIds: [] });
       toast('Plano criado com sucesso', 'success');
       await loadData(true);
     } catch (err: any) {
@@ -252,8 +267,16 @@ export default function FidelityPage() {
                       <option value="monthly">Mensal</option>
                       <option value="quarterly">Trimestral</option>
                       <option value="yearly">Anual</option>
+                      <option value="custom">Personalizado (dias)</option>
                     </select>
                   </div>
+                  {planForm.billingCycle === 'custom' && (
+                    <div className="w-32">
+                      <label htmlFor="plan-cycle-days" className="block text-xs font-medium text-text-muted mb-1">Dias/ciclo</label>
+                      <input id="plan-cycle-days" type="number" value={planForm.cycleDurationDays} onChange={(e) => setPlanForm((f) => ({ ...f, cycleDurationDays: e.target.value }))} required min={1} max={3650} placeholder="45"
+                        className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none" />
+                    </div>
+                  )}
                   <div className="w-36">
                     <label htmlFor="plan-usage-type" className="block text-xs font-medium text-text-muted mb-1">Tipo de uso</label>
                     <select id="plan-usage-type" value={planForm.usageLimitType} onChange={(e) => setPlanForm((f) => ({ ...f, usageLimitType: e.target.value }))}
@@ -339,7 +362,7 @@ export default function FidelityPage() {
                   </div>
                   <div className="text-2xl font-semibold text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums mb-1">
                     {formatBRL(p.price)}
-                    <span className="text-xs text-text-muted font-normal ml-1">/{CYCLE_LABELS[p.billingCycle]?.toLowerCase()}</span>
+                    <span className="text-xs text-text-muted font-normal ml-1">/{cycleLabel(p).toLowerCase()}</span>
                   </div>
                   <p className="text-xs text-text-muted">
                     {p.usageLimitType === 'unlimited' ? 'Uso ilimitado' : `${p.usageLimit} usos por ciclo`}

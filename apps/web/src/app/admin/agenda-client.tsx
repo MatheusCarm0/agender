@@ -19,6 +19,17 @@ interface Appointment {
   client: { name: string; phone: string };
 }
 
+interface ProfessionalLite {
+  id: string;
+  name: string;
+}
+
+interface ServiceWithProfs {
+  id: string;
+  name: string;
+  professionals: { professional: { id: string; name: string } }[];
+}
+
 const STATUS_MAP: Record<string, { label: string; dotClass: string; bgClass: string; textClass: string }> = {
   scheduled: { label: 'Agendado', dotClass: 'bg-status-scheduled-dot', bgClass: 'bg-status-scheduled-bg', textClass: 'text-status-scheduled-text' },
   confirmed: { label: 'Confirmado', dotClass: 'bg-status-confirmed-dot', bgClass: 'bg-status-confirmed-bg', textClass: 'text-status-confirmed-text' },
@@ -297,6 +308,74 @@ export default function AgendaClient({ initialAppointments }: { initialAppointme
     setSelectedId(null);
   }
 
+  // Registro manual: o profissional só vê a própria agenda e não cria por aqui
+  // (o POST /appointments é de owner/admin/recepção).
+  const canCreate = user?.role !== 'professional';
+  const [showNew, setShowNew] = useState(false);
+  const [professionals, setProfessionals] = useState<ProfessionalLite[]>([]);
+  const [servicesList, setServicesList] = useState<ServiceWithProfs[]>([]);
+  const emptyNewForm = { professionalId: '', serviceId: '', clientName: '', clientPhone: '', clientEmail: '', date: '', time: '', notes: '' };
+  const [newForm, setNewForm] = useState(emptyNewForm);
+  const [savingNew, setSavingNew] = useState(false);
+  const servicesForProf = servicesList.filter((s) => s.professionals.some((ps) => ps.professional.id === newForm.professionalId));
+
+  async function openNew() {
+    setShowNew(true);
+    if (professionals.length === 0 || servicesList.length === 0) {
+      try {
+        const [p, s] = await Promise.all([
+          api<ProfessionalLite[]>('/professionals', { token: token! }),
+          api<ServiceWithProfs[]>('/services', { token: token! }),
+        ]);
+        setProfessionals(p);
+        setServicesList(s);
+      } catch {
+        toast('Não foi possível carregar profissionais e serviços', 'error');
+      }
+    }
+  }
+
+  async function refreshAppointments() {
+    try {
+      const data = await api<Appointment[]>('/appointments', { token: token! });
+      setAppointments(data);
+    } catch {
+      // silencioso — a lista permanece com o estado anterior
+    }
+  }
+
+  async function handleCreateManual(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newForm.professionalId || !newForm.serviceId || !newForm.date || !newForm.time) return;
+    setSavingNew(true);
+    try {
+      // Horário interpretado no fuso do navegador do admin (normalmente o mesmo
+      // do negócio). Registro manual aceita qualquer horário, inclusive passado,
+      // para manter o histórico fiel a atendimentos feitos fora do site.
+      const startAt = new Date(`${newForm.date}T${newForm.time}`).toISOString();
+      await api('/appointments', {
+        method: 'POST',
+        token: token!,
+        body: JSON.stringify({
+          professionalId: newForm.professionalId,
+          serviceId: newForm.serviceId,
+          clientName: newForm.clientName,
+          clientPhone: newForm.clientPhone,
+          clientEmail: newForm.clientEmail || undefined,
+          startAt,
+          notes: newForm.notes || undefined,
+        }),
+      });
+      toast('Agendamento registrado', 'success');
+      setShowNew(false);
+      setNewForm(emptyNewForm);
+      await refreshAppointments();
+    } catch (err: any) {
+      toast(err?.message || 'Erro ao registrar agendamento', 'error');
+    }
+    setSavingNew(false);
+  }
+
   useEffect(() => {
     if (!token || initialAppointments) return;
     setLoading(true);
@@ -331,13 +410,24 @@ export default function AgendaClient({ initialAppointments }: { initialAppointme
   return (
     <div>
       {token && <OnboardingChecklist token={token} />}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-text-strong">
-          {user?.role === 'professional' ? 'Minha agenda' : 'Agenda'}
-        </h1>
-        <p className="text-xs text-text-muted mt-1">
-          {user?.role === 'professional' ? 'Seus agendamentos aparecem aqui.' : 'Acompanhe e gerencie todos os agendamentos.'}
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-text-strong">
+            {user?.role === 'professional' ? 'Minha agenda' : 'Agenda'}
+          </h1>
+          <p className="text-xs text-text-muted mt-1">
+            {user?.role === 'professional' ? 'Seus agendamentos aparecem aqui.' : 'Acompanhe e gerencie todos os agendamentos.'}
+          </p>
+        </div>
+        {canCreate && (
+          <button
+            onClick={openNew}
+            className="shrink-0 h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover active:bg-primary-active inline-flex items-center gap-1.5"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            Novo agendamento
+          </button>
+        )}
       </div>
 
       <StatCards appointments={appointments} />
@@ -514,6 +604,83 @@ export default function AgendaClient({ initialAppointments }: { initialAppointme
         onConfirm={() => { if (completeTarget) { updateStatus(completeTarget, 'completed'); setCompleteTarget(null); } }} onCancel={() => setCompleteTarget(null)} />
       <ConfirmModal open={!!noShowTarget} title="Registrar ausência" description="Marcar que o cliente não compareceu? Essa ação não pode ser desfeita." confirmLabel="Não compareceu" variant="danger"
         onConfirm={() => { if (noShowTarget) { updateStatus(noShowTarget, 'no_show'); setNoShowTarget(null); } }} onCancel={() => setNoShowTarget(null)} />
+
+      {showNew && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => { if (!savingNew) setShowNew(false); }}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative w-full max-w-lg bg-surface-card rounded-[var(--radius-md)] shadow-[var(--shadow-elevation-3)] p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-1">
+              <h2 className="text-base font-semibold text-text-strong">Novo agendamento</h2>
+              <button onClick={() => setShowNew(false)} aria-label="Fechar" className="text-text-muted hover:text-text-strong p-1">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p className="text-xs text-text-muted mb-4">Registre manualmente um atendimento marcado fora do site. Aceita horários passados.</p>
+            <form onSubmit={handleCreateManual} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="na-prof" className="block text-xs font-medium text-text-muted mb-1">Profissional</label>
+                  <select id="na-prof" value={newForm.professionalId} onChange={(e) => setNewForm((f) => ({ ...f, professionalId: e.target.value, serviceId: '' }))} required
+                    className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none">
+                    <option value="">Selecione...</option>
+                    {professionals.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="na-service" className="block text-xs font-medium text-text-muted mb-1">Serviço</label>
+                  <select id="na-service" value={newForm.serviceId} onChange={(e) => setNewForm((f) => ({ ...f, serviceId: e.target.value }))} required disabled={!newForm.professionalId}
+                    className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none disabled:opacity-50">
+                    <option value="">{newForm.professionalId ? 'Selecione...' : 'Escolha o profissional'}</option>
+                    {servicesForProf.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="na-name" className="block text-xs font-medium text-text-muted mb-1">Cliente</label>
+                  <input id="na-name" value={newForm.clientName} onChange={(e) => setNewForm((f) => ({ ...f, clientName: e.target.value }))} required placeholder="Nome do cliente"
+                    className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none" />
+                </div>
+                <div>
+                  <label htmlFor="na-phone" className="block text-xs font-medium text-text-muted mb-1">Telefone</label>
+                  <input id="na-phone" value={newForm.clientPhone} onChange={(e) => setNewForm((f) => ({ ...f, clientPhone: e.target.value }))} required placeholder="(11) 99999-9999"
+                    className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="na-email" className="block text-xs font-medium text-text-muted mb-1">E-mail (opcional)</label>
+                <input id="na-email" type="email" value={newForm.clientEmail} onChange={(e) => setNewForm((f) => ({ ...f, clientEmail: e.target.value }))} placeholder="cliente@email.com"
+                  className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="na-date" className="block text-xs font-medium text-text-muted mb-1">Data</label>
+                  <input id="na-date" type="date" value={newForm.date} onChange={(e) => setNewForm((f) => ({ ...f, date: e.target.value }))} required
+                    className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none" />
+                </div>
+                <div>
+                  <label htmlFor="na-time" className="block text-xs font-medium text-text-muted mb-1">Hora</label>
+                  <input id="na-time" type="time" value={newForm.time} onChange={(e) => setNewForm((f) => ({ ...f, time: e.target.value }))} required
+                    className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong font-[family-name:var(--font-geist-mono)] tabular-nums focus:border-primary-default focus:outline-none" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="na-notes" className="block text-xs font-medium text-text-muted mb-1">Observações (opcional)</label>
+                <input id="na-notes" value={newForm.notes} onChange={(e) => setNewForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Ex: agendou pelo WhatsApp"
+                  className="w-full h-9 px-3 text-sm border border-border-strong rounded-[var(--radius-sm)] bg-surface-card text-text-strong focus:border-primary-default focus:outline-none" />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button type="submit" disabled={savingNew} className="h-9 px-4 bg-primary-default text-primary-fg text-sm font-medium rounded-[var(--radius-sm)] hover:bg-primary-hover disabled:opacity-50">
+                  {savingNew ? 'Registrando...' : 'Registrar'}
+                </button>
+                <button type="button" onClick={() => setShowNew(false)} className="h-9 px-4 border border-border-strong text-text-default text-sm rounded-[var(--radius-sm)] hover:bg-surface-subtle">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
